@@ -6,32 +6,38 @@ import { mapEditorItems } from '@nuxt/ui/utils/editor'
 const CONVERTIBLE_TYPES = ['paragraph', 'heading', 'bulletList', 'orderedList', 'taskList', 'blockquote', 'codeBlock', 'listItem', 'taskItem']
 
 export function useEditorDragHandle<T extends EditorCustomHandlers>(customHandlers?: T) {
+  const { tm: $tm } = useNuxtApp().$i18n
+  const dragHandleData = computed(() => $tm('dragHandle') as Record<string, string> | undefined)
+  const toolbarData = computed(() => $tm('toolbar') as Record<string, string> | undefined)
   const selectedNode = ref<{ node: JSONContent | null, pos: number }>()
 
   const getTypeSpecificItems = (editor: Editor, nodeType: string): DropdownMenuItem[] => {
     const pos = selectedNode.value?.pos
 
+    const dragHandle = dragHandleData.value
+    const toolbar = toolbarData.value
+
     // Items for convertible block types
     if (CONVERTIBLE_TYPES.includes(nodeType)) {
       return [{
-        label: 'Turn into',
+        label: dragHandle?.turnInto,
         icon: 'i-lucide-repeat-2',
         children: [
-          { kind: 'paragraph', label: 'Paragraph', icon: 'i-lucide-type' },
-          { kind: 'heading', level: 1, label: 'Heading 1', icon: 'i-lucide-heading-1' },
-          { kind: 'heading', level: 2, label: 'Heading 2', icon: 'i-lucide-heading-2' },
-          { kind: 'heading', level: 3, label: 'Heading 3', icon: 'i-lucide-heading-3' },
-          { kind: 'heading', level: 4, label: 'Heading 4', icon: 'i-lucide-heading-4' },
-          { kind: 'bulletList', label: 'Bullet List', icon: 'i-lucide-list' },
-          { kind: 'orderedList', label: 'Ordered List', icon: 'i-lucide-list-ordered' },
-          { kind: 'taskList', label: 'Task List', icon: 'i-lucide-list-check' },
-          { kind: 'blockquote', label: 'Blockquote', icon: 'i-lucide-text-quote' },
-          { kind: 'codeBlock', label: 'Code Block', icon: 'i-lucide-square-code' }
+          { kind: 'paragraph', label: toolbar?.paragraph, icon: 'i-lucide-type' },
+          { kind: 'heading', level: 1, label: toolbar?.heading1, icon: 'i-lucide-heading-1' },
+          { kind: 'heading', level: 2, label: toolbar?.heading2, icon: 'i-lucide-heading-2' },
+          { kind: 'heading', level: 3, label: toolbar?.heading3, icon: 'i-lucide-heading-3' },
+          { kind: 'heading', level: 4, label: toolbar?.heading4, icon: 'i-lucide-heading-4' },
+          { kind: 'bulletList', label: toolbar?.bulletList, icon: 'i-lucide-list' },
+          { kind: 'orderedList', label: toolbar?.orderedList, icon: 'i-lucide-list-ordered' },
+          { kind: 'taskList', label: toolbar?.taskList, icon: 'i-lucide-list-check' },
+          { kind: 'blockquote', label: toolbar?.blockquote, icon: 'i-lucide-text-quote' },
+          { kind: 'codeBlock', label: toolbar?.codeBlock, icon: 'i-lucide-square-code' }
         ]
       }, {
         kind: 'clearFormatting',
         pos,
-        label: 'Reset formatting',
+        label: dragHandle?.resetFormatting,
         icon: 'i-lucide-rotate-ccw'
       }]
     }
@@ -40,7 +46,7 @@ export function useEditorDragHandle<T extends EditorCustomHandlers>(customHandle
     if (nodeType === 'image') {
       const node = pos !== undefined ? editor.state.doc.nodeAt(pos) : null
       return [{
-        label: 'Download image',
+        label: dragHandle?.downloadImage,
         icon: 'i-lucide-download',
         to: node?.attrs?.src,
         download: true
@@ -50,7 +56,7 @@ export function useEditorDragHandle<T extends EditorCustomHandlers>(customHandle
     // Items for tables
     if (nodeType === 'table') {
       return [{
-        label: 'Clear all contents',
+        label: dragHandle?.clearAllContents,
         icon: 'i-lucide-square-x',
         onSelect: () => {
           if (pos === undefined) return
@@ -90,6 +96,7 @@ export function useEditorDragHandle<T extends EditorCustomHandlers>(customHandle
       return []
     }
 
+    const dragHandle = dragHandleData.value
     const nodeType = selectedNode.value.node.type
     const typeSpecificItems = getTypeSpecificItems(editor, nodeType)
 
@@ -103,11 +110,11 @@ export function useEditorDragHandle<T extends EditorCustomHandlers>(customHandle
       {
         kind: 'duplicate',
         pos: selectedNode.value?.pos,
-        label: 'Duplicate',
+        label: dragHandle?.duplicate,
         icon: 'i-lucide-copy'
       },
       {
-        label: 'Copy to clipboard',
+        label: dragHandle?.copyToClipboard,
         icon: 'i-lucide-clipboard',
         onSelect: async () => {
           if (!selectedNode.value) return
@@ -123,20 +130,20 @@ export function useEditorDragHandle<T extends EditorCustomHandlers>(customHandle
       {
         kind: 'moveUp',
         pos: selectedNode.value?.pos,
-        label: 'Move up',
+        label: dragHandle?.moveUp,
         icon: 'i-lucide-arrow-up'
       },
       {
         kind: 'moveDown',
         pos: selectedNode.value?.pos,
-        label: 'Move down',
+        label: dragHandle?.moveDown,
         icon: 'i-lucide-arrow-down'
       }
     ], [
       {
         kind: 'delete',
         pos: selectedNode.value?.pos,
-        label: 'Delete',
+        label: dragHandle?.delete,
         icon: 'i-lucide-trash'
       }
     ]], customHandlers) as DropdownMenuItem[][]

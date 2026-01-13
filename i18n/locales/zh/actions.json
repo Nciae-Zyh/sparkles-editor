@@ -1,0 +1,6 @@
+{
+  "importMarkdown": "导入 Markdown",
+  "downloadMarkdown": "下载 Markdown",
+  "onlyMarkdownFiles": "只能导入 Markdown 文件 (.md 或 .markdown)",
+  "importFailed": "导入文件失败，请重试"
+}

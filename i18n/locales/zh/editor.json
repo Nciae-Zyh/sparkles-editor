@@ -1,0 +1,23 @@
+{
+  "placeholder": "开始写作，输入 '/' 查看命令...",
+  "welcome": "欢迎使用编辑器",
+  "intro": "这是一个功能丰富的富文本编辑器，支持多种格式和功能。",
+  "richText": "富文本编辑",
+  "richTextDesc": "支持 **粗体**、*斜体*、<u>下划线</u>、~~删除线~~ 和 `行内代码`。",
+  "codeBlock": "代码块",
+  "codeBlockDesc": "代码块支持语法高亮。",
+  "list": "列表",
+  "table": "表格",
+  "tableDesc": "插入和编辑表格，支持行列操作。",
+  "features": "功能特性",
+  "toolbar": "工具栏",
+  "toolbarDesc": "选择文本查看气泡工具栏，顶部固定工具栏提供快速访问常用操作。",
+  "dragHandle": "拖拽手柄",
+  "dragHandleDesc": "使用左侧的拖拽手柄可以重新排序、复制、删除或转换块类型。",
+  "slashCommand": "斜杠命令",
+  "slashCommandDesc": "输入 `/` 可以快速插入标题、列表、代码块、表格、图片等。",
+  "imageUpload": "图片上传",
+  "imageUploadDesc": "支持自定义图片上传节点。",
+  "emoji": "表情",
+  "emojiDesc": "使用 `:` 添加表情 :rocket:"
+}

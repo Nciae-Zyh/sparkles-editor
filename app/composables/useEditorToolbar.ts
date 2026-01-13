@@ -2,126 +2,136 @@ import type { EditorToolbarItem, EditorCustomHandlers } from '@nuxt/ui'
 import type { Editor } from '@tiptap/vue-3'
 
 export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers?: T) {
-  const toolbarItems: EditorToolbarItem<T>[][] = [[{
-    kind: 'undo',
-    icon: 'i-lucide-undo',
-    tooltip: { text: 'Undo' }
-  }, {
-    kind: 'redo',
-    icon: 'i-lucide-redo',
-    tooltip: { text: 'Redo' }
-  }], [{
-    kind: 'imageUpload',
-    label: 'Add',
-    icon: 'i-lucide-image',
-    tooltip: { text: 'Add image' }
-  }]]
+  const { tm: $tm } = useNuxtApp().$i18n
+  const toolbarData = computed(() => $tm('toolbar') as Record<string, string> | undefined)
 
-  const bubbleToolbarItems = computed(() => [[{
-    label: 'Turn into',
-    trailingIcon: 'i-lucide-chevron-down',
-    activeColor: 'neutral',
-    activeVariant: 'ghost',
-    tooltip: { text: 'Turn into' },
-    content: {
-      align: 'start'
-    },
-    ui: {
-      label: 'text-xs'
-    },
-    items: [{
-      type: 'label',
-      label: 'Turn into'
+  const toolbarItems = computed(() => {
+    const toolbar = toolbarData.value
+    return [[{
+      kind: 'undo',
+      icon: 'i-lucide-undo',
+      tooltip: { text: toolbar?.undo }
     }, {
-      kind: 'paragraph',
-      label: 'Paragraph',
-      icon: 'i-lucide-type'
+      kind: 'redo',
+      icon: 'i-lucide-redo',
+      tooltip: { text: toolbar?.redo }
+    }], [{
+      kind: 'imageUpload',
+      label: toolbar?.add,
+      icon: 'i-lucide-image',
+      tooltip: { text: toolbar?.addImage }
+    }]] satisfies EditorToolbarItem<T>[][]
+  })
+
+  const bubbleToolbarItems = computed(() => {
+    const toolbar = toolbarData.value
+    return [[{
+      label: toolbar?.turnInto,
+      trailingIcon: 'i-lucide-chevron-down',
+      activeColor: 'neutral',
+      activeVariant: 'ghost',
+      tooltip: { text: toolbar?.turnInto },
+      content: {
+        align: 'start'
+      },
+      ui: {
+        label: 'text-xs'
+      },
+      items: [{
+        type: 'label',
+        label: toolbar?.turnInto
+      }, {
+        kind: 'paragraph',
+        label: toolbar?.paragraph,
+        icon: 'i-lucide-type'
+      }, {
+        kind: 'heading',
+        level: 1,
+        label: toolbar?.heading1,
+        icon: 'i-lucide-heading-1'
+      }, {
+        kind: 'heading',
+        level: 2,
+        label: toolbar?.heading2,
+        icon: 'i-lucide-heading-2'
+      }, {
+        kind: 'heading',
+        level: 3,
+        label: toolbar?.heading3,
+        icon: 'i-lucide-heading-3'
+      }, {
+        kind: 'heading',
+        level: 4,
+        label: toolbar?.heading4,
+        icon: 'i-lucide-heading-4'
+      }, {
+        kind: 'bulletList',
+        label: toolbar?.bulletList,
+        icon: 'i-lucide-list'
+      }, {
+        kind: 'orderedList',
+        label: toolbar?.orderedList,
+        icon: 'i-lucide-list-ordered'
+      }, {
+        kind: 'taskList',
+        label: toolbar?.taskList,
+        icon: 'i-lucide-list-check'
+      }, {
+        kind: 'blockquote',
+        label: toolbar?.blockquote,
+        icon: 'i-lucide-text-quote'
+      }, {
+        kind: 'codeBlock',
+        label: toolbar?.codeBlock,
+        icon: 'i-lucide-square-code'
+      }]
+    }], [{
+      kind: 'mark',
+      mark: 'bold',
+      icon: 'i-lucide-bold',
+      tooltip: { text: toolbar?.bold }
     }, {
-      kind: 'heading',
-      level: 1,
-      label: 'Heading 1',
-      icon: 'i-lucide-heading-1'
+      kind: 'mark',
+      mark: 'italic',
+      icon: 'i-lucide-italic',
+      tooltip: { text: toolbar?.italic }
     }, {
-      kind: 'heading',
-      level: 2,
-      label: 'Heading 2',
-      icon: 'i-lucide-heading-2'
+      kind: 'mark',
+      mark: 'underline',
+      icon: 'i-lucide-underline',
+      tooltip: { text: toolbar?.underline }
     }, {
-      kind: 'heading',
-      level: 3,
-      label: 'Heading 3',
-      icon: 'i-lucide-heading-3'
+      kind: 'mark',
+      mark: 'strike',
+      icon: 'i-lucide-strikethrough',
+      tooltip: { text: toolbar?.strikethrough }
     }, {
-      kind: 'heading',
-      level: 4,
-      label: 'Heading 4',
-      icon: 'i-lucide-heading-4'
+      kind: 'mark',
+      mark: 'code',
+      icon: 'i-lucide-code',
+      tooltip: { text: toolbar?.code }
+    }], [{
+      slot: 'link' as const,
+      icon: 'i-lucide-link'
     }, {
-      kind: 'bulletList',
-      label: 'Bullet List',
-      icon: 'i-lucide-list'
-    }, {
-      kind: 'orderedList',
-      label: 'Ordered List',
-      icon: 'i-lucide-list-ordered'
-    }, {
-      kind: 'taskList',
-      label: 'Task List',
-      icon: 'i-lucide-list-check'
-    }, {
-      kind: 'blockquote',
-      label: 'Blockquote',
-      icon: 'i-lucide-text-quote'
-    }, {
-      kind: 'codeBlock',
-      label: 'Code Block',
-      icon: 'i-lucide-square-code'
-    }]
-  }], [{
-    kind: 'mark',
-    mark: 'bold',
-    icon: 'i-lucide-bold',
-    tooltip: { text: 'Bold' }
-  }, {
-    kind: 'mark',
-    mark: 'italic',
-    icon: 'i-lucide-italic',
-    tooltip: { text: 'Italic' }
-  }, {
-    kind: 'mark',
-    mark: 'underline',
-    icon: 'i-lucide-underline',
-    tooltip: { text: 'Underline' }
-  }, {
-    kind: 'mark',
-    mark: 'strike',
-    icon: 'i-lucide-strikethrough',
-    tooltip: { text: 'Strikethrough' }
-  }, {
-    kind: 'mark',
-    mark: 'code',
-    icon: 'i-lucide-code',
-    tooltip: { text: 'Code' }
-  }], [{
-    slot: 'link' as const,
-    icon: 'i-lucide-link'
-  }, {
-    kind: 'imageUpload',
-    icon: 'i-lucide-image',
-    tooltip: { text: 'Image' }
-  }]] satisfies EditorToolbarItem<T>[][])
+      kind: 'imageUpload',
+      icon: 'i-lucide-image',
+      tooltip: { text: toolbar?.image }
+    }]] satisfies EditorToolbarItem<T>[][]
+  })
 
   const getImageToolbarItems = (editor: Editor): EditorToolbarItem<T>[][] => {
+    const toolbar = toolbarData.value
     const node = editor.state.doc.nodeAt(editor.state.selection.from)
 
     return [[{
       icon: 'i-lucide-download',
       to: node?.attrs?.src,
       download: true,
-      tooltip: { text: 'Download' }
+      tooltip: { text: toolbar?.download }
     }, {
       icon: 'i-lucide-refresh-cw',
-      tooltip: { text: 'Replace' },
+      tooltip: { text: toolbar?.replace },
       onClick: () => {
         const { state } = editor
         const { selection } = state
@@ -136,10 +146,10 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
     }], [{
       slot: 'imageAlt' as const,
       icon: 'i-lucide-file-text',
-      tooltip: { text: 'Edit Alt Text' }
+      tooltip: { text: toolbar?.editAltText }
     }], [{
       icon: 'i-lucide-trash',
-      tooltip: { text: 'Delete' },
+      tooltip: { text: toolbar?.delete },
       onClick: () => {
         const { state } = editor
         const { selection } = state
@@ -155,45 +165,46 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
   }
 
   const getTableToolbarItems = (editor: Editor): EditorToolbarItem<T>[][] => {
+    const toolbar = toolbarData.value
     return [[{
       icon: 'i-lucide-between-vertical-start',
-      tooltip: { text: 'Add row above' },
+      tooltip: { text: toolbar?.addRowAbove },
       onClick: () => {
         editor.chain().focus().addRowBefore().run()
       }
     }, {
       icon: 'i-lucide-between-vertical-end',
-      tooltip: { text: 'Add row below' },
+      tooltip: { text: toolbar?.addRowBelow },
       onClick: () => {
         editor.chain().focus().addRowAfter().run()
       }
     }, {
       icon: 'i-lucide-between-horizontal-start',
-      tooltip: { text: 'Add column before' },
+      tooltip: { text: toolbar?.addColumnBefore },
       onClick: () => {
         editor.chain().focus().addColumnBefore().run()
       }
     }, {
       icon: 'i-lucide-between-horizontal-end',
-      tooltip: { text: 'Add column after' },
+      tooltip: { text: toolbar?.addColumnAfter },
       onClick: () => {
         editor.chain().focus().addColumnAfter().run()
       }
     }], [{
       icon: 'i-lucide-rows-3',
-      tooltip: { text: 'Delete row' },
+      tooltip: { text: toolbar?.deleteRow },
       onClick: () => {
         editor.chain().focus().deleteRow().run()
       }
     }, {
       icon: 'i-lucide-columns-3',
-      tooltip: { text: 'Delete column' },
+      tooltip: { text: toolbar?.deleteColumn },
       onClick: () => {
         editor.chain().focus().deleteColumn().run()
       }
     }], [{
       icon: 'i-lucide-trash',
-      tooltip: { text: 'Delete table' },
+      tooltip: { text: toolbar?.deleteTable },
       onClick: () => {
         editor.chain().focus().deleteTable().run()
       }

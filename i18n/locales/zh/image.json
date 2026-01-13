@@ -1,0 +1,12 @@
+{
+  "upload": "上传图片",
+  "uploadDescription": "SVG、PNG、JPG 或 GIF（最大 2MB）",
+  "setAlt": "设置图片描述",
+  "preview": "预览",
+  "altLabel": "图片描述（Alt文本）",
+  "altPlaceholder": "输入图片描述，用于无障碍访问...",
+  "cancel": "取消",
+  "confirm": "确认",
+  "editAlt": "编辑图片描述",
+  "altPlaceholderShort": "输入图片描述（alt文本）..."
+}

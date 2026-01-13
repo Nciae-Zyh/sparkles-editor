@@ -17,11 +17,26 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '开始写作，输入 \'/\' 查看命令...'
 })
 
+const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
+const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
+
+// 使用 computed 来获取实际的 placeholder，如果 props.placeholder 是默认值则使用翻译
+const placeholder = computed(() => {
+  if (props.placeholder === '开始写作，输入 \'/\' 查看命令...') {
+    return editorData.value?.placeholder || props.placeholder
+  }
+  return props.placeholder
+})
+
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
 const editorRef = ref<Editor | null>(null)
+
+// 添加 beforeunload 拦截
+const hasUnsavedChanges = ref(false)
+useBeforeUnload(hasUnsavedChanges)
 
 // Custom handlers for editor
 const customHandlers = {
@@ -61,26 +76,28 @@ const {
 } = useEditorToolbar(customHandlers)
 
 // Default content - only used when Y.js document is empty
-const defaultContent = `# 欢迎使用编辑器
+const defaultContent = computed(() => {
+  const editor = editorData.value
+  return `# ${editor?.welcome || '欢迎使用编辑器'}
 
-这是一个功能丰富的富文本编辑器，支持多种格式和功能。
+${editor?.intro || ''}
 
-## 富文本编辑
+## ${editor?.richText || ''}
 
-支持 **粗体**、*斜体*、<u>下划线</u>、~~删除线~~ 和 \`行内代码\`。
+${editor?.richTextDesc || ''}
 
 ![图片占位符](/placeholder.jpeg)
 
-### 代码块
+### ${editor?.codeBlock || ''}
 
-代码块支持语法高亮。
+${editor?.codeBlockDesc || ''}
 
 \`\`\`typescript
 const greeting = 'Hello, World!'
 console.log(greeting)
 \`\`\`
 
-### 列表
+### ${editor?.list || ''}
 
 1. 有序列表
 2. 自动编号
@@ -92,9 +109,9 @@ console.log(greeting)
 - [ ] 任务列表
 - [x] 已完成任务
 
-### 表格
+### ${editor?.table || ''}
 
-插入和编辑表格，支持行列操作。
+${editor?.tableDesc || ''}
 
 | 功能 | 描述 | 状态 |
 | ------- | ----------- | ------ |
@@ -103,33 +120,44 @@ console.log(greeting)
 
 ---
 
-## 功能特性
+## ${editor?.features || ''}
 
-### 工具栏
+### ${editor?.toolbar || ''}
 
-选择文本查看气泡工具栏，顶部固定工具栏提供快速访问常用操作。
+${editor?.toolbarDesc || ''}
 
-### 拖拽手柄
+### ${editor?.dragHandle || ''}
 
-使用左侧的拖拽手柄可以重新排序、复制、删除或转换块类型。
+${editor?.dragHandleDesc || ''}
 
-### 斜杠命令
+### ${editor?.slashCommand || ''}
 
-输入 \`/\` 可以快速插入标题、列表、代码块、表格、图片等。
+${editor?.slashCommandDesc || ''}
 
-### 图片上传
+### ${editor?.imageUpload || ''}
 
-支持自定义图片上传节点。
+${editor?.imageUploadDesc || ''}
 
-### 表情
+### ${editor?.emoji || ''}
 
-使用 \`:\` 添加表情 :rocket:
+${editor?.emojiDesc || ''}
 
 `
+})
 
-const content = ref(props.modelValue || defaultContent)
+const content = ref(props.modelValue || defaultContent.value)
 
-function onCreate({ editor}: { editor: Editor }) {
+watch(content, () => {
+  hasUnsavedChanges.value = true
+})
+// 监听语言变化，更新默认内容
+watch(editorData, () => {
+  if (!props.modelValue) {
+    content.value = defaultContent.value
+  }
+}, { deep: true })
+
+function onCreate({ editor: _editor }: { editor: Editor }) {
   // Editor created
 }
 
@@ -213,8 +241,8 @@ async function handleFileImport(event: Event) {
 
   if (!isValidMarkdown) {
     // 可以在这里添加错误提示，比如使用 toast
-    console.error('只能导入 Markdown 文件 (.md 或 .markdown)')
-    alert('只能导入 Markdown 文件 (.md 或 .markdown)')
+    console.error(actionsData.value?.onlyMarkdownFiles)
+    alert(actionsData.value?.onlyMarkdownFiles)
     // 重置文件输入
     target.value = ''
     return
@@ -227,7 +255,7 @@ async function handleFileImport(event: Event) {
     importMarkdown(text)
   } catch (error) {
     console.error('导入文件失败:', error)
-    alert('导入文件失败，请重试')
+    alert(actionsData.value?.importFailed)
   } finally {
     isImporting.value = false
     // 重置文件输入，允许重复选择同一文件
@@ -250,7 +278,7 @@ defineExpose({
       :extensions="extensions"
       :handlers="customHandlers"
       :model-value="content"
-      :placeholder="placeholder"
+      :placeholder="placeholder.value"
       :ui="{
         base: 'p-6 sm:p-12',
         content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'
@@ -273,12 +301,12 @@ defineExpose({
             accept=".md,.markdown"
             class="hidden"
             @change="handleFileImport"
-          />
+          >
           <UButton
             :loading="isImporting"
             color="primary"
             icon="i-lucide-upload"
-            label="导入 Markdown"
+            :label="actionsData?.importMarkdown"
             size="sm"
             variant="soft"
             @click="handleImportClick"
@@ -287,7 +315,7 @@ defineExpose({
             :loading="isDownloading"
             color="primary"
             icon="i-lucide-download"
-            label="下载 Markdown"
+            :label="actionsData?.downloadMarkdown"
             size="sm"
             variant="soft"
             @click="handleDownload"

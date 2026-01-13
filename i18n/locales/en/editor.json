@@ -1,0 +1,23 @@
+{
+  "placeholder": "Start writing, type '/' for commands...",
+  "welcome": "Welcome to the Editor",
+  "intro": "This is a feature-rich rich text editor that supports various formats and features.",
+  "richText": "Rich Text Editing",
+  "richTextDesc": "Supports **bold**, *italic*, <u>underline</u>, ~~strikethrough~~ and `inline code`.",
+  "codeBlock": "Code Block",
+  "codeBlockDesc": "Code blocks support syntax highlighting.",
+  "list": "List",
+  "table": "Table",
+  "tableDesc": "Insert and edit tables with row and column operations.",
+  "features": "Features",
+  "toolbar": "Toolbar",
+  "toolbarDesc": "Select text to see the bubble toolbar, the top fixed toolbar provides quick access to common operations.",
+  "dragHandle": "Drag Handle",
+  "dragHandleDesc": "Use the drag handle on the left to reorder, copy, delete or convert block types.",
+  "slashCommand": "Slash Command",
+  "slashCommandDesc": "Type `/` to quickly insert headings, lists, code blocks, tables, images, etc.",
+  "imageUpload": "Image Upload",
+  "imageUploadDesc": "Supports custom image upload nodes.",
+  "emoji": "Emoji",
+  "emojiDesc": "Use `:` to add emoji :rocket:"
+}

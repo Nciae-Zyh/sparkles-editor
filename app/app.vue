@@ -1,4 +1,9 @@
-<script setup>
+<script lang="ts" setup>
+const { locale, locales } = useI18n()
+const route = useRoute()
+
+const appData = computed(() => $tm('app') as Record<string, string> | undefined)
+
 useHead({
   meta: [
     { name: 'viewport', content: 'width=device-width, initial-scale=1' }
@@ -7,12 +12,12 @@ useHead({
     { rel: 'icon', href: '/favicon.ico' }
   ],
   htmlAttrs: {
-    lang: 'en'
+    lang: () => locale.value
   }
 })
 
-const title = 'Sparkles-Editor'
-const description = 'A Notion-like WYSIWYG editor with AI-powered completions in Vue & Nuxt.'
+const title = computed(() => appData.value?.title || 'Sparkles Editor')
+const description = computed(() => appData.value?.description || '')
 
 useSeoMeta({
   title,
@@ -20,6 +25,25 @@ useSeoMeta({
   ogTitle: title,
   ogDescription: description,
   twitterCard: 'summary_large_image'
+})
+
+// 添加 i18n SEO 支持
+
+useHead({
+  link: computed(() => {
+    const currentPath = route.path
+    const basePath = currentPath.replace(/^\/(zh|en)/, '') || '/'
+
+    return locales.value.map((loc: { code: string }) => ({
+      rel: 'alternate',
+      hreflang: loc.code,
+      href: loc.code === 'zh' ? basePath : `/en${basePath === '/' ? '' : basePath}`
+    })).concat([{
+      rel: 'alternate',
+      hreflang: 'x-default',
+      href: basePath
+    }])
+  })
 })
 </script>
 

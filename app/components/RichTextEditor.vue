@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import type { EditorCustomHandlers } from '@nuxt/ui'
-import type { Editor } from '@tiptap/core'
-import { Emoji } from '@tiptap/extension-emoji'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
-import { TableKit } from '@tiptap/extension-table'
-import { CellSelection } from 'prosemirror-tables'
-import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
-import { ImageUpload } from '~/components/editor/ImageUploadExtension'
+import type {EditorCustomHandlers} from '@nuxt/ui'
+import type {Editor} from '@tiptap/core'
+import {Emoji} from '@tiptap/extension-emoji'
+import {TaskItem, TaskList} from '@tiptap/extension-list'
+import {TableKit} from '@tiptap/extension-table'
+import {CellSelection} from 'prosemirror-tables'
+import {CodeBlockShiki} from 'tiptap-extension-code-block-shiki'
+import {ImageUpload} from '~/components/editor/ImageUploadExtension'
 
 interface Props {
   modelValue?: string
@@ -17,17 +17,13 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '开始写作，输入 \'/\' 查看命令...'
 })
 
-const emit = defineEmits<{
-  'update:modelValue': [value: string]
-}>()
-
 const editorRef = useTemplateRef('editorRef')
 
 // Custom handlers for editor
 const customHandlers = {
   imageUpload: {
-    canExecute: (editor: Editor) => editor.can().insertContent({ type: 'imageUpload' }),
-    execute: (editor: Editor) => editor.chain().focus().insertContent({ type: 'imageUpload' }),
+    canExecute: (editor: Editor) => editor.can().insertContent({type: 'imageUpload'}),
+    execute: (editor: Editor) => editor.chain().focus().insertContent({type: 'imageUpload'}),
     isActive: (editor: Editor) => editor.isActive('imageUpload'),
     isDisabled: undefined
   },
@@ -47,8 +43,8 @@ const customHandlers = {
   }
 } satisfies EditorCustomHandlers
 
-const { items: emojiItems } = useEditorEmojis()
-const { items: suggestionItems } = useEditorSuggestions(customHandlers)
+const {items: emojiItems} = useEditorEmojis()
+const {items: suggestionItems} = useEditorSuggestions(customHandlers)
 const {
   getItems: getDragHandleItems,
   onNodeChange
@@ -60,8 +56,8 @@ const {
   getTableToolbarItems
 } = useEditorToolbar(customHandlers)
 
-// Default content - only used when Y.js document is empty
-const defaultContent = `# 欢迎使用编辑器
+const content = defineModel({
+  default: `# 欢迎使用编辑器
 
 这是一个功能丰富的富文本编辑器，支持多种格式和功能。
 
@@ -124,11 +120,11 @@ console.log(greeting)
 ### 表情
 
 使用 \`:\` 添加表情 :rocket:
-`
+`,
+  type: 'string'
+})
 
-const content = ref(props.modelValue || defaultContent)
-
-function onCreate({ editor}: { editor: Editor }) {
+function onCreate({editor: _editor}: { editor: Editor }) {
   // Editor created
 }
 
@@ -160,7 +156,7 @@ function importMarkdown(markdown: string) {
     return
   }
 
-  editor.commands.setContent(markdown, { contentType: 'markdown' })
+  editor.commands.setContent(markdown, {contentType: 'markdown'})
   content.value = markdown
 }
 
@@ -221,7 +217,7 @@ defineExpose({
         layout="bubble"
       >
         <template #link>
-          <EditorLinkPopover :editor="editor" />
+          <EditorLinkPopover :editor="editor"/>
         </template>
       </UEditorToolbar>
 
@@ -234,7 +230,7 @@ defineExpose({
         layout="bubble"
       >
         <template #imageAlt>
-          <EditorImageAltPopover :editor="editor" />
+          <EditorImageAltPopover :editor="editor"/>
         </template>
       </UEditorToolbar>
 

@@ -1,4 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { generateI18n } from './scripts/generateI18n'
+
 export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
@@ -7,7 +9,8 @@ export default defineNuxtConfig({
     '@nuxt/content',
     '@nuxt/a11y',
     '@nuxt/hints',
-    '@nuxt/image'
+    '@nuxt/image',
+    '@nuxtjs/i18n'
   ],
   ssr: true,
 
@@ -29,7 +32,6 @@ export default defineNuxtConfig({
       componentDetection: true
     }
   },
-
 
   compatibilityDate: '2025-07-15',
 
@@ -77,6 +79,16 @@ export default defineNuxtConfig({
       ]
     }
   },
+  hooks: {
+    'build:before': async () => {
+      try {
+        await generateI18n()
+        console.log(`✔ generate i18n config success`)
+      } catch (error) {
+        console.log('update previewProducts.ts failed!', error)
+      }
+    }
+  },
 
   eslint: {
     config: {
@@ -85,5 +97,22 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
+  },
+
+  i18n: {
+    defaultLocale: 'en',
+    locales: [
+      {
+        code: 'zh',
+        iso: 'zh-CN',
+        name: '中文'
+      },
+      {
+        code: 'en',
+        iso: 'en-US',
+        name: 'English'
+      }
+    ],
+    detectBrowserLanguage: false,
   }
 })

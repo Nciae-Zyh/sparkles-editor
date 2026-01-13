@@ -4,6 +4,8 @@ import { NodeViewWrapper } from '@tiptap/vue-3'
 
 const props = defineProps<NodeViewProps>()
 
+const imageData = computed(() => $tm('image') as Record<string, string> | undefined)
+
 const fileUploadRef = useTemplateRef('fileUploadRef')
 
 const error = ref<string | null>(null)
@@ -36,7 +38,7 @@ async function onFileChange() {
     showAltDialog.value = true
   } catch (e) {
     console.log(e)
-    error.value = (e as Error & { data: { message: string } }).data.message || 'An unknown error occurred'
+    error.value = (e as Error & { data: { message: string } }).data.message || '上传失败'
   } finally {
     loading.value = false
   }
@@ -75,8 +77,8 @@ function cancelImage() {
     <UFileUpload
       ref="fileUploadRef"
       accept="image/*"
-      label="Upload an image"
-      :description="error || 'SVG, PNG, JPG or GIF (max. 2MB)'"
+      :label="imageData?.upload"
+      :description="error || imageData?.uploadDescription"
       :preview="false"
       class="min-h-48"
       :ui="{ description: error ? 'text-error' : '' }"
@@ -101,7 +103,7 @@ function cancelImage() {
           <template #header>
             <div class="flex items-center justify-between">
               <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
-                设置图片描述
+                {{ imageData?.setAlt }}
               </h3>
               <UButton
                 color="gray"
@@ -117,15 +119,15 @@ function cancelImage() {
             <div class="flex justify-center">
               <img
                 :src="imageSrc"
-                alt="预览"
+                :alt="imageData?.preview"
                 class="w-full rounded-lg object-contain max-h-64 border border-gray-200 dark:border-gray-800"
               >
             </div>
             <UInput
               v-model="imageAlt"
               class="w-full"
-              label="图片描述（Alt文本）"
-              placeholder="输入图片描述，用于无障碍访问..."
+              :label="imageData?.altLabel"
+              :placeholder="imageData?.altPlaceholder"
               autofocus
               @keydown.enter="confirmImage"
             />
@@ -136,12 +138,12 @@ function cancelImage() {
               <UButton
                 color="gray"
                 variant="ghost"
-                label="取消"
+                :label="imageData?.cancel"
                 @click="cancelImage"
               />
               <UButton
                 color="primary"
-                label="确认"
+                :label="imageData?.confirm"
                 @click="confirmImage"
               />
             </div>

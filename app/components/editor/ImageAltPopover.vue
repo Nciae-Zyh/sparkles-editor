@@ -6,6 +6,9 @@ const props = defineProps<{
   autoOpen?: boolean
 }>()
 
+const imageData = computed(() => $tm('image') as Record<string, string> | undefined)
+const linkData = computed(() => $tm('link') as Record<string, string> | undefined)
+
 const open = ref(false)
 const alt = ref('')
 
@@ -77,7 +80,7 @@ function handleKeyDown(event: KeyboardEvent) {
     v-model:open="open"
     :ui="{ content: 'p-0.5' }"
   >
-    <UTooltip text="编辑图片描述">
+    <UTooltip :text="imageData?.editAlt">
       <UButton
         icon="i-lucide-file-text"
         color="neutral"
@@ -97,7 +100,7 @@ function handleKeyDown(event: KeyboardEvent) {
         name="alt"
         type="text"
         variant="none"
-        placeholder="输入图片描述（alt文本）..."
+        :placeholder="imageData?.altPlaceholderShort"
         @keydown="handleKeyDown"
       >
         <div class="flex items-center mr-0.5">
@@ -106,7 +109,7 @@ function handleKeyDown(event: KeyboardEvent) {
             variant="ghost"
             size="sm"
             :disabled="!active"
-            title="应用"
+            :title="linkData?.applyLink"
             @click="setAlt"
           />
 
@@ -120,7 +123,7 @@ function handleKeyDown(event: KeyboardEvent) {
             color="neutral"
             variant="ghost"
             size="sm"
-            title="关闭"
+            :title="imageData?.cancel"
             @click="open = false"
           />
         </div>
