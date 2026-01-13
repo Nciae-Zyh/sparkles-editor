@@ -47,7 +47,7 @@ async function fetchImageAsBlob(url: string): Promise<{ blob: Blob, contentType?
  */
 function getExtensionFromMimeType(mimeType: string | undefined): string {
   if (!mimeType) return 'png'
-  
+
   const mimeMap: Record<string, string> = {
     'image/jpeg': 'jpg',
     'image/jpg': 'jpg',
@@ -57,7 +57,7 @@ function getExtensionFromMimeType(mimeType: string | undefined): string {
     'image/svg+xml': 'svg',
     'image/bmp': 'bmp'
   }
-  
+
   return mimeMap[mimeType.toLowerCase()] || 'png'
 }
 
@@ -68,13 +68,13 @@ function getImageFileName(url: string, index: number, usedNames: Set<string>, co
   // 尝试从 URL 中提取文件名
   const urlPath = url.split('?')[0] // 移除查询参数
   let fileName = urlPath.split('/').pop() || `image-${index + 1}`
-  
+
   // 如果没有扩展名，根据 MIME 类型或使用默认扩展名
   if (!fileName.includes('.')) {
     const ext = getExtensionFromMimeType(contentType)
     fileName = `${fileName}.${ext}`
   }
-  
+
   // 如果文件名已存在，添加索引后缀
   let finalFileName = fileName
   let counter = 1
@@ -84,7 +84,7 @@ function getImageFileName(url: string, index: number, usedNames: Set<string>, co
     finalFileName = `${nameWithoutExt}-${counter}${ext}`
     counter++
   }
-  
+
   usedNames.add(finalFileName)
   return finalFileName
 }
@@ -95,7 +95,7 @@ function getImageFileName(url: string, index: number, usedNames: Set<string>, co
 function replaceImagePathsWithMap(markdown: string, imageMap: Map<string, string>): string {
   let result = markdown
   const imagesDir = 'images'
-  
+
   imageMap.forEach((fileName, url) => {
     const localPath = `${imagesDir}/${fileName}`
     // 替换所有匹配的图片 URL
@@ -103,7 +103,7 @@ function replaceImagePathsWithMap(markdown: string, imageMap: Map<string, string
       return match.replace(url, localPath)
     })
   })
-  
+
   return result
 }
 
@@ -129,14 +129,14 @@ export function useDownloadZip() {
 
     try {
       const zip = new JSZip()
-      
+
       // 提取所有图片 URL
       const imageUrls = extractImageUrls(markdown)
-      
+
       // 创建 images 目录
       const imagesFolder = zip.folder('images')
       const usedFileNames = new Set<string>()
-      
+
       // 下载所有图片并添加到 zip，同时记录文件名映射
       const imageMap = new Map<string, string>() // 原始 URL -> 本地文件名
       const imagePromises = imageUrls.map(async (url, index) => {

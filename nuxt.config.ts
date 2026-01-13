@@ -9,6 +9,7 @@ export default defineNuxtConfig({
     '@nuxt/hints',
     '@nuxt/image'
   ],
+  ssr: true,
 
   devtools: {
     enabled: true
@@ -35,10 +36,26 @@ export default defineNuxtConfig({
     }
   },
 
-  compatibilityDate: '2025-01-15',
+  compatibilityDate: '2025-07-15',
 
   nitro: {
+    preset: 'cloudflare_module',
+    cloudflare: {
+      deployConfig: true,
+      wrangler: {
+        vars: {
+          // 正式环境环境变量
+        }
+      }
+    },
+    // prerender: {
+    //   crawlLinks: true,
+    //   ignore: [
+    //     '/__nuxt_content/content/sql_dump.txt'
+    //   ]
+    // }
     prerender: {
+      autoSubfolderIndex: false,
       crawlLinks: true,
       ignore: [
         '/__nuxt_content/content/sql_dump.txt'
