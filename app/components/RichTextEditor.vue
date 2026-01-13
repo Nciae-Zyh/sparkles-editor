@@ -11,7 +11,6 @@ import { ImageUpload } from '~/components/editor/ImageUploadExtension'
 interface Props {
   modelValue?: string
   placeholder?: string
-  room?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -22,38 +21,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const route = useRoute()
-const runtimeConfig = useRuntimeConfig()
-
-const room = computed(() => props.room || (route.query.room as string | undefined))
-
-const user = useState('user', () => ({
-  name: getRandomName(),
-  color: getRandomColor()
-}))
-
-const appConfig = useAppConfig()
-
 const editorRef = useTemplateRef('editorRef')
-
-const {
-  enabled: collaborationEnabled,
-  ready: collaborationReady,
-  extensions: collaborationExtensions,
-  connectedUsers
-} = useEditorCollaboration({
-  room: room.value,
-  host: runtimeConfig.public.partykitHost,
-  user: {
-    name: user.value.name,
-    color: COLORS[user.value.color]!
-  }
-})
-
-// Set primary color for the app
-if (collaborationEnabled) {
-  appConfig.ui.colors.primary = user.value.color
-}
 
 // Custom handlers for editor
 const customHandlers = {
@@ -156,37 +124,16 @@ console.log(greeting)
 ### 表情
 
 使用 \`:\` 添加表情 :rocket:
-
-### 实时协作
-
-支持实时协作编辑。添加 \`?room=my-room\` 到 URL 并分享链接即可与他人实时协作。
 `
 
 const content = ref(props.modelValue || defaultContent)
 
-// Set initial content for collaborative documents (only if empty)
 function onCreate({ editor}: { editor: Editor }) {
-  if (!collaborationEnabled) return
-
-  const storageKey = `editor-initialized-${room.value}`
-
-  // Skip if already initialized this session (handles HMR)
-  if (sessionStorage.getItem(storageKey)) return
-
-  // Wait for Y.js to sync existing content from server before checking if empty
-  setTimeout(() => {
-    const text = editor.state.doc.textContent.trim()
-    if (!text) {
-      editor.commands.setContent(content.value, { contentType: 'markdown' })
-    }
-    sessionStorage.setItem(storageKey, 'true')
-  }, 500)
+  // Editor created
 }
 
 function onUpdate(value: string) {
-  if (!collaborationEnabled) {
-    content.value = value
-  }
+  content.value = value
   emit('update:modelValue', value)
 }
 
@@ -202,8 +149,7 @@ const extensions = computed(() => [
   ImageUpload,
   TableKit,
   TaskList,
-  TaskItem,
-  ...collaborationExtensions.value
+  TaskItem
 ])
 
 // 导入Markdown内容
@@ -215,9 +161,7 @@ function importMarkdown(markdown: string) {
   }
 
   editor.commands.setContent(markdown, { contentType: 'markdown' })
-  if (!collaborationEnabled) {
-    content.value = markdown
-  }
+  content.value = markdown
 }
 
 // 导出Markdown内容
@@ -229,15 +173,6 @@ function exportMarkdown(): string {
   }
 
   // UEditor在content-type="markdown"时，onUpdate会返回markdown格式的字符串
-  // 对于非协作模式，直接使用content.value
-  // 对于协作模式，需要触发一次更新来获取最新的markdown内容
-  if (collaborationEnabled) {
-    // 协作模式下，content可能不是最新的，需要从编辑器获取
-    // 但UEditor会自动处理markdown序列化，所以我们可以通过getJSON然后转换
-    // 或者直接返回当前content（如果可用）
-    return content.value || ''
-  }
-
   return content.value || ''
 }
 
@@ -251,21 +186,18 @@ defineExpose({
 <template>
   <div class="editor-container">
     <AppHeader>
-      <EditorCollaborationUsers :users="connectedUsers" />
       <UEditorToolbar
         :editor="editorRef"
         :items="toolbarItems"
       />
     </AppHeader>
     <UEditor
-      v-if="collaborationReady"
       ref="editorRef"
       v-slot="{ editor, handlers }"
       :extensions="extensions"
       :handlers="customHandlers"
-      :model-value="collaborationEnabled ? undefined : content"
+      :model-value="content"
       :placeholder="placeholder"
-      :starter-kit="collaborationEnabled ? { undoRedo: false } : undefined"
       :ui="{
         base: 'p-6 sm:p-12',
         content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'

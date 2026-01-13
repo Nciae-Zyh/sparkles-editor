@@ -12,7 +12,7 @@ useHead({
 })
 
 const title = 'Sparkles-Editor'
-const description = 'A Notion-like WYSIWYG editor with AI-powered completions and real-time collaboration in Vue & Nuxt.'
+const description = 'A Notion-like WYSIWYG editor with AI-powered completions in Vue & Nuxt.'
 
 useSeoMeta({
   title,

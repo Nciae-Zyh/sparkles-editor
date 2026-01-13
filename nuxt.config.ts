@@ -30,11 +30,6 @@ export default defineNuxtConfig({
     }
   },
 
-  runtimeConfig: {
-    public: {
-      partykitHost: ''
-    }
-  },
 
   compatibilityDate: '2025-07-15',
 
@@ -78,9 +73,7 @@ export default defineNuxtConfig({
       include: [
         '@nuxt/ui > prosemirror-state',
         '@nuxt/ui > prosemirror-tables',
-        '@nuxt/ui > prosemirror-view',
-        'yjs',
-        'y-partykit/provider'
+        '@nuxt/ui > prosemirror-view'
       ]
     }
   },

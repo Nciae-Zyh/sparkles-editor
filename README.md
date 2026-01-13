@@ -1,6 +1,6 @@
 # Sparkles-Editor
 
-Notion-like WYSIWYG editor with real-time collaboration in Vue & Nuxt. Built with Nuxt UI and TipTap, showcasing the powerful `UEditor` component with advanced editing capabilities.
+Notion-like WYSIWYG editor in Vue & Nuxt. Built with Nuxt UI and TipTap, showcasing the powerful `UEditor` component with advanced editing capabilities.
 
 ## Features
 
@@ -12,7 +12,6 @@ Notion-like WYSIWYG editor with real-time collaboration in Vue & Nuxt. Built wit
 - **Image Upload** - Custom image upload node with blob storage support and alt text editing
 - **Emoji Picker** - Full GitHub emoji set with `:emoji:` syntax
 - **Markdown Support** - Content type set to markdown for easy serialization
-- **Real-time Collaboration** - Optional collaborative editing powered by PartyKit
 
 ## Quick Start
 
@@ -51,29 +50,6 @@ S3_REGION=<your-region>
 ```
 
 > Without configuration, files are stored locally in `.data/blob` during development.
-
-### Collaboration (Optional)
-
-This template includes optional real-time collaboration powered by Y.js, a CRDT framework for building collaborative applications. This example uses PartyKit as the Y.js provider, but you can swap it for alternatives like Liveblocks or Tiptap Collaboration.
-
-To enable collaboration with PartyKit:
-
-1. Create and deploy a PartyKit server:
-
-```bash
-npm create partykit@latest
-npx partykit deploy
-```
-
-2. Set your PartyKit host in `.env`:
-
-```bash
-NUXT_PUBLIC_PARTYKIT_HOST=your-project.username.partykit.dev
-```
-
-3. Add `?room=your-room-name` to the URL to collaborate. All users with the same room name will edit together in real-time.
-
-> Without the environment variable or `?room=` parameter, the editor works standalone without collaboration.
 
 ## Development Server
 

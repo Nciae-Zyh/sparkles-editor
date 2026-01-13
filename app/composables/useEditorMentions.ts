@@ -1,5 +1,4 @@
 import type { EditorMentionMenuItem } from '@nuxt/ui'
-import type { CollaborationUser } from './useEditorCollaboration'
 
 const FALLBACK_USERS = [{
   label: 'benjamincanac',
@@ -12,19 +11,9 @@ const FALLBACK_USERS = [{
   avatar: { src: 'https://avatars.githubusercontent.com/u/71938701?v=4' }
 }]
 
-export function useEditorMentions(collaborationUsers?: Ref<CollaborationUser[]>) {
+export function useEditorMentions() {
   const items = computed<EditorMentionMenuItem[]>(() => {
-    if (!collaborationUsers?.value?.length) {
-      return FALLBACK_USERS
-    }
-
-    return collaborationUsers.value.map(user => ({
-      label: user.name,
-      avatar: {
-        alt: user.name,
-        style: { color: user.color }
-      }
-    }))
+    return FALLBACK_USERS
   })
 
   return {
