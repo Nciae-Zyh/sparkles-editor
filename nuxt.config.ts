@@ -45,7 +45,13 @@ export default defineNuxtConfig({
       wrangler: {
         vars: {
           // 正式环境环境变量
-        }
+        },
+        r2_buckets: [
+          {
+            binding: 'sparkles-r2',
+            bucket_name: 'sparkles-r2'
+          }
+        ]
       }
     },
     // prerender: {
