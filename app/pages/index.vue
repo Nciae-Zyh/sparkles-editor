@@ -191,6 +191,50 @@ async function handleDownload() {
   }
 }
 
+// 导入Markdown文件功能
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const isImporting = ref(false)
+
+function handleImportClick() {
+  fileInputRef.value?.click()
+}
+
+async function handleFileImport(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+
+  if (!file) {
+    return
+  }
+
+  // 验证文件类型
+  const fileName = file.name.toLowerCase()
+  const isValidMarkdown = fileName.endsWith('.md') || fileName.endsWith('.markdown')
+
+  if (!isValidMarkdown) {
+    // 可以在这里添加错误提示，比如使用 toast
+    console.error('只能导入 Markdown 文件 (.md 或 .markdown)')
+    alert('只能导入 Markdown 文件 (.md 或 .markdown)')
+    // 重置文件输入
+    target.value = ''
+    return
+  }
+
+  isImporting.value = true
+
+  try {
+    const text = await file.text()
+    importMarkdown(text)
+  } catch (error) {
+    console.error('导入文件失败:', error)
+    alert('导入文件失败，请重试')
+  } finally {
+    isImporting.value = false
+    // 重置文件输入，允许重复选择同一文件
+    target.value = ''
+  }
+}
+
 // 暴露方法给父组件
 defineExpose({
   importMarkdown,
@@ -222,15 +266,33 @@ defineExpose({
           :editor="editor"
           :items="toolbarItems"
         />
-        <UButton
-          :loading="isDownloading"
-          color="primary"
-          icon="i-lucide-download"
-          label="下载 ZIP"
-          size="sm"
-          variant="soft"
-          @click="handleDownload"
-        />
+        <div class="flex gap-2">
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept=".md,.markdown"
+            class="hidden"
+            @change="handleFileImport"
+          />
+          <UButton
+            :loading="isImporting"
+            color="primary"
+            icon="i-lucide-upload"
+            label="导入 Markdown"
+            size="sm"
+            variant="soft"
+            @click="handleImportClick"
+          />
+          <UButton
+            :loading="isDownloading"
+            color="primary"
+            icon="i-lucide-download"
+            label="下载 Markdown"
+            size="sm"
+            variant="soft"
+            @click="handleDownload"
+          />
+        </div>
       </AppHeader>
       <UEditorToolbar
         :editor="editor"
