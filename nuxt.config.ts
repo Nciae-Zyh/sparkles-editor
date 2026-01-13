@@ -48,7 +48,7 @@ export default defineNuxtConfig({
         },
         r2_buckets: [
           {
-            binding: 'sparkles-r2',
+            binding: 'BLOB',
             bucket_name: 'sparkles-r2'
           }
         ]
