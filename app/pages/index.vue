@@ -241,6 +241,20 @@ function exportMarkdown(): string {
   return content.value || ''
 }
 
+// 下载功能
+const { downloadAsZip, isDownloading } = useDownloadZip()
+
+async function handleDownload() {
+  try {
+    const markdown = exportMarkdown()
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+    await downloadAsZip(markdown, `editor-content-${timestamp}.zip`)
+  } catch (error) {
+    console.error('Download failed:', error)
+    // 可以在这里添加错误提示
+  }
+}
+
 // 暴露方法给父组件
 defineExpose({
   importMarkdown,
@@ -274,6 +288,15 @@ defineExpose({
         <UEditorToolbar
           :editor="editor"
           :items="toolbarItems"
+        />
+        <UButton
+          :loading="isDownloading"
+          color="primary"
+          icon="i-lucide-download"
+          label="下载 ZIP"
+          size="sm"
+          variant="soft"
+          @click="handleDownload"
         />
       </AppHeader>
       <UEditorToolbar

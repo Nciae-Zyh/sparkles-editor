@@ -16,6 +16,13 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  content: {
+    ignores: [
+      '**/*.txt',
+      '**/sql_dump.*'
+    ]
+  },
+
   ui: {
     experimental: {
       componentDetection: true
@@ -29,6 +36,15 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2025-01-15',
+
+  nitro: {
+    prerender: {
+      crawlLinks: true,
+      ignore: [
+        '/__nuxt_content/content/sql_dump.txt'
+      ]
+    }
+  },
 
   hub: {
     blob: true
