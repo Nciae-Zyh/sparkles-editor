@@ -1,4 +1,6 @@
 {
-  "title": "Sparkles Editor",
-  "description": "A Notion-like WYSIWYG editor with AI-powered completions in Vue & Nuxt."
+  "app": {
+    "title": "Sparkles Editor",
+    "description": "A Notion-like WYSIWYG editor with AI-powered completions in Vue & Nuxt."
+  }
 }

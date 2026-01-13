@@ -1,29 +1,49 @@
 <script lang="ts" setup>
-import type {EditorCustomHandlers} from '@nuxt/ui'
-import type {Editor} from '@tiptap/core'
-import {Emoji} from '@tiptap/extension-emoji'
-import {TaskItem, TaskList} from '@tiptap/extension-list'
-import {TableKit} from '@tiptap/extension-table'
-import {CellSelection} from 'prosemirror-tables'
-import {CodeBlockShiki} from 'tiptap-extension-code-block-shiki'
-import {ImageUpload} from '~/components/editor/ImageUploadExtension'
+import type { EditorCustomHandlers } from '@nuxt/ui'
+import type { Editor } from '@tiptap/core'
+import { Emoji } from '@tiptap/extension-emoji'
+import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { TableKit } from '@tiptap/extension-table'
+import { CellSelection } from 'prosemirror-tables'
+import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
+import { ImageUpload } from '~/components/editor/ImageUploadExtension'
 
 interface Props {
-  modelValue?: string
   placeholder?: string
+  enableBeforeUnload?: boolean
+  showImportExport?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  placeholder: '开始写作，输入 \'/\' 查看命令...'
+  placeholder: '开始写作，输入 \'/\' 查看命令...',
+  enableBeforeUnload: true,
+  showImportExport: true
 })
 
-const editorRef = useTemplateRef('editorRef')
+const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
+const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
+
+// 使用 computed 来获取实际的 placeholder，如果 props.placeholder 是默认值则使用翻译
+const placeholder = computed(() => {
+  if (props.placeholder === '开始写作，输入 \'/\' 查看命令...') {
+    return editorData.value?.placeholder || props.placeholder
+  }
+  return props.placeholder
+})
+
+const editorRef = ref<Editor | null>(null)
+
+// 添加 beforeunload 拦截
+const hasUnsavedChanges = ref(false)
+if (props.enableBeforeUnload) {
+  useBeforeUnload(hasUnsavedChanges)
+}
 
 // Custom handlers for editor
 const customHandlers = {
   imageUpload: {
-    canExecute: (editor: Editor) => editor.can().insertContent({type: 'imageUpload'}),
-    execute: (editor: Editor) => editor.chain().focus().insertContent({type: 'imageUpload'}),
+    canExecute: (editor: Editor) => editor.can().insertContent({ type: 'imageUpload' }),
+    execute: (editor: Editor) => editor.chain().focus().insertContent({ type: 'imageUpload' }),
     isActive: (editor: Editor) => editor.isActive('imageUpload'),
     isDisabled: undefined
   },
@@ -43,8 +63,8 @@ const customHandlers = {
   }
 } satisfies EditorCustomHandlers
 
-const {items: emojiItems} = useEditorEmojis()
-const {items: suggestionItems} = useEditorSuggestions(customHandlers)
+const { items: emojiItems } = useEditorEmojis()
+const { items: suggestionItems } = useEditorSuggestions(customHandlers)
 const {
   getItems: getDragHandleItems,
   onNodeChange
@@ -56,81 +76,32 @@ const {
   getTableToolbarItems
 } = useEditorToolbar(customHandlers)
 
-const content = defineModel({
-  default: `# 欢迎使用编辑器
-
-这是一个功能丰富的富文本编辑器，支持多种格式和功能。
-
-## 富文本编辑
-
-支持 **粗体**、*斜体*、<u>下划线</u>、~~删除线~~ 和 \`行内代码\`。
-
-![图片占位符](/placeholder.jpeg)
-
-### 代码块
-
-代码块支持语法高亮。
-
-\`\`\`typescript
-const greeting = 'Hello, World!'
-console.log(greeting)
-\`\`\`
-
-### 列表
-
-1. 有序列表
-2. 自动编号
-
-- 无序列表
-  - 支持嵌套
-  - 多级嵌套
-
-- [ ] 任务列表
-- [x] 已完成任务
-
-### 表格
-
-插入和编辑表格，支持行列操作。
-
-| 功能 | 描述 | 状态 |
-| ------- | ----------- | ------ |
-| 表格 | 完整表格支持 | ✅ |
-| Markdown | 内容序列化 | ✅ |
-
----
-
-## 功能特性
-
-### 工具栏
-
-选择文本查看气泡工具栏，顶部固定工具栏提供快速访问常用操作。
-
-### 拖拽手柄
-
-使用左侧的拖拽手柄可以重新排序、复制、删除或转换块类型。
-
-### 斜杠命令
-
-输入 \`/\` 可以快速插入标题、列表、代码块、表格、图片等。
-
-### 图片上传
-
-支持自定义图片上传节点。
-
-### 表情
-
-使用 \`:\` 添加表情 🚀
-`,
-  type: 'string'
+// Default content - only used when Y.js document is empty
+const defaultContent = computed(() => {
+  return editorData.value?.defaultContent || ''
 })
 
-function onCreate({editor: _editor}: { editor: Editor }) {
+const content = defineModel<string>()
+
+watch(content, () => {
+  if (props.enableBeforeUnload) {
+    hasUnsavedChanges.value = true
+  }
+})
+
+// 监听语言变化，更新默认内容
+watch(editorData, () => {
+  if (!content.value) {
+    content.value = defaultContent.value
+  }
+}, { deep: true })
+
+function onCreate({ editor: _editor }: { editor: Editor }) {
   // Editor created
 }
 
 function onUpdate(value: string) {
   content.value = value
-  emit('update:modelValue', value)
 }
 
 const extensions = computed(() => [
@@ -156,7 +127,7 @@ function importMarkdown(markdown: string) {
     return
   }
 
-  editor.commands.setContent(markdown, {contentType: 'markdown'})
+  editor.commands.setContent(markdown, { contentType: 'markdown' })
   content.value = markdown
 }
 
@@ -172,6 +143,64 @@ function exportMarkdown(): string {
   return content.value || ''
 }
 
+// 下载功能
+const { downloadAsZip, isDownloading } = useDownloadZip()
+
+async function handleDownload() {
+  try {
+    const markdown = exportMarkdown()
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+    await downloadAsZip(markdown, `editor-content-${timestamp}.zip`)
+  } catch (error) {
+    console.error('Download failed:', error)
+    // 可以在这里添加错误提示
+  }
+}
+
+// 导入Markdown文件功能
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const isImporting = ref(false)
+
+function handleImportClick() {
+  fileInputRef.value?.click()
+}
+
+async function handleFileImport(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+
+  if (!file) {
+    return
+  }
+
+  // 验证文件类型
+  const fileName = file.name.toLowerCase()
+  const isValidMarkdown = fileName.endsWith('.md') || fileName.endsWith('.markdown')
+
+  if (!isValidMarkdown) {
+    // 可以在这里添加错误提示，比如使用 toast
+    console.error(actionsData.value?.onlyMarkdownFiles)
+    alert(actionsData.value?.onlyMarkdownFiles)
+    // 重置文件输入
+    target.value = ''
+    return
+  }
+
+  isImporting.value = true
+
+  try {
+    const text = await file.text()
+    importMarkdown(text)
+  } catch (error) {
+    console.error('导入文件失败:', error)
+    alert(actionsData.value?.importFailed)
+  } finally {
+    isImporting.value = false
+    // 重置文件输入，允许重复选择同一文件
+    target.value = ''
+  }
+}
+
 // 暴露方法给父组件
 defineExpose({
   importMarkdown,
@@ -181,19 +210,13 @@ defineExpose({
 
 <template>
   <div class="editor-container">
-    <AppHeader>
-      <UEditorToolbar
-        :editor="editorRef"
-        :items="toolbarItems"
-      />
-    </AppHeader>
     <UEditor
       ref="editorRef"
       v-slot="{ editor, handlers }"
       :extensions="extensions"
       :handlers="customHandlers"
       :model-value="content"
-      :placeholder="placeholder"
+      :placeholder="placeholder.value"
       :ui="{
         base: 'p-6 sm:p-12',
         content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'
@@ -204,6 +227,39 @@ defineExpose({
       @create="onCreate"
       @update:model-value="onUpdate"
     >
+      <AppHeader>
+        <UEditorToolbar
+          :editor="editor"
+          :items="toolbarItems"
+        />
+        <div v-if="showImportExport" class="flex gap-2">
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept=".md,.markdown"
+            class="hidden"
+            @change="handleFileImport"
+          >
+          <UButton
+            :loading="isImporting"
+            color="primary"
+            icon="i-lucide-upload"
+            :label="actionsData?.importMarkdown"
+            size="sm"
+            variant="soft"
+            @click="handleImportClick"
+          />
+          <UButton
+            :loading="isDownloading"
+            color="primary"
+            icon="i-lucide-download"
+            :label="actionsData?.downloadMarkdown"
+            size="sm"
+            variant="soft"
+            @click="handleDownload"
+          />
+        </div>
+      </AppHeader>
       <UEditorToolbar
         :editor="editor"
         :items="bubbleToolbarItems"
@@ -217,7 +273,7 @@ defineExpose({
         layout="bubble"
       >
         <template #link>
-          <EditorLinkPopover :editor="editor"/>
+          <EditorLinkPopover :editor="editor" />
         </template>
       </UEditorToolbar>
 
@@ -230,7 +286,7 @@ defineExpose({
         layout="bubble"
       >
         <template #imageAlt>
-          <EditorImageAltPopover :editor="editor"/>
+          <EditorImageAltPopover :editor="editor" />
         </template>
       </UEditorToolbar>
 

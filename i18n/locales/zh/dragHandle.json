@@ -1,11 +1,13 @@
 {
-  "turnInto": "转换为",
-  "resetFormatting": "重置格式",
-  "downloadImage": "下载图片",
-  "clearAllContents": "清空所有内容",
-  "duplicate": "复制",
-  "copyToClipboard": "复制到剪贴板",
-  "moveUp": "上移",
-  "moveDown": "下移",
-  "delete": "删除"
+  "dragHandle": {
+    "turnInto": "转换为",
+    "resetFormatting": "重置格式",
+    "downloadImage": "下载图片",
+    "clearAllContents": "清空所有内容",
+    "duplicate": "复制",
+    "copyToClipboard": "复制到剪贴板",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "delete": "删除"
+  }
 }

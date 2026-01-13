@@ -1,6 +1,8 @@
 {
-  "importMarkdown": "Import Markdown",
-  "downloadMarkdown": "Download Markdown",
-  "onlyMarkdownFiles": "Only Markdown files (.md or .markdown) can be imported",
-  "importFailed": "Failed to import file, please try again"
+  "actions": {
+    "importMarkdown": "Import Markdown",
+    "downloadMarkdown": "Download Markdown",
+    "onlyMarkdownFiles": "Only Markdown files (.md or .markdown) can be imported",
+    "importFailed": "Failed to import file, please try again"
+  }
 }

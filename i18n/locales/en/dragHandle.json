@@ -1,11 +1,13 @@
 {
-  "turnInto": "Turn into",
-  "resetFormatting": "Reset formatting",
-  "downloadImage": "Download image",
-  "clearAllContents": "Clear all contents",
-  "duplicate": "Duplicate",
-  "copyToClipboard": "Copy to clipboard",
-  "moveUp": "Move up",
-  "moveDown": "Move down",
-  "delete": "Delete"
+  "dragHandle": {
+    "turnInto": "Turn into",
+    "resetFormatting": "Reset formatting",
+    "downloadImage": "Download image",
+    "clearAllContents": "Clear all contents",
+    "duplicate": "Duplicate",
+    "copyToClipboard": "Copy to clipboard",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "delete": "Delete"
+  }
 }
