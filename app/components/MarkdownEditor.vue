@@ -232,7 +232,10 @@ defineExpose({
           :editor="editor"
           :items="toolbarItems"
         />
-        <div v-if="showImportExport" class="flex gap-2">
+        <div
+          v-if="showImportExport"
+          class="flex gap-2"
+        >
           <input
             ref="fileInputRef"
             type="file"

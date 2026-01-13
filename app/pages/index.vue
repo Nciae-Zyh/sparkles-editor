@@ -15,7 +15,7 @@ watch(editorData, () => {
     content.value = defaultContent.value
   }
 }, { deep: true })
-onMounted(() =>{
+onMounted(() => {
   content.value = defaultContent.value
   console.log(content.value)
 })

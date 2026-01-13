@@ -48,7 +48,15 @@ export default defineNuxtConfig({
             binding: 'BLOB',
             bucket_name: 'sparkles-r2'
           }
-        ]
+        ],
+        observability: {
+          enabled: false,
+          logs: {
+            enabled: true,
+            head_sampling_rate: 1,
+            invocation_logs: true
+          }
+        }
       }
     },
     // prerender: {
@@ -113,6 +121,6 @@ export default defineNuxtConfig({
         name: 'English'
       }
     ],
-    detectBrowserLanguage: false,
+    detectBrowserLanguage: false
   }
 })
