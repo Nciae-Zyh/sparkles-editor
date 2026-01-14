@@ -216,7 +216,7 @@ defineExpose({
       :extensions="extensions"
       :handlers="customHandlers"
       :model-value="content"
-      :placeholder="placeholder.value"
+      :placeholder="placeholder"
       :ui="{
         base: 'p-6 sm:p-12',
         content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'
