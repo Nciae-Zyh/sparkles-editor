@@ -266,7 +266,19 @@ onUnmounted(() => {
 
 function onCreate({editor: _editor}: { editor: Editor }) {
   // Editor created
+  // 如果是只读模式，禁用编辑器编辑
+  if (props.readonly) {
+    _editor.setEditable(false)
+  }
 }
+
+// 监听 readonly 变化，动态设置编辑器是否可编辑
+watch(() => props.readonly, (readonly) => {
+  const editor = editorRef.value?.editor
+  if (editor) {
+    editor.setEditable(!readonly)
+  }
+})
 
 function onUpdate(value: string) {
   content.value = value
@@ -392,7 +404,7 @@ defineExpose({
         base: 'p-4 sm:p-6 lg:p-12',
         content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'
       }"
-      autofocus
+      :autofocus="!readonly"
       class="editor-wrapper"
       content-type="markdown"
       @create="onCreate"
@@ -402,7 +414,10 @@ defineExpose({
         class="sticky top-(--ui-header-height) z-50 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div class="container mx-auto px-4 sm:px-6 lg:px-14">
           <div class="flex items-center justify-between gap-4 py-3">
-            <div class="flex-1 overflow-x-auto">
+            <div
+              v-if="!readonly"
+              class="flex-1 overflow-x-auto"
+            >
               <UEditorToolbar
                 :editor="editor"
                 :items="toolbarItems"
@@ -505,6 +520,7 @@ defineExpose({
         </div>
       </div>
       <UEditorToolbar
+        v-if="!readonly"
         :editor="editor"
         :items="bubbleToolbarItems"
         :should-show="({ editor, view, state }: any) => {
@@ -522,6 +538,7 @@ defineExpose({
       </UEditorToolbar>
 
       <UEditorToolbar
+        v-if="!readonly"
         :editor="editor"
         :items="getImageToolbarItems(editor)"
         :should-show="({ editor, view }: any) => {
@@ -535,6 +552,7 @@ defineExpose({
       </UEditorToolbar>
 
       <UEditorToolbar
+        v-if="!readonly"
         :editor="editor"
         :items="getTableToolbarItems(editor)"
         :should-show="({ editor, view }: any) => {
@@ -544,6 +562,7 @@ defineExpose({
       />
 
       <UEditorDragHandle
+        v-if="!readonly"
         v-slot="{ ui, onClick }"
         :editor="editor"
         @node-change="onNodeChange"

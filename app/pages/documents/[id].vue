@@ -19,6 +19,7 @@ const documentId = computed(() => route.params.id as string)
 const document = ref<any>(null)
 const content = ref('')
 const documentTitle = ref('')
+const isReadOnly = ref(false) // 是否只读模式（文档不属于当前用户）
 
 onMounted(async () => {
   // 等待用户认证加载完成
@@ -35,6 +36,15 @@ onMounted(async () => {
     document.value = doc
     content.value = doc.content || ''
     documentTitle.value = doc.title || (documentsData.value?.untitledDocument || '未命名文档')
+    
+    // 检查文档是否属于当前用户
+    if (doc.user_id && user.value && doc.user_id !== user.value.id) {
+      // 文档不属于当前用户，设置为只读模式
+      isReadOnly.value = true
+    } else {
+      isReadOnly.value = false
+    }
+    
     // 如果文档有父文件夹，设置到编辑器中
     if (doc.parent_id) {
       // 可以通过 props 传递给 MarkdownEditor
@@ -62,5 +72,6 @@ onMounted(async () => {
     v-model="content"
     :document-id="documentId"
     :document-title="documentTitle"
+    :readonly="isReadOnly"
   />
 </template>

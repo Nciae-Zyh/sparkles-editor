@@ -14,11 +14,12 @@ export default eventHandler(async (event) => {
   const { id } = getRouterParams(event)
   const db = await getDBWithMigration(event)
 
+  // 允许获取任何文档（包括其他用户的），用于只读查看
   const document = await db.prepare(`
-    SELECT id, title, r2_key, created_at, updated_at
+    SELECT id, title, r2_key, user_id, created_at, updated_at
     FROM documents
-    WHERE id = ? AND user_id = ?
-  `).bind(id, user.id).first() as any
+    WHERE id = ?
+  `).bind(id).first() as any
 
   if (!document) {
     throw createError({
