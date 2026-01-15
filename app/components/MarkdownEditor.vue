@@ -50,7 +50,7 @@ const checkDocumentExists = async (id: string) => {
     hasBeenSaved.value = false
     return
   }
-  
+
   try {
     await getDocument(id)
     // 如果获取成功，说明文档已存在，允许自动保存
@@ -384,7 +384,7 @@ defineExpose({
             </div>
             <div
               v-if="showImportExport"
-              class="flex gap-2 flex-wrap shrink-0"
+              class="flex gap-2 flex-wrap shrink-0 items-center"
             >
               <input
                 ref="fileInputRef"
@@ -450,10 +450,10 @@ defineExpose({
                 :content="content || ''"
                 :document-id="documentId"
                 :title="documentTitle"
-                @saved="(id) => { 
+                @saved="(id) => {
                   documentId = id
                   hasBeenSaved = true // 标记文档已保存，允许自动保存
-                  $emit('document-saved', id) 
+                  $emit('document-saved', id)
                 }"
               />
               <div

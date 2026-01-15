@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-definePageMeta({
-  layout: 'editor'
-})
-
 import { useDocuments } from '~/composables/useDocuments'
 import { useAuth } from '~/composables/useAuth'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
+
+definePageMeta({
+  layout: 'editor'
+})
 
 const route = useRoute()
 const router = useRouter()
@@ -21,6 +21,7 @@ const content = ref('')
 const documentTitle = ref('')
 
 onMounted(async () => {
+  await nextTick()
   if (!user.value) {
     router.push(safeLocalePath('/'))
     return
