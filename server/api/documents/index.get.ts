@@ -1,4 +1,4 @@
-import { getDB } from '../../utils/db'
+import { getDBWithMigration } from '../../utils/db'
 import { getCurrentUser } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -13,13 +13,7 @@ export default eventHandler(async (event) => {
   const query = getQuery(event)
   const parentId = query.parentId as string | undefined
 
-  const db = getDB(event)
-  if (!db) {
-    throw createError({
-      statusCode: 500,
-      message: 'Database not available'
-    })
-  }
+  const db = await getDBWithMigration(event)
 
   // 如果指定了 parentId，返回该目录下的内容
   // 否则返回根目录（parent_id IS NULL）的内容

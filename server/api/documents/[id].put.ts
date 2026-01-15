@@ -1,4 +1,4 @@
-import { getDB } from '../../utils/db'
+import { getDBWithMigration } from '../../utils/db'
 import { getCurrentUser } from '../../utils/auth'
 import { getR2Bucket, saveDocumentToR2 } from '../../utils/r2'
 
@@ -48,17 +48,19 @@ export default eventHandler(async (event) => {
 
     const { title, content, parentId } = body
 
-    // 4. 获取数据库连接
+    // 4. 获取数据库连接并执行迁移检查
     console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤4: 获取数据库连接`)
-    const db = getDB(event)
-    if (!db) {
-      console.error(`[PUT /api/documents/[id]] [${requestId}] 数据库不可用`)
+    let db: D1Database
+    try {
+      db = await getDBWithMigration(event)
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 数据库连接成功`)
+    } catch (error: any) {
+      console.error(`[PUT /api/documents/[id]] [${requestId}] 数据库不可用:`, error?.message)
       throw createError({
         statusCode: 500,
         message: 'Database not available'
       })
     }
-    console.log(`[PUT /api/documents/[id]] [${requestId}] 数据库连接成功`)
 
     // 5. 检查文档是否存在且属于当前用户
     console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤5: 检查文档是否存在`)

@@ -1,4 +1,4 @@
-import { getDB } from '../../utils/db'
+import { getDBWithMigration } from '../../utils/db'
 import { getCurrentUser } from '../../utils/auth'
 import { getR2Bucket, deleteDocumentFromR2 } from '../../utils/r2'
 
@@ -12,13 +12,7 @@ export default eventHandler(async (event) => {
   }
 
   const { id } = getRouterParams(event)
-  const db = getDB(event)
-  if (!db) {
-    throw createError({
-      statusCode: 500,
-      message: 'Database not available'
-    })
-  }
+  const db = await getDBWithMigration(event)
 
   // 检查文档是否存在且属于当前用户
   const document = await db.prepare(`

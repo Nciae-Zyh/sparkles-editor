@@ -5,6 +5,26 @@ export function getDB(event: any) {
   return env?.DB
 }
 
+/**
+ * 获取数据库并确保迁移已完成
+ */
+export async function getDBWithMigration(event: any): Promise<D1Database> {
+  const db = getDB(event)
+  if (!db) {
+    throw new Error('Database not available')
+  }
+  
+  // 执行迁移检查（非阻塞，失败不影响主流程）
+  try {
+    await migrateDB(db)
+  } catch (error: any) {
+    console.warn('[getDBWithMigration] Migration check failed:', error?.message)
+    // 迁移失败不应该阻止 API 调用，只记录警告
+  }
+  
+  return db
+}
+
 export async function initDB(db: D1Database) {
   try {
     console.log('[initDB] Starting database initialization')
@@ -48,23 +68,13 @@ export async function initDB(db: D1Database) {
         )
       `).run()
       console.log('[initDB] Documents table created/verified')
-
-      // 迁移现有数据：为旧数据添加默认路径和类型
-      try {
-        await db.prepare(`
-          UPDATE documents 
-          SET path = '/' || id, type = 'document', parent_id = NULL
-          WHERE path IS NULL OR path = ''
-        `).run()
-        console.log('[initDB] Migrated existing documents')
-      } catch (migrateError: any) {
-        // 迁移失败不影响初始化，可能是新数据库
-        console.log('[initDB] No migration needed or migration failed:', migrateError?.message)
-      }
     } catch (error: any) {
       console.error('[initDB] Failed to create documents table:', error)
       throw new Error(`Failed to create documents table: ${error?.message || 'Unknown error'}`)
     }
+
+    // 数据库迁移：检查并添加缺失的列
+    await migrateDB(db)
 
     // 创建索引 - 分别执行每个索引创建语句
     const indexStatements = [
@@ -95,5 +105,107 @@ export async function initDB(db: D1Database) {
       error: error
     })
     throw error
+  }
+}
+
+/**
+ * 数据库迁移：检查并添加缺失的列
+ */
+export async function migrateDB(db: D1Database) {
+  try {
+    console.log('[migrateDB] Starting database migration')
+
+    // 检查表是否存在
+    const tableInfo = await db.prepare(`
+      SELECT name FROM sqlite_master 
+      WHERE type='table' AND name='documents'
+    `).first()
+
+    if (!tableInfo) {
+      console.log('[migrateDB] Documents table does not exist, skipping migration')
+      return
+    }
+
+    // 获取现有列信息
+    const columns = await db.prepare(`PRAGMA table_info(documents)`).all()
+    const columnNames = (columns.results as any[]).map((col: any) => col.name)
+    console.log('[migrateDB] Existing columns:', columnNames)
+
+    const migrations: Array<{ name: string, sql: string }> = []
+
+    // 检查并添加 parent_id 列
+    if (!columnNames.includes('parent_id')) {
+      migrations.push({
+        name: 'add_parent_id',
+        sql: `ALTER TABLE documents ADD COLUMN parent_id TEXT`
+      })
+    }
+
+    // 检查并添加 path 列
+    if (!columnNames.includes('path')) {
+      migrations.push({
+        name: 'add_path',
+        sql: `ALTER TABLE documents ADD COLUMN path TEXT NOT NULL DEFAULT ''`
+      })
+    }
+
+    // 检查并添加 type 列
+    if (!columnNames.includes('type')) {
+      migrations.push({
+        name: 'add_type',
+        sql: `ALTER TABLE documents ADD COLUMN type TEXT NOT NULL DEFAULT 'document'`
+      })
+    }
+
+    // 执行迁移
+    for (const migration of migrations) {
+      try {
+        console.log(`[migrateDB] Executing migration: ${migration.name}`)
+        await db.prepare(migration.sql).run()
+        console.log(`[migrateDB] Migration ${migration.name} completed successfully`)
+      } catch (error: any) {
+        // 如果列已存在（可能由其他迁移添加），忽略错误
+        if (error?.message?.includes('duplicate column') || error?.message?.includes('already exists')) {
+          console.log(`[migrateDB] Migration ${migration.name} skipped (column may already exist)`)
+        } else {
+          console.error(`[migrateDB] Migration ${migration.name} failed:`, error?.message)
+          throw error
+        }
+      }
+    }
+
+    // 迁移现有数据：为旧数据添加默认路径和类型
+    try {
+      const updateResult = await db.prepare(`
+        UPDATE documents 
+        SET path = CASE 
+          WHEN path IS NULL OR path = '' THEN '/' || id 
+          ELSE path 
+        END,
+        type = CASE 
+          WHEN type IS NULL OR type = '' THEN 'document' 
+          ELSE type 
+        END,
+        parent_id = CASE 
+          WHEN parent_id IS NULL OR parent_id = '' THEN NULL 
+          ELSE parent_id 
+        END
+        WHERE path IS NULL OR path = '' OR type IS NULL OR type = ''
+      `).run()
+      console.log(`[migrateDB] Migrated ${updateResult.meta.changes || 0} existing documents`)
+    } catch (migrateError: any) {
+      // 迁移失败不影响初始化，可能是新数据库或已迁移
+      console.log('[migrateDB] Data migration skipped or failed:', migrateError?.message)
+    }
+
+    console.log('[migrateDB] Database migration completed successfully')
+  } catch (error: any) {
+    console.error('[migrateDB] Database migration failed:', {
+      message: error?.message,
+      stack: error?.stack,
+      error: error
+    })
+    // 迁移失败不应该阻止应用启动，只记录错误
+    console.warn('[migrateDB] Continuing despite migration errors')
   }
 }

@@ -1,4 +1,4 @@
-import { getDB } from '../../utils/db'
+import { getDBWithMigration } from '../../utils/db'
 import { getCurrentUser } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -10,13 +10,7 @@ export default eventHandler(async (event) => {
     })
   }
 
-  const db = getDB(event)
-  if (!db) {
-    throw createError({
-      statusCode: 500,
-      message: 'Database not available'
-    })
-  }
+  const db = await getDBWithMigration(event)
 
   // 获取所有文件夹（用于选择保存位置）
   const folders = await db.prepare(`

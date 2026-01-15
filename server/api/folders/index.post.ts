@@ -1,4 +1,4 @@
-import { getDB } from '../../utils/db'
+import { getDBWithMigration } from '../../utils/db'
 import { getCurrentUser, generateDocumentId } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -20,13 +20,7 @@ export default eventHandler(async (event) => {
     })
   }
 
-  const db = getDB(event)
-  if (!db) {
-    throw createError({
-      statusCode: 500,
-      message: 'Database not available'
-    })
-  }
+  const db = await getDBWithMigration(event)
 
   // 验证父目录是否存在且属于当前用户
   let parentPath = '/'

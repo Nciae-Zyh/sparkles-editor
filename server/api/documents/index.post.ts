@@ -1,6 +1,7 @@
-import { getDB } from '../../utils/db'
+import { getDBWithMigration } from '../../utils/db'
 import { getCurrentUser, generateDocumentId } from '../../utils/auth'
 import { getR2Bucket, saveDocumentToR2 } from '../../utils/r2'
+import { parseFilePath, ensureFolderPath } from '../../utils/path'
 
 export default eventHandler(async (event) => {
   const startTime = Date.now()
@@ -45,10 +46,20 @@ export default eventHandler(async (event) => {
 
     const { title, content, parentId, type = 'document' } = body
 
-    // 3. 验证必填字段
-    console.log(`[POST /api/documents] [${requestId}] 步骤3: 验证必填字段`)
-    if (!title || typeof title !== 'string' || !title.trim()) {
-      console.error(`[POST /api/documents] [${requestId}] 标题验证失败: title=${title}`)
+    // 3. 解析文件名（类似 WebStorm，支持 folder/subfolder/file.md 格式）
+    console.log(`[POST /api/documents] [${requestId}] 步骤3: 解析文件名`)
+    const { folderPath, fileName } = parseFilePath(title.trim())
+    const finalTitle = fileName || title.trim()
+    console.log(`[POST /api/documents] [${requestId}] 文件名解析结果:`, {
+      originalTitle: title,
+      folderPath,
+      fileName: finalTitle
+    })
+
+    // 4. 验证必填字段
+    console.log(`[POST /api/documents] [${requestId}] 步骤4: 验证必填字段`)
+    if (!finalTitle || !finalTitle.trim()) {
+      console.error(`[POST /api/documents] [${requestId}] 标题验证失败: finalTitle=${finalTitle}`)
       throw createError({
         statusCode: 400,
         message: 'Title is required'
@@ -56,22 +67,25 @@ export default eventHandler(async (event) => {
     }
     console.log(`[POST /api/documents] [${requestId}] 字段验证通过`)
 
-    // 4. 获取数据库连接
-    console.log(`[POST /api/documents] [${requestId}] 步骤4: 获取数据库连接`)
-    const db = getDB(event)
-    if (!db) {
-      console.error(`[POST /api/documents] [${requestId}] 数据库不可用`)
+    // 5. 获取数据库连接并执行迁移检查
+    console.log(`[POST /api/documents] [${requestId}] 步骤5: 获取数据库连接`)
+    let db: D1Database
+    try {
+      db = await getDBWithMigration(event)
+      console.log(`[POST /api/documents] [${requestId}] 数据库连接成功`)
+    } catch (error: any) {
+      console.error(`[POST /api/documents] [${requestId}] 数据库不可用:`, error?.message)
       throw createError({
         statusCode: 500,
         message: 'Database not available'
       })
     }
-    console.log(`[POST /api/documents] [${requestId}] 数据库连接成功`)
 
-    // 5. 验证父目录（如果提供）
+    // 6. 验证并处理父目录（如果提供）
+    let baseParentId: string | null = null
     let parentPath = '/'
     if (parentId) {
-      console.log(`[POST /api/documents] [${requestId}] 步骤5: 验证父目录 parentId=${parentId}`)
+      console.log(`[POST /api/documents] [${requestId}] 步骤6: 验证父目录 parentId=${parentId}`)
       try {
         const parent = await db.prepare('SELECT id, path, type FROM documents WHERE id = ? AND user_id = ?')
           .bind(parentId, user.id)
@@ -93,6 +107,7 @@ export default eventHandler(async (event) => {
           })
         }
 
+        baseParentId = parent.id
         parentPath = parent.path
         console.log(`[POST /api/documents] [${requestId}] 父目录验证成功: path=${parentPath}`)
       } catch (error: any) {
@@ -109,7 +124,39 @@ export default eventHandler(async (event) => {
         })
       }
     } else {
-      console.log(`[POST /api/documents] [${requestId}] 步骤5: 无父目录，使用根目录`)
+      console.log(`[POST /api/documents] [${requestId}] 步骤6: 无父目录，使用根目录`)
+    }
+
+    // 7. 自动创建文件夹路径（如果文件名包含路径）
+    let finalParentId = baseParentId
+    if (folderPath.length > 0) {
+      console.log(`[POST /api/documents] [${requestId}] 步骤7: 自动创建文件夹路径:`, folderPath)
+      try {
+        finalParentId = await ensureFolderPath(db, user.id, folderPath, baseParentId)
+        console.log(`[POST /api/documents] [${requestId}] 文件夹路径创建成功: finalParentId=${finalParentId}`)
+        
+        // 更新 parentPath 用于后续路径计算
+        if (finalParentId) {
+          const finalParent = await db.prepare('SELECT path FROM documents WHERE id = ? AND user_id = ?')
+            .bind(finalParentId, user.id)
+            .first() as any
+          if (finalParent) {
+            parentPath = finalParent.path
+          }
+        }
+      } catch (error: any) {
+        console.error(`[POST /api/documents] [${requestId}] 创建文件夹路径时出错:`, {
+          message: error?.message,
+          stack: error?.stack,
+          folderPath
+        })
+        throw createError({
+          statusCode: 500,
+          message: `Failed to create folder path: ${error?.message || 'Unknown error'}`
+        })
+      }
+    } else {
+      console.log(`[POST /api/documents] [${requestId}] 步骤7: 无需创建文件夹路径`)
     }
 
     // 6. 生成文档ID和路径
@@ -119,8 +166,8 @@ export default eventHandler(async (event) => {
     const path = parentPath === '/' ? `/${documentId}` : `${parentPath}/${documentId}`
     console.log(`[POST /api/documents] [${requestId}] 文档ID生成成功: documentId=${documentId}, path=${path}`)
 
-    // 7. 检查路径是否已存在
-    console.log(`[POST /api/documents] [${requestId}] 步骤7: 检查路径冲突`)
+    // 8. 检查路径是否已存在
+    console.log(`[POST /api/documents] [${requestId}] 步骤8: 检查路径冲突`)
     try {
       const existing = await db.prepare('SELECT id FROM documents WHERE path = ? AND user_id = ?')
         .bind(path, user.id)
@@ -148,10 +195,10 @@ export default eventHandler(async (event) => {
       })
     }
 
-    // 8. 保存到 R2（如果是文档）
+    // 9. 保存到 R2（如果是文档）
     let r2Key = ''
     if (type === 'document') {
-      console.log(`[POST /api/documents] [${requestId}] 步骤8: 保存到R2存储`)
+      console.log(`[POST /api/documents] [${requestId}] 步骤9: 保存到R2存储`)
       try {
         const r2 = getR2Bucket(event)
         if (!r2) {
@@ -186,8 +233,8 @@ export default eventHandler(async (event) => {
       r2Key = ''
     }
 
-    // 9. 保存到数据库
-    console.log(`[POST /api/documents] [${requestId}] 步骤9: 保存到数据库`)
+    // 10. 保存到数据库
+    console.log(`[POST /api/documents] [${requestId}] 步骤10: 保存到数据库`)
     try {
       const result = await db.prepare(`
         INSERT INTO documents (id, user_id, title, r2_key, parent_id, path, type, created_at, updated_at)
@@ -195,9 +242,9 @@ export default eventHandler(async (event) => {
       `).bind(
         documentId,
         user.id,
-        title.trim(),
+        finalTitle,
         r2Key,
-        parentId || null,
+        finalParentId,
         path,
         type,
         now,
@@ -244,8 +291,8 @@ export default eventHandler(async (event) => {
       success: true,
       document: {
         id: documentId,
-        title: title.trim(),
-        parent_id: parentId || null,
+        title: finalTitle,
+        parent_id: finalParentId,
         path,
         type,
         created_at: now,
