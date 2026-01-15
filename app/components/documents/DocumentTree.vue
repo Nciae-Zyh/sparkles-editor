@@ -177,7 +177,7 @@ onMounted(() => {
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
-        <UFormGroup
+        <UFormField
           label="文件夹名称"
           name="folderName"
           required
@@ -187,7 +187,7 @@ onMounted(() => {
             placeholder="请输入文件夹名称"
             @keyup.enter="handleCreateFolder"
           />
-        </UFormGroup>
+        </UFormField>
         <div
           v-if="selectedParentId"
           class="mt-2 text-sm text-gray-500"
@@ -237,7 +237,7 @@ onMounted(() => {
       v-else
       class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-900"
     >
-      <DocumentTreeNode
+      <DocumentsDocumentTreeNode
         v-for="node in tree"
         :key="node.id"
         :node="node"

@@ -113,7 +113,7 @@ const formatDate = (timestamp: number) => {
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
-        <UFormGroup
+        <UFormField
           label="文件夹名称"
           name="folderName"
           required
@@ -123,7 +123,7 @@ const formatDate = (timestamp: number) => {
             placeholder="请输入文件夹名称"
             @keyup.enter="handleCreateFolder"
           />
-        </UFormGroup>
+        </UFormField>
       </template>
 
       <template #footer="{ close }">

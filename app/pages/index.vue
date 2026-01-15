@@ -105,7 +105,7 @@ onMounted(async () => {
       @document-saved="(id) => { isNewDocument = false }"
     />
 
-    <AuthModal
+    <AuthAuthModal
       v-model:open="authModalOpen"
       :mode="authMode"
     />

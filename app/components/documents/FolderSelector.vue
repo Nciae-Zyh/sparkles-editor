@@ -78,7 +78,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <UFormGroup
+  <UFormField
     :label="label"
     name="parentId"
   >
@@ -89,5 +89,5 @@ onMounted(async () => {
       placeholder="选择文件夹（可选，默认保存到根目录）"
       searchable
     />
-  </UFormGroup>
+  </UFormField>
 </template>

@@ -19,7 +19,7 @@ onMounted(async () => {
 <template>
   <div class="min-h-screen bg-white dark:bg-gray-900">
     <AppHeader>
-      <template #right>
+      <template #default>
         <UButton
           :to="currentFolderId ? `/?folder=${currentFolderId}` : '/'"
           icon="i-lucide-plus"
@@ -54,7 +54,7 @@ onMounted(async () => {
           我的文档
         </h1>
       </div>
-      <DocumentTree />
+      <DocumentsDocumentTree />
     </div>
   </div>
 </template>

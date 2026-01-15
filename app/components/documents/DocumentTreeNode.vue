@@ -104,7 +104,7 @@ const handleCreateSubFolder = (event: Event) => {
 
     <!-- 子节点 -->
     <div v-if="node.type === 'folder' && isExpanded && hasChildren">
-      <DocumentTreeNode
+      <DocumentsDocumentTreeNode
         v-for="child in node.children"
         :key="child.id"
         :node="child"

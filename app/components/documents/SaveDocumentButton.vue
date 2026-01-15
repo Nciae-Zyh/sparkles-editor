@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { useDocuments } from '~/composables/useDocuments'
 import { useAuth } from '~/composables/useAuth'
-import FolderSelector from './FolderSelector.vue'
 import type { Document } from '~/types'
 
 interface Props {
@@ -92,7 +91,7 @@ const handleSave = async () => {
     >
       <template #body>
         <div class="space-y-4">
-          <UFormGroup
+          <UFormField
             label="文档标题"
             name="title"
             required
@@ -102,9 +101,9 @@ const handleSave = async () => {
               placeholder="请输入文档标题"
               required
             />
-          </UFormGroup>
+          </UFormField>
 
-          <FolderSelector
+          <DocumentsFolderSelector
             v-if="!documentId"
             v-model="selectedParentId"
             label="保存位置"

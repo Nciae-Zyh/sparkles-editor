@@ -48,7 +48,7 @@ onMounted(async () => {
 
   <div v-else>
     <AppHeader>
-      <template #right>
+      <template #default>
         <UButton
           to="/documents"
           icon="i-lucide-arrow-left"
