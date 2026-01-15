@@ -137,7 +137,7 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    googleClientId: '463658926746-1nb91dmr6eouqq2h7gvvgcmvpmdn53fk.apps.googleusercontent.com',
     googleClientSecret: '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',
     sessionSecret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
     public: {
