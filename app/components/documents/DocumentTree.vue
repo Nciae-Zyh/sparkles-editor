@@ -6,14 +6,18 @@ interface DocumentTreeNode extends Document {
   children?: DocumentTreeNode[]
 }
 
-const { fetchDocumentTree, deleteDocument, createFolder } = useDocuments()
+const { fetchDocumentTree, deleteDocument, createFolder, getDocument } = useDocuments()
+const { downloadAsZip, isDownloading } = useDownloadZip()
 const router = useRouter()
+
+const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
 
 const tree = ref<DocumentTreeNode[]>([])
 const flat = ref<Document[]>([])
 const loading = ref(false)
 const expandedFolders = ref<Set<string>>(new Set())
 const deletingId = ref<string | null>(null)
+const downloadingId = ref<string | null>(null)
 const showCreateFolder = ref(false)
 const newFolderName = ref('')
 const creatingFolder = ref(false)
@@ -105,6 +109,34 @@ const handleCreateFolder = async () => {
     alert(error.message || '创建文件夹失败')
   } finally {
     creatingFolder.value = false
+  }
+}
+
+// 处理下载文档
+const handleDownload = async (id: string, event: Event) => {
+  event.stopPropagation()
+  
+  try {
+    downloadingId.value = id
+    // 获取文档内容
+    const document = await getDocument(id)
+    if (!document.content) {
+      alert(actionsData.value?.documentEmpty || '文档内容为空')
+      return
+    }
+
+    // 生成文件名（使用文档标题，如果没有则使用 ID）
+    const filename = document.title 
+      ? `${document.title.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '-')}.zip`
+      : `document-${id}.zip`
+
+    // 下载为 ZIP
+    await downloadAsZip(document.content, filename)
+  } catch (error: any) {
+    console.error('Download failed:', error)
+    alert(error.message || actionsData.value?.downloadFailed || '下载失败，请稍后重试')
+  } finally {
+    downloadingId.value = null
   }
 }
 
@@ -244,10 +276,12 @@ onMounted(() => {
         :level="0"
         :expanded-folders="expandedFolders"
         :deleting-id="deletingId"
+        :downloading-id="downloadingId"
         @toggle="(id: string) => toggleFolder(id)"
         @click="(n: DocumentTreeNode) => handleNodeClick(n)"
         @delete="(id: string, e: Event) => handleDelete(id, e)"
         @create-sub-folder="(id: string, e: Event) => handleCreateSubFolder(id, e)"
+        @download="(id: string, e: Event) => handleDownload(id, e)"
       />
     </div>
   </div>

@@ -16,7 +16,6 @@ interface Props {
   showImportExport?: boolean
   documentId?: string
   documentTitle?: string
-  defaultParentId?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,8 +23,7 @@ const props = withDefaults(defineProps<Props>(), {
   enableBeforeUnload: false,
   showImportExport: true,
   documentId: undefined,
-  documentTitle: undefined,
-  defaultParentId: undefined
+  documentTitle: undefined
 })
 
 const emit = defineEmits<{
@@ -36,15 +34,7 @@ const { user } = useAuth()
 const { saveDocument } = useDocuments()
 const documentTitle = ref(props.documentTitle || '未命名文档')
 const documentId = ref(props.documentId)
-const selectedParentId = ref<string | undefined>(props.defaultParentId)
 const isNewDocument = computed(() => !documentId.value)
-
-watch(() => props.defaultParentId, (newParentId) => {
-  if (!documentId.value) {
-    // 只有新建文档时才更新父文件夹
-    selectedParentId.value = newParentId
-  }
-})
 
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
@@ -371,7 +361,6 @@ defineExpose({
                 :title="documentTitle"
                 :content="content || ''"
                 :document-id="documentId"
-                :default-parent-id="selectedParentId"
                 @saved="(id) => { documentId = id; $emit('document-saved', id) }"
               />
               <div

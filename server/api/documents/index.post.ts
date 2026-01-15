@@ -30,7 +30,6 @@ export default eventHandler(async (event) => {
       console.log(`[POST /api/documents] [${requestId}] 请求体读取成功:`, {
         title: body?.title,
         contentLength: body?.content?.length || 0,
-        parentId: body?.parentId,
         type: body?.type
       })
     } catch (error: any) {
@@ -44,14 +43,14 @@ export default eventHandler(async (event) => {
       })
     }
 
-    const { title, content, parentId, type = 'document' } = body
+    const { title, content, type = 'document' } = body
 
     // 3. 解析文件名（类似 WebStorm，支持 folder/subfolder/file.md 格式）
-    console.log(`[POST /api/documents] [${requestId}] 步骤3: 解析文件名`)
+    console.log(`[POST /api/documents] [${requestId}] 步骤3: 解析存储路径`)
     const { folderPath, fileName } = parseFilePath(title.trim())
     const finalTitle = fileName || title.trim()
-    console.log(`[POST /api/documents] [${requestId}] 文件名解析结果:`, {
-      originalTitle: title,
+    console.log(`[POST /api/documents] [${requestId}] 路径解析结果:`, {
+      originalPath: title,
       folderPath,
       fileName: finalTitle
     })
@@ -81,58 +80,13 @@ export default eventHandler(async (event) => {
       })
     }
 
-    // 6. 验证并处理父目录（如果提供）
-    let baseParentId: string | null = null
+    // 6. 自动创建文件夹路径（如果路径包含文件夹）
+    let finalParentId: string | null = null
     let parentPath = '/'
-    if (parentId) {
-      console.log(`[POST /api/documents] [${requestId}] 步骤6: 验证父目录 parentId=${parentId}`)
-      try {
-        const parent = await db.prepare('SELECT id, path, type FROM documents WHERE id = ? AND user_id = ?')
-          .bind(parentId, user.id)
-          .first() as any
-
-        if (!parent) {
-          console.error(`[POST /api/documents] [${requestId}] 父目录不存在: parentId=${parentId}`)
-          throw createError({
-            statusCode: 404,
-            message: 'Parent folder not found'
-          })
-        }
-
-        if (parent.type !== 'folder') {
-          console.error(`[POST /api/documents] [${requestId}] 父目录类型错误: type=${parent.type}`)
-          throw createError({
-            statusCode: 400,
-            message: 'Parent must be a folder'
-          })
-        }
-
-        baseParentId = parent.id
-        parentPath = parent.path
-        console.log(`[POST /api/documents] [${requestId}] 父目录验证成功: path=${parentPath}`)
-      } catch (error: any) {
-        if (error.statusCode) {
-          throw error
-        }
-        console.error(`[POST /api/documents] [${requestId}] 验证父目录时出错:`, {
-          message: error?.message,
-          stack: error?.stack
-        })
-        throw createError({
-          statusCode: 500,
-          message: `Failed to validate parent folder: ${error?.message || 'Unknown error'}`
-        })
-      }
-    } else {
-      console.log(`[POST /api/documents] [${requestId}] 步骤6: 无父目录，使用根目录`)
-    }
-
-    // 7. 自动创建文件夹路径（如果文件名包含路径）
-    let finalParentId = baseParentId
     if (folderPath.length > 0) {
-      console.log(`[POST /api/documents] [${requestId}] 步骤7: 自动创建文件夹路径:`, folderPath)
+      console.log(`[POST /api/documents] [${requestId}] 步骤6: 自动创建文件夹路径:`, folderPath)
       try {
-        finalParentId = await ensureFolderPath(db, user.id, folderPath, baseParentId)
+        finalParentId = await ensureFolderPath(db, user.id, folderPath, null)
         console.log(`[POST /api/documents] [${requestId}] 文件夹路径创建成功: finalParentId=${finalParentId}`)
 
         // 更新 parentPath 用于后续路径计算
@@ -156,7 +110,7 @@ export default eventHandler(async (event) => {
         })
       }
     } else {
-      console.log(`[POST /api/documents] [${requestId}] 步骤7: 无需创建文件夹路径`)
+      console.log(`[POST /api/documents] [${requestId}] 步骤6: 无需创建文件夹路径，保存到根目录`)
     }
 
     // 6. 生成文档ID和路径

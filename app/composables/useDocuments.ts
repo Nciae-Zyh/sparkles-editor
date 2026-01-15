@@ -71,21 +71,20 @@ export const useDocuments = () => {
     }
   }
 
-  const saveDocument = async (title: string, content: string, documentId?: string, parentId?: string) => {
+  const saveDocument = async (title: string, content: string, documentId?: string) => {
     try {
       loading.value = true
       console.log('[useDocuments] 开始保存文档:', {
         documentId,
         title,
-        contentLength: content?.length || 0,
-        parentId
+        contentLength: content?.length || 0
       })
 
       if (documentId) {
         console.log('[useDocuments] 更新现有文档:', documentId)
         const data = await $fetch<{ success: boolean, document: Document }>(`/api/documents/${documentId}`, {
           method: 'PUT',
-          body: { title, content, parentId }
+          body: { title, content }
         })
         console.log('[useDocuments] 文档更新成功:', data.document.id)
         // 更新本地列表
@@ -98,7 +97,7 @@ export const useDocuments = () => {
         console.log('[useDocuments] 创建新文档')
         const data = await $fetch<{ success: boolean, document: Document }>('/api/documents', {
           method: 'POST',
-          body: { title, content, parentId, type: 'document' }
+          body: { title, content, type: 'document' }
         })
         console.log('[useDocuments] 文档创建成功:', data.document.id)
         documents.value.unshift(data.document)

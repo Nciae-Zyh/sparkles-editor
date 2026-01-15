@@ -10,6 +10,7 @@ interface Props {
   level: number
   expandedFolders: Set<string>
   deletingId: string | null
+  downloadingId: string | null
 }
 
 const props = defineProps<Props>()
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   click: [node: DocumentTreeNode]
   delete: [id: string, event: Event]
   'create-sub-folder': [folderId: string, event: Event]
+  download: [id: string, event: Event]
 }>()
 
 const isExpanded = computed(() => props.expandedFolders.has(props.node.id))
@@ -41,6 +43,10 @@ const handleDelete = (event: Event) => {
 
 const handleCreateSubFolder = (event: Event) => {
   emit('create-sub-folder', props.node.id, event)
+}
+
+const handleDownload = (event: Event) => {
+  emit('download', props.node.id, event)
 }
 </script>
 
@@ -92,6 +98,15 @@ const handleCreateSubFolder = (event: Event) => {
           @click="handleCreateSubFolder"
         />
         <UButton
+          v-if="node.type === 'document'"
+          icon="i-lucide-download"
+          size="xs"
+          variant="ghost"
+          color="neutral"
+          :loading="downloadingId === node.id"
+          @click="handleDownload"
+        />
+        <UButton
           icon="i-lucide-trash-2"
           size="xs"
           variant="ghost"
@@ -111,10 +126,12 @@ const handleCreateSubFolder = (event: Event) => {
         :level="level + 1"
         :expanded-folders="expandedFolders"
         :deleting-id="deletingId"
+        :downloading-id="downloadingId"
         @toggle="(id: string) => emit('toggle', id)"
         @click="(n: DocumentTreeNode) => emit('click', n)"
         @delete="(id: string, e: Event) => emit('delete', id, e)"
         @create-sub-folder="(id: string, e: Event) => emit('create-sub-folder', id, e)"
+        @download="(id: string, e: Event) => emit('download', id, e)"
       />
     </div>
   </div>

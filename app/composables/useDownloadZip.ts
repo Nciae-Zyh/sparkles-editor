@@ -1,22 +1,57 @@
 import JSZip from 'jszip'
 
 /**
+ * 判断是否为内部链接（网站内的链接）
+ */
+function isInternalUrl(url: string): boolean {
+  // 相对路径（以 / 开头）是内部链接
+  if (url.startsWith('/')) {
+    return true
+  }
+
+  // 检查是否是当前网站的链接
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    try {
+      const urlObj = new URL(url)
+      const currentOrigin = window.location.origin
+      // 如果是当前网站的域名，则是内部链接
+      return urlObj.origin === currentOrigin
+    } catch {
+      // URL 解析失败，视为外部链接
+      return false
+    }
+  }
+
+  // 其他情况视为外部链接
+  return false
+}
+
+/**
  * 从 markdown 内容中提取所有图片 URL
  */
-function extractImageUrls(markdown: string): string[] {
+function extractImageUrls(markdown: string): Array<{ url: string, isInternal: boolean }> {
   const imageRegex = /!\[.*?\]\((.*?)\)/g
-  const urls: string[] = []
+  const urls: Array<{ url: string, isInternal: boolean }> = []
   let match
 
   while ((match = imageRegex.exec(markdown)) !== null) {
     const url = match[1]
-    // 排除 data URL 和外部链接（如果以 http:// 或 https:// 开头但不是本地的）
-    if (!url.startsWith('data:') && (url.startsWith('/') || url.startsWith('http://') || url.startsWith('https://'))) {
-      urls.push(url)
+    // 排除 data URL
+    if (!url.startsWith('data:')) {
+      const isInternal = isInternalUrl(url)
+      urls.push({ url, isInternal })
     }
   }
 
-  return [...new Set(urls)] // 去重
+  // 去重
+  const uniqueUrls = new Map<string, boolean>()
+  for (const item of urls) {
+    if (!uniqueUrls.has(item.url)) {
+      uniqueUrls.set(item.url, item.isInternal)
+    }
+  }
+
+  return Array.from(uniqueUrls.entries()).map(([url, isInternal]) => ({ url, isInternal }))
 }
 
 /**
@@ -90,18 +125,23 @@ function getImageFileName(url: string, index: number, usedNames: Set<string>, co
 }
 
 /**
- * 替换 markdown 中的图片路径为本地路径（使用映射表）
+ * 替换 markdown 中的图片路径
+ * 内部链接替换为本地路径，外部链接保留原链接
  */
-function replaceImagePathsWithMap(markdown: string, imageMap: Map<string, string>): string {
+function replaceImagePaths(markdown: string, imageMap: Map<string, string>, internalUrls: Set<string>): string {
   let result = markdown
   const imagesDir = 'images'
 
+  // 替换内部链接为本地路径
   imageMap.forEach((fileName, url) => {
-    const localPath = `${imagesDir}/${fileName}`
-    // 替换所有匹配的图片 URL
-    result = result.replace(new RegExp(`!\\[.*?\\]\\(${escapeRegex(url)}\\)`, 'g'), (match) => {
-      return match.replace(url, localPath)
-    })
+    if (internalUrls.has(url)) {
+      const localPath = `${imagesDir}/${fileName}`
+      // 替换所有匹配的图片 URL
+      result = result.replace(new RegExp(`!\\[.*?\\]\\(${escapeRegex(url)}\\)`, 'g'), (match) => {
+        return match.replace(url, localPath)
+      })
+    }
+    // 外部链接不替换，保留原链接
   })
 
   return result
@@ -130,31 +170,41 @@ export function useDownloadZip() {
     try {
       const zip = new JSZip()
 
-      // 提取所有图片 URL
+      // 提取所有图片 URL（区分内部和外部链接）
       const imageUrls = extractImageUrls(markdown)
 
       // 创建 images 目录
       const imagesFolder = zip.folder('images')
       const usedFileNames = new Set<string>()
 
-      // 下载所有图片并添加到 zip，同时记录文件名映射
-      const imageMap = new Map<string, string>() // 原始 URL -> 本地文件名
-      const imagePromises = imageUrls.map(async (url, index) => {
-        try {
-          const { blob, contentType } = await fetchImageAsBlob(url)
-          const fileName = getImageFileName(url, index, usedFileNames, contentType)
-          imageMap.set(url, fileName)
-          imagesFolder?.file(fileName, blob)
-        } catch (error) {
-          console.error(`Failed to download image ${url}:`, error)
-          // 继续处理其他图片，不中断整个流程
+      // 只下载内部链接的图片，外部链接保留原链接
+      const imageMap = new Map<string, string>() // 原始 URL -> 本地文件名（仅内部链接）
+      const internalUrls = new Set<string>() // 记录哪些是内部链接
+
+      const imagePromises = imageUrls.map(async (item, index) => {
+        const { url, isInternal } = item
+
+        if (isInternal) {
+          // 只下载内部链接的图片
+          internalUrls.add(url)
+          try {
+            const { blob, contentType } = await fetchImageAsBlob(url)
+            const fileName = getImageFileName(url, index, usedFileNames, contentType)
+            imageMap.set(url, fileName)
+            imagesFolder?.file(fileName, blob)
+          } catch (error) {
+            console.error(`Failed to download image ${url}:`, error)
+            // 下载失败时，从内部链接列表中移除，保留原链接
+            internalUrls.delete(url)
+          }
         }
+        // 外部链接不处理，保留原链接
       })
 
       await Promise.all(imagePromises)
 
-      // 替换 markdown 中的图片路径为本地路径
-      const updatedMarkdown = replaceImagePathsWithMap(markdown, imageMap)
+      // 替换 markdown 中的图片路径：内部链接替换为本地路径，外部链接保留
+      const updatedMarkdown = replaceImagePaths(markdown, imageMap, internalUrls)
 
       // 添加 markdown 文件到 zip
       zip.file('content.md', updatedMarkdown)

@@ -1,6 +1,7 @@
 import { getDBWithMigration } from '../../utils/db'
 import { getCurrentUser } from '../../utils/auth'
 import { getR2Bucket, saveDocumentToR2 } from '../../utils/r2'
+import { parseFilePath, ensureFolderPath } from '../../utils/path'
 
 export default eventHandler(async (event) => {
   const startTime = Date.now()
@@ -32,8 +33,7 @@ export default eventHandler(async (event) => {
       body = await readBody(event)
       console.log(`[PUT /api/documents/[id]] [${requestId}] 请求体读取成功:`, {
         title: body?.title,
-        contentLength: body?.content?.length || 0,
-        parentId: body?.parentId
+        contentLength: body?.content?.length || 0
       })
     } catch (error: any) {
       console.error(`[PUT /api/documents/[id]] [${requestId}] 读取请求体失败:`, {
@@ -46,7 +46,7 @@ export default eventHandler(async (event) => {
       })
     }
 
-    const { title, content, parentId } = body
+    const { title, content } = body
 
     // 4. 获取数据库连接并执行迁移检查
     console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤4: 获取数据库连接`)
@@ -97,43 +97,49 @@ export default eventHandler(async (event) => {
     let newPath = existing.path
     let newParentId = existing.parent_id
 
-    // 6. 如果父目录改变，更新路径
-    if (parentId !== undefined && parentId !== existing.parent_id) {
-      console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤6: 更新父目录: oldParentId=${existing.parent_id}, newParentId=${parentId}`)
+    // 6. 如果标题改变，解析新路径并更新
+    if (title !== undefined && title.trim() !== existing.title) {
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤6: 解析新存储路径`)
+      const { folderPath, fileName } = parseFilePath(title.trim())
+      const finalTitle = fileName || title.trim()
+      
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 路径解析结果:`, {
+        originalPath: title,
+        folderPath,
+        fileName: finalTitle
+      })
+
+      // 自动创建文件夹路径（如果路径包含文件夹）
+      let finalParentId: string | null = null
       let parentPath = '/'
-      if (parentId) {
+      if (folderPath.length > 0) {
         try {
-          const parent = await db.prepare('SELECT id, path, type FROM documents WHERE id = ? AND user_id = ?')
-            .bind(parentId, user.id)
-            .first() as any
+          finalParentId = await ensureFolderPath(db, user.id, folderPath, null)
+          console.log(`[PUT /api/documents/[id]] [${requestId}] 文件夹路径创建成功: finalParentId=${finalParentId}`)
 
-          if (!parent || parent.type !== 'folder') {
-            console.error(`[PUT /api/documents/[id]] [${requestId}] 无效的父目录: parentId=${parentId}`)
-            throw createError({
-              statusCode: 400,
-              message: 'Invalid parent folder'
-            })
+          if (finalParentId) {
+            const finalParent = await db.prepare('SELECT path FROM documents WHERE id = ? AND user_id = ?')
+              .bind(finalParentId, user.id)
+              .first() as any
+            if (finalParent) {
+              parentPath = finalParent.path
+            }
           }
-
-          parentPath = parent.path
-          console.log(`[PUT /api/documents/[id]] [${requestId}] 父目录验证成功: path=${parentPath}`)
         } catch (error: any) {
-          if (error.statusCode) {
-            throw error
-          }
-          console.error(`[PUT /api/documents/[id]] [${requestId}] 验证父目录时出错:`, {
+          console.error(`[PUT /api/documents/[id]] [${requestId}] 创建文件夹路径时出错:`, {
             message: error?.message,
-            stack: error?.stack
+            stack: error?.stack,
+            folderPath
           })
           throw createError({
             statusCode: 500,
-            message: `Failed to validate parent folder: ${error?.message || 'Unknown error'}`
+            message: `Failed to create folder path: ${error?.message || 'Unknown error'}`
           })
         }
       }
 
       newPath = parentPath === '/' ? `/${id}` : `${parentPath}/${id}`
-      newParentId = parentId || null
+      newParentId = finalParentId
 
       // 检查新路径是否已存在
       try {
@@ -163,7 +169,7 @@ export default eventHandler(async (event) => {
         })
       }
     } else {
-      console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤6: 父目录未改变，跳过路径更新`)
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤6: 路径未改变，跳过路径更新`)
     }
 
     // 7. 如果是文档类型，更新 R2 内容
@@ -241,11 +247,17 @@ export default eventHandler(async (event) => {
     const duration = Date.now() - startTime
     console.log(`[PUT /api/documents/[id]] [${requestId}] 请求处理成功，耗时: ${duration}ms`)
 
+    // 如果标题更新了，使用解析后的文件名；否则保持原标题
+    const finalTitle = title !== undefined ? (() => {
+      const { fileName } = parseFilePath(title.trim())
+      return fileName || title.trim()
+    })() : existing.title
+
     return {
       success: true,
       document: {
         id,
-        title: title !== undefined ? title.trim() : existing.title,
+        title: finalTitle,
         parent_id: newParentId,
         path: newPath,
         updated_at: now

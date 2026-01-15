@@ -7,7 +7,6 @@ interface Props {
   title: string
   content: string
   documentId?: string
-  defaultParentId?: string
 }
 
 const props = defineProps<Props>()
@@ -16,30 +15,27 @@ const emit = defineEmits<{
   saved: [documentId: string]
 }>()
 
-const { saveDocument, fetchFolders, loading } = useDocuments()
+const { saveDocument, loading } = useDocuments()
 const { user } = useAuth()
 
+const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
+
 const isOpen = ref(false)
-const titleInput = ref(props.title)
-const selectedParentId = ref<string | undefined>(props.defaultParentId)
+const pathInput = ref(props.title)
 const saving = ref(false)
 
 watch(() => props.title, (newTitle) => {
-  titleInput.value = newTitle
-})
-
-watch(() => props.defaultParentId, (newParentId) => {
-  selectedParentId.value = newParentId
+  pathInput.value = newTitle
 })
 
 const handleSave = async () => {
   if (!user.value) {
-    alert('请先登录')
+    alert(actionsData.value?.pleaseLogin || '请先登录')
     return
   }
 
-  if (!titleInput.value.trim()) {
-    alert('请输入文档标题')
+  if (!pathInput.value.trim()) {
+    alert(actionsData.value?.pleaseEnterPath || '请输入存储路径')
     return
   }
 
@@ -47,16 +43,14 @@ const handleSave = async () => {
     saving.value = true
     console.log('[SaveDocumentButton] 开始保存文档:', {
       documentId: props.documentId,
-      title: titleInput.value.trim(),
-      contentLength: props.content?.length || 0,
-      parentId: selectedParentId.value
+      path: pathInput.value.trim(),
+      contentLength: props.content?.length || 0
     })
 
     const document = await saveDocument(
-      titleInput.value.trim(),
+      pathInput.value.trim(),
       props.content,
-      props.documentId,
-      selectedParentId.value
+      props.documentId
     )
 
     console.log('[SaveDocumentButton] 文档保存成功:', document.id)
@@ -67,7 +61,7 @@ const handleSave = async () => {
       message: error?.message,
       error: error
     })
-    alert(error.message || '保存失败，请稍后重试')
+    alert(error.message || actionsData.value?.saveFailed || '保存失败，请稍后重试')
   } finally {
     saving.value = false
   }
@@ -81,33 +75,32 @@ const handleSave = async () => {
       icon="i-lucide-save"
       @click="isOpen = true"
     >
-      保存文档
+      {{ actionsData?.saveDocument || '保存文档' }}
     </UButton>
 
     <UModal
       v-model:open="isOpen"
-      :title="documentId ? '更新文档' : '保存文档'"
+      :title="documentId ? (actionsData?.updateDocument || '更新文档') : (actionsData?.saveDocument || '保存文档')"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <div class="space-y-4">
           <UFormField
-            label="文档标题"
-            name="title"
+            :label="actionsData?.storagePath || '存储路径'"
+            name="path"
             required
           >
             <UInput
-              v-model="titleInput"
-              placeholder="请输入文档标题"
+              v-model="pathInput"
+              :placeholder="actionsData?.pathPlaceholder || '例如: folder/subfolder/file.md'"
               required
             />
+            <template #description>
+              <div class="text-xs text-gray-500 mt-1">
+                {{ actionsData?.pathDescription || '输入文件路径，系统会自动创建文件夹结构。例如: project/docs/readme.md' }}
+              </div>
+            </template>
           </UFormField>
-
-          <DocumentsFolderSelector
-            v-if="!documentId"
-            v-model="selectedParentId"
-            label="保存位置"
-          />
         </div>
       </template>
 
@@ -117,13 +110,13 @@ const handleSave = async () => {
           variant="ghost"
           @click="close"
         >
-          取消
+          {{ actionsData?.cancel || '取消' }}
         </UButton>
         <UButton
           :loading="saving"
           @click="handleSave"
         >
-          保存
+          {{ actionsData?.save || '保存' }}
         </UButton>
       </template>
     </UModal>

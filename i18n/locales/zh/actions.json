@@ -3,6 +3,19 @@
     "importMarkdown": "导入 Markdown",
     "downloadMarkdown": "下载 Markdown",
     "onlyMarkdownFiles": "只能导入 Markdown 文件 (.md 或 .markdown)",
-    "importFailed": "导入文件失败，请重试"
+    "importFailed": "导入文件失败，请重试",
+    "saveDocument": "保存文档",
+    "updateDocument": "更新文档",
+    "save": "保存",
+    "cancel": "取消",
+    "storagePath": "存储路径",
+    "pathPlaceholder": "例如: folder/subfolder/file.md",
+    "pathDescription": "输入文件路径，系统会自动创建文件夹结构。例如: project/docs/readme.md",
+    "pleaseLogin": "请先登录",
+    "pleaseEnterPath": "请输入存储路径",
+    "saveFailed": "保存失败，请稍后重试",
+    "downloadDocument": "下载文档",
+    "downloadFailed": "下载失败，请稍后重试",
+    "documentEmpty": "文档内容为空"
   }
 }

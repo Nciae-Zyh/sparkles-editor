@@ -101,7 +101,6 @@ onMounted(async () => {
     <MarkdownEditor
       v-model="content"
       :enable-before-unload="false"
-      :default-parent-id="route.query.folder as string | undefined"
       @document-saved="(id) => { isNewDocument = false }"
     />
 
