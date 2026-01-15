@@ -39,8 +39,16 @@ const { user } = useAuth()
 const { saveDocument } = useDocuments()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
+// 使用props.documentId作为初始值，如果提供了就使用（可能是新建时的临时ID）
 const documentId = ref(props.documentId)
 const isNewDocument = computed(() => !documentId.value)
+
+// 监听props.documentId的变化（例如从首页传入的新建文档ID）
+watch(() => props.documentId, (newId) => {
+  if (newId && !documentId.value) {
+    documentId.value = newId
+  }
+}, { immediate: true })
 
 // 判断是否允许保存
 // readonly=true: 不允许保存（预览模式）

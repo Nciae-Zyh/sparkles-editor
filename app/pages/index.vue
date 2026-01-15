@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useAuth } from '~/composables/useAuth'
+import { generateDocumentId } from '~/utils/documentId'
 
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
 const appData = computed(() => $tm('app') as Record<string, string> | undefined)
@@ -19,12 +20,14 @@ const defaultContent = computed(() => {
 const content = ref<string>('')
 const isNewDocument = ref(false) // 首页默认是预览模式
 const allowSave = ref(false) // 是否允许保存
+const newDocumentId = ref<string | undefined>(undefined) // 新建文档时的唯一ID
 
-// 新建文档函数 - 进入可保存的新建模式
+// 新建文档函数 - 进入可保存的新建模式，生成唯一ID
 const createNewDocument = () => {
   content.value = ''
   isNewDocument.value = true
   allowSave.value = true // 允许保存
+  newDocumentId.value = generateDocumentId() // 生成唯一ID
   // 如果已经在首页，不需要路由跳转
   if (route.path !== '/') {
     router.push('/')
@@ -106,9 +109,11 @@ onMounted(async () => {
       :enable-before-unload="false"
       :readonly="!allowSave"
       :allow-save="allowSave"
+      :document-id="newDocumentId"
       @document-saved="(id) => {
         isNewDocument = false
         allowSave.value = false // 保存后恢复预览模式
+        newDocumentId.value = undefined // 清除临时ID
       }"
     />
 

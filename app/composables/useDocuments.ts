@@ -82,20 +82,41 @@ export const useDocuments = () => {
       })
 
       if (documentId) {
-        console.log('[useDocuments] 更新现有文档:', documentId)
-        const data = await $fetch<{ success: boolean, document: Document }>(`/api/documents/${documentId}`, {
-          method: 'PUT',
-          body: { title, content }
-        })
-        console.log('[useDocuments] 文档更新成功:', data.document.id)
-        // 更新本地列表
-        const index = documents.value.findIndex(d => d.id === documentId)
-        if (index !== -1) {
-          documents.value[index] = { ...documents.value[index], ...data.document }
+        // 检查文档是否已存在于服务器（通过尝试获取来判断）
+        // 如果获取成功，说明已存在，使用PUT更新
+        // 如果获取失败（404），说明是新文档，使用POST创建但传递ID
+        try {
+          const existingDoc = await $fetch<{ document: Document }>(`/api/documents/${documentId}`)
+          console.log('[useDocuments] 文档已存在，更新现有文档:', documentId)
+          const data = await $fetch<{ success: boolean, document: Document }>(`/api/documents/${documentId}`, {
+            method: 'PUT',
+            body: { title, content }
+          })
+          console.log('[useDocuments] 文档更新成功:', data.document.id)
+          // 更新本地列表
+          const index = documents.value.findIndex(d => d.id === documentId)
+          if (index !== -1) {
+            documents.value[index] = { ...documents.value[index], ...data.document }
+          }
+          return data.document
+        } catch (error: any) {
+          // 如果获取失败（404），说明是新文档，使用POST创建但传递ID
+          if (error?.statusCode === 404 || error?.status === 404) {
+            console.log('[useDocuments] 文档不存在，使用提供的ID创建新文档:', documentId)
+            const data = await $fetch<{ success: boolean, document: Document }>('/api/documents', {
+              method: 'POST',
+              body: { title, content, type: 'document', id: documentId }
+            })
+            console.log('[useDocuments] 文档创建成功（使用提供的ID）:', data.document.id)
+            documents.value.unshift(data.document)
+            return data.document
+          } else {
+            // 其他错误，重新抛出
+            throw error
+          }
         }
-        return data.document
       } else {
-        console.log('[useDocuments] 创建新文档')
+        console.log('[useDocuments] 创建新文档（服务器生成ID）')
         const data = await $fetch<{ success: boolean, document: Document }>('/api/documents', {
           method: 'POST',
           body: { title, content, type: 'document' }
