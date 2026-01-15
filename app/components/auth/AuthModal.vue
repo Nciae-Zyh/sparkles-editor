@@ -74,7 +74,12 @@ const handleSubmit = async (event: FormSubmitEvent<FormSchema>) => {
       isOpen.value = false
     }
   } catch (err: any) {
-    error.value = err.message || '操作失败'
+    console.error('[AuthModal] Submit error:', {
+      message: err.message,
+      stack: err.stack,
+      error: err
+    })
+    error.value = err.message || '操作失败，请查看控制台获取详细信息'
   }
 }
 

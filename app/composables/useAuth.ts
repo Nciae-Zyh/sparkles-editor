@@ -46,7 +46,35 @@ export const useAuth = () => {
       await navigateTo('/', { replace: true })
       return data.user
     } catch (error: any) {
-      throw new Error(error.data?.message || 'Registration failed')
+      console.error('[useAuth] Registration error:', {
+        statusCode: error.statusCode,
+        statusMessage: error.statusMessage,
+        message: error.message,
+        data: error.data,
+        response: error.response,
+        error: error
+      })
+
+      // 提取详细错误信息
+      let errorMessage = 'Registration failed'
+      
+      if (error.data?.message) {
+        errorMessage = error.data.message
+      } else if (error.message) {
+        errorMessage = error.message
+      } else if (error.statusMessage) {
+        errorMessage = `${error.statusMessage} (${error.statusCode || 'Unknown'})`
+      }
+
+      // 如果是 500 错误，添加更多调试信息
+      if (error.statusCode === 500) {
+        errorMessage += '. Please check the server logs for more details.'
+        if (error.data) {
+          console.error('[useAuth] Error data:', error.data)
+        }
+      }
+
+      throw new Error(errorMessage)
     } finally {
       loading.value = false
     }
