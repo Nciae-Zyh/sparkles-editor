@@ -36,6 +36,10 @@ const isExpanded = computed(() => props.expandedFolders.has(props.node.id))
 const hasChildren = computed(() => props.node.children && props.node.children.length > 0)
 
 const handleClick = () => {
+  // 如果正在重命名，不触发点击事件（不跳转）
+  if (isRenaming.value) {
+    return
+  }
   emit('click', props.node)
 }
 
@@ -123,6 +127,7 @@ const handleCancelRename = () => {
       <div
         v-else
         class="flex-1 flex items-center gap-1"
+        @click.stop
       >
         <UInput
           v-model="renameInput"
@@ -131,18 +136,19 @@ const handleCancelRename = () => {
           autofocus
           @keyup.enter="handleSaveRename"
           @keyup.esc="handleCancelRename"
+          @click.stop
         />
         <UButton
           icon="i-lucide-check"
           size="xs"
           color="primary"
-          @click="handleSaveRename"
+          @click.stop="handleSaveRename"
         />
         <UButton
           icon="i-lucide-x"
           size="xs"
           variant="ghost"
-          @click="handleCancelRename"
+          @click.stop="handleCancelRename"
         />
       </div>
 

@@ -108,7 +108,7 @@ const saveRename = async () => {
     />
   </div>
 
-  <div v-else class="flex flex-col h-screen">
+  <div v-else>
     <!-- 文档标题栏 -->
     <div class="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 lg:px-14 py-3">
       <div class="flex items-center gap-2 max-w-4xl mx-auto">
@@ -155,13 +155,11 @@ const saveRename = async () => {
     </div>
 
     <!-- 编辑器 -->
-    <div class="flex-1 overflow-auto">
-      <MarkdownEditor
-        v-model="content"
-        :document-id="documentId"
-        :document-title="documentTitle"
-        :readonly="isReadOnly"
-      />
-    </div>
+    <MarkdownEditor
+      v-model="content"
+      :document-id="documentId"
+      :document-title="documentTitle"
+      :readonly="isReadOnly"
+    />
   </div>
 </template>
