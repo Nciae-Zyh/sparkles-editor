@@ -21,7 +21,7 @@ onMounted(async () => {
     <AppHeader>
       <template #right>
         <UButton
-          to="/"
+          :to="currentFolderId ? `/?folder=${currentFolderId}` : '/'"
           icon="i-lucide-plus"
           variant="soft"
           size="sm"

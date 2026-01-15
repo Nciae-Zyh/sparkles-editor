@@ -84,17 +84,27 @@ const formatDate = (timestamp: number) => {
 
 <template>
   <div class="space-y-4">
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between gap-4">
       <h2 class="text-xl font-semibold">
         文档列表
       </h2>
-      <UButton
-        icon="i-lucide-folder-plus"
-        size="sm"
-        @click="showCreateFolder = true"
-      >
-        新建文件夹
-      </UButton>
+      <div class="flex gap-2">
+        <UButton
+          :to="currentParentId ? `/?folder=${currentParentId}` : '/'"
+          icon="i-lucide-file-plus"
+          size="sm"
+          variant="soft"
+        >
+          新建文档
+        </UButton>
+        <UButton
+          icon="i-lucide-folder-plus"
+          size="sm"
+          @click="showCreateFolder = true"
+        >
+          新建文件夹
+        </UButton>
+      </div>
     </div>
 
     <UModal v-model="showCreateFolder">

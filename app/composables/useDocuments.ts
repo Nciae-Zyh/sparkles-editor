@@ -19,6 +19,16 @@ export const useDocuments = () => {
     }
   }
 
+  const fetchFolders = async () => {
+    try {
+      const data = await $fetch<{ folders: Document[] }>('/api/folders')
+      return data.folders
+    } catch (error) {
+      console.error('Failed to fetch folders:', error)
+      return []
+    }
+  }
+
   const createFolder = async (title: string, parentId?: string) => {
     try {
       loading.value = true
@@ -95,6 +105,7 @@ export const useDocuments = () => {
     documents: readonly(documents),
     loading: readonly(loading),
     fetchDocuments,
+    fetchFolders,
     getDocument,
     saveDocument,
     deleteDocument,

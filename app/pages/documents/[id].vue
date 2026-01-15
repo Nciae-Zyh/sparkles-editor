@@ -24,6 +24,10 @@ onMounted(async () => {
     document.value = doc
     content.value = doc.content || ''
     documentTitle.value = doc.title || '未命名文档'
+    // 如果文档有父文件夹，设置到编辑器中
+    if (doc.parent_id) {
+      // 可以通过 props 传递给 MarkdownEditor
+    }
   } catch (error) {
     console.error('Failed to load document:', error)
     router.push('/documents')

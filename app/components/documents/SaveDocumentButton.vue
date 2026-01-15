@@ -1,11 +1,14 @@
 <script lang="ts" setup>
 import { useDocuments } from '~/composables/useDocuments'
 import { useAuth } from '~/composables/useAuth'
+import FolderSelector from './FolderSelector.vue'
+import type { Document } from '~/types'
 
 interface Props {
   title: string
   content: string
   documentId?: string
+  defaultParentId?: string
 }
 
 const props = defineProps<Props>()
@@ -14,15 +17,20 @@ const emit = defineEmits<{
   saved: [documentId: string]
 }>()
 
-const { saveDocument, loading } = useDocuments()
+const { saveDocument, fetchFolders, loading } = useDocuments()
 const { user } = useAuth()
 
 const isOpen = ref(false)
 const titleInput = ref(props.title)
+const selectedParentId = ref<string | undefined>(props.defaultParentId)
 const saving = ref(false)
 
 watch(() => props.title, (newTitle) => {
   titleInput.value = newTitle
+})
+
+watch(() => props.defaultParentId, (newParentId) => {
+  selectedParentId.value = newParentId
 })
 
 const handleSave = async () => {
@@ -38,7 +46,12 @@ const handleSave = async () => {
 
   try {
     saving.value = true
-    const document = await saveDocument(titleInput.value.trim(), props.content, props.documentId)
+    const document = await saveDocument(
+      titleInput.value.trim(),
+      props.content,
+      props.documentId,
+      selectedParentId.value
+    )
     emit('saved', document.id)
     isOpen.value = false
   } catch (error: any) {
@@ -79,6 +92,12 @@ const handleSave = async () => {
               required
             />
           </UFormGroup>
+
+          <FolderSelector
+            v-if="!documentId"
+            v-model="selectedParentId"
+            label="保存位置"
+          />
 
           <div class="flex justify-end gap-2">
             <UButton

@@ -16,6 +16,7 @@ interface Props {
   showImportExport?: boolean
   documentId?: string
   documentTitle?: string
+  defaultParentId?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -23,7 +24,8 @@ const props = withDefaults(defineProps<Props>(), {
   enableBeforeUnload: false,
   showImportExport: true,
   documentId: undefined,
-  documentTitle: undefined
+  documentTitle: undefined,
+  defaultParentId: undefined
 })
 
 const emit = defineEmits<{
@@ -34,7 +36,15 @@ const { user } = useAuth()
 const { saveDocument } = useDocuments()
 const documentTitle = ref(props.documentTitle || '未命名文档')
 const documentId = ref(props.documentId)
+const selectedParentId = ref<string | undefined>(props.defaultParentId)
 const isNewDocument = computed(() => !documentId.value)
+
+watch(() => props.defaultParentId, (newParentId) => {
+  if (!documentId.value) {
+    // 只有新建文档时才更新父文件夹
+    selectedParentId.value = newParentId
+  }
+})
 
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
@@ -138,7 +148,7 @@ const autoSave = async () => {
       documentTitle.value = title
     }
     
-    const document = await saveDocument(title, content.value, documentId.value)
+    const document = await saveDocument(title, content.value, documentId.value, selectedParentId.value)
     
     // 更新 documentId，这样后续编辑会变成更新而不是新建
     if (document.id && !documentId.value) {
@@ -356,13 +366,14 @@ defineExpose({
                 variant="soft"
                 @click="handleDownload"
               />
-              <SaveDocumentButton
-                v-if="user"
-                :title="documentTitle"
-                :content="content || ''"
-                :document-id="documentId"
-                @saved="(id) => { documentId = id; $emit('document-saved', id) }"
-              />
+          <SaveDocumentButton
+            v-if="user"
+            :title="documentTitle"
+            :content="content || ''"
+            :document-id="documentId"
+            :default-parent-id="selectedParentId"
+            @saved="(id) => { documentId = id; $emit('document-saved', id) }"
+          />
               <div
                 v-if="user && isAutoSaving"
                 class="flex items-center gap-1 text-xs text-gray-500"
