@@ -9,9 +9,9 @@ export async function initDB(db: D1Database) {
   try {
     console.log('[initDB] Starting database initialization')
     
-    // 创建用户表
+    // 创建用户表 - 使用 prepare().run() 而不是 exec()
     try {
-      await db.exec(`
+      await db.prepare(`
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
           email TEXT UNIQUE NOT NULL,
@@ -22,7 +22,7 @@ export async function initDB(db: D1Database) {
           created_at INTEGER NOT NULL DEFAULT (unixepoch()),
           updated_at INTEGER NOT NULL DEFAULT (unixepoch())
         )
-      `)
+      `).run()
       console.log('[initDB] Users table created/verified')
     } catch (error: any) {
       console.error('[initDB] Failed to create users table:', error)
@@ -31,7 +31,7 @@ export async function initDB(db: D1Database) {
 
     // 创建文档表
     try {
-      await db.exec(`
+      await db.prepare(`
         CREATE TABLE IF NOT EXISTS documents (
           id TEXT PRIMARY KEY,
           user_id TEXT NOT NULL,
@@ -42,26 +42,29 @@ export async function initDB(db: D1Database) {
           updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
-      `)
+      `).run()
       console.log('[initDB] Documents table created/verified')
     } catch (error: any) {
       console.error('[initDB] Failed to create documents table:', error)
       throw new Error(`Failed to create documents table: ${error?.message || 'Unknown error'}`)
     }
 
-    // 创建索引
-    try {
-      await db.exec(`
-        CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id);
-        CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at DESC);
-        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-        CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
-      `)
-      console.log('[initDB] Indexes created/verified')
-    } catch (error: any) {
-      console.error('[initDB] Failed to create indexes:', error)
-      // 索引创建失败不应该阻止初始化，只记录错误
-      console.warn('[initDB] Continuing despite index creation errors')
+    // 创建索引 - 分别执行每个索引创建语句
+    const indexStatements = [
+      'CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+      'CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)'
+    ]
+
+    for (const statement of indexStatements) {
+      try {
+        await db.prepare(statement).run()
+        console.log(`[initDB] Index created: ${statement}`)
+      } catch (error: any) {
+        // 索引创建失败不应该阻止初始化，只记录错误
+        console.warn(`[initDB] Failed to create index: ${statement}`, error?.message)
+      }
     }
 
     console.log('[initDB] Database initialization completed successfully')
