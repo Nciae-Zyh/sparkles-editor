@@ -12,7 +12,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  saved: [documentId: string]
+  saved: [documentId: string, title: string]
 }>()
 
 const { saveDocument, loading } = useDocuments()
@@ -54,7 +54,8 @@ const handleSave = async () => {
     )
 
     console.log('[SaveDocumentButton] 文档保存成功:', document.id)
-    emit('saved', document.id)
+    // 传递文档ID和用户设置的标题（pathInput.value，这是用户手动输入的标题）
+    emit('saved', document.id, pathInput.value.trim())
     isOpen.value = false
   } catch (error: any) {
     console.error('[SaveDocumentButton] 保存文档失败:', {

@@ -90,6 +90,7 @@ const saveRename = async () => {
       document.value.title = renameInput.value.trim()
     }
     cancelRename()
+    // 注意：重命名后，originalDocumentTitle 会在 MarkdownEditor 中通过 watch 自动更新
   } catch (error: any) {
     console.error('重命名失败:', error)
     alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
@@ -108,58 +109,17 @@ const saveRename = async () => {
     />
   </div>
 
-  <div v-else>
-    <!-- 文档标题栏 -->
-    <div class="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 px-4 sm:px-6 lg:px-14 py-3">
-      <div class="flex items-center gap-2 max-w-4xl mx-auto">
-        <div
-          v-if="!isRenaming"
-          class="flex items-center gap-2 flex-1 min-w-0"
-        >
-          <h1 class="text-lg sm:text-xl font-semibold truncate">
-            {{ documentTitle }}
-          </h1>
-          <UButton
-            v-if="!isReadOnly"
-            icon="i-lucide-pencil"
-            size="xs"
-            variant="ghost"
-            @click="startRename"
-          />
-        </div>
-        <div
-          v-else
-          class="flex items-center gap-2 flex-1"
-        >
-          <UInput
-            v-model="renameInput"
-            class="flex-1"
-            autofocus
-            @keyup.enter="saveRename"
-            @keyup.esc="cancelRename"
-          />
-          <UButton
-            icon="i-lucide-check"
-            size="xs"
-            color="primary"
-            @click="saveRename"
-          />
-          <UButton
-            icon="i-lucide-x"
-            size="xs"
-            variant="ghost"
-            @click="cancelRename"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- 编辑器 -->
-    <MarkdownEditor
-      v-model="content"
-      :document-id="documentId"
-      :document-title="documentTitle"
-      :readonly="isReadOnly"
-    />
-  </div>
+  <MarkdownEditor
+    v-else
+    v-model="content"
+    :document-id="documentId"
+    :document-title="documentTitle"
+    :readonly="isReadOnly"
+    :is-renaming="isRenaming"
+    :rename-input="renameInput"
+    @start-rename="startRename"
+    @save-rename="saveRename"
+    @cancel-rename="cancelRename"
+    @update:rename-input="(val) => { renameInput = val }"
+  />
 </template>

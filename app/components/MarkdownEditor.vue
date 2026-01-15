@@ -18,7 +18,17 @@ interface Props {
   documentTitle?: string
   readonly?: boolean // 预览模式，不允许保存
   allowSave?: boolean // 是否允许保存（默认：有 documentId 或 allowSave=true 时允许）
+  isRenaming?: boolean // 是否正在重命名（从父组件传入）
+  renameInput?: string // 重命名输入值（从父组件传入）
 }
+
+const emit = defineEmits<{
+  'document-saved': [id: string]
+  'start-rename': []
+  'save-rename': []
+  'cancel-rename': []
+  'update:renameInput': [value: string]
+}>()
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '开始写作，输入 \'/\' 查看命令...',
@@ -27,20 +37,30 @@ const props = withDefaults(defineProps<Props>(), {
   documentId: undefined,
   documentTitle: undefined,
   readonly: false,
-  allowSave: undefined // undefined 表示自动判断
+  allowSave: undefined, // undefined 表示自动判断
+  isRenaming: false,
+  renameInput: ''
 })
 
 const content = defineModel<string>()
-const emit = defineEmits<{
-  'document-saved': [id: string]
-}>()
 
 const {user} = useAuth()
 const {saveDocument, getDocument} = useDocuments()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
-// 保存原始文档标题，用于自动保存（避免标题被覆盖）
+// 保存原始文档标题，用于自动保存（沿用用户设置的标题，不从内容提取）
 const originalDocumentTitle = ref<string | null>(null)
+
+// 监听 props.documentTitle 的变化，更新显示标题和原始标题
+watch(() => props.documentTitle, (newTitle) => {
+  if (newTitle) {
+    documentTitle.value = newTitle
+    // 如果原始标题还未设置，或者这是从服务器加载的标题，更新原始标题
+    if (!originalDocumentTitle.value || hasBeenSaved.value) {
+      originalDocumentTitle.value = newTitle
+    }
+  }
+}, { immediate: true })
 // 使用props.documentId作为初始值，如果提供了就使用（可能是新建时的临时ID）
 const documentId = ref(props.documentId)
 // 标记文档是否已经保存到服务器（用于控制自动保存）
@@ -58,9 +78,11 @@ const checkDocumentExists = async (id: string) => {
     const doc = await getDocument(id)
     // 如果获取成功，说明文档已存在，允许自动保存
     hasBeenSaved.value = true
-    // 保存原始标题，用于自动保存
+    // 保存原始标题，用于自动保存（沿用用户设置的标题，不从内容提取）
     if (doc.title) {
       originalDocumentTitle.value = doc.title
+      // 同时更新 documentTitle 显示
+      documentTitle.value = doc.title
     }
   } catch (error: any) {
     // 如果获取失败（404），说明是新文档，还未保存
@@ -225,22 +247,7 @@ const {
   getTableToolbarItems
 } = useEditorToolbar(customHandlers)
 
-// 从内容中提取标题（取第一行作为标题）
-const extractTitleFromContent = (content: string): string => {
-  if (!content) return documentsData.value?.untitledDocument || '未命名文档'
-
-  const lines = content.trim().split('\n')
-  const firstLine = lines[0]?.trim() || ''
-
-  // 移除 Markdown 标题标记
-  const title = firstLine
-    .replace(/^#+\s*/, '') // 移除 # 标记
-    .replace(/\*\*/g, '') // 移除粗体标记
-    .replace(/\*/g, '') // 移除斜体标记
-    .trim()
-
-  return title || (documentsData.value?.untitledDocument || '未命名文档')
-}
+// 移除了从内容中提取标题的函数，因为用户希望沿用设置的标题，而不是自动从内容提取
 
 // 自动保存逻辑已移至 watch([content, canSave]) 中
 
@@ -403,14 +410,65 @@ defineExpose({
         class="sticky top-(--ui-header-height) z-50 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div class="container mx-auto px-4 sm:px-6 lg:px-14">
           <div class="flex items-center justify-between gap-4 py-3">
-            <div
-              v-if="!readonly"
-              class="flex-1 overflow-x-auto"
-            >
-              <UEditorToolbar
-                :editor="editor"
-                :items="toolbarItems"
-              />
+            <div class="flex items-center gap-4 flex-1 min-w-0">
+              <!-- 文档标题显示和重命名（在工具栏左侧） -->
+              <div
+                v-if="documentId && documentTitle"
+                class="flex items-center gap-2 min-w-0 flex-shrink-0"
+              >
+                <div
+                  v-if="!props.isRenaming"
+                  class="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/20 bg-primary/5 dark:bg-primary/10"
+                >
+                  <span class="text-sm font-medium truncate max-w-[200px]">
+                    {{ documentTitle }}
+                  </span>
+                  <UButton
+                    v-if="!readonly"
+                    icon="i-lucide-pencil"
+                    size="xs"
+                    variant="ghost"
+                    @click="$emit('start-rename')"
+                  />
+                </div>
+                <div
+                  v-else
+                  class="flex items-center gap-1 px-3 py-1.5 rounded-md border border-primary/20 bg-primary/5 dark:bg-primary/10"
+                >
+                  <UInput
+                    :model-value="props.renameInput"
+                    size="xs"
+                    class="w-48"
+                    autofocus
+                    @update:model-value="(val) => emit('update:renameInput', val)"
+                    @keyup.enter="$emit('save-rename')"
+                    @keyup.esc="$emit('cancel-rename')"
+                  />
+                  <UButton
+                    icon="i-lucide-check"
+                    size="xs"
+                    color="primary"
+                    @click="$emit('save-rename')"
+                  />
+                  <UButton
+                    icon="i-lucide-x"
+                    size="xs"
+                    variant="ghost"
+                    @click="$emit('cancel-rename')"
+                  />
+                </div>
+              </div>
+
+              <!-- 工具栏 -->
+              <div
+                v-if="!readonly"
+                class="flex-1 overflow-x-auto"
+              >
+                <UEditorToolbar
+                  :editor="editor"
+                  :items="toolbarItems"
+                />
+              </div>
             </div>
             <div
               v-if="showImportExport"
@@ -480,11 +538,13 @@ defineExpose({
                 :content="content || ''"
                 :document-id="documentId"
                 :title="documentTitle"
-                @saved="(id) => {
+                @saved="(id, savedTitle) => {
                   documentId = id
                   hasBeenSaved = true // 标记文档已保存，允许自动保存
-                  // 保存当前标题作为原始标题，用于后续自动保存
-                  originalDocumentTitle.value = documentTitle.value
+                  // 保存用户设置的标题作为原始标题，用于后续自动保存（沿用用户设置的标题，不从内容提取）
+                  // savedTitle 是用户在 SaveDocumentButton 中手动输入的 pathInput.value
+                  originalDocumentTitle.value = savedTitle
+                  documentTitle.value = savedTitle
                   $emit('document-saved', id)
                 }"
               />
