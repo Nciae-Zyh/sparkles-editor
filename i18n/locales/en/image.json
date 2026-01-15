@@ -9,6 +9,7 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "editAlt": "Edit Image Description",
-    "altPlaceholderShort": "Enter image description (alt text)..."
+    "altPlaceholderShort": "Enter image description (alt text)...",
+    "uploadFailed": "Upload failed"
   }
 }

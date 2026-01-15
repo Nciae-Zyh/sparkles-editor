@@ -23,6 +23,8 @@ const emit = defineEmits<{
   download: [id: string, event: Event]
 }>()
 
+const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
+
 const isExpanded = computed(() => props.expandedFolders.has(props.node.id))
 const hasChildren = computed(() => props.node.children && props.node.children.length > 0)
 
@@ -84,7 +86,7 @@ const handleDownload = (event: Event) => {
 
       <!-- 标题 -->
       <span class="flex-1 truncate text-sm">
-        {{ node.title || '未命名' }}
+        {{ node.title || (documentsData?.untitled || '未命名') }}
       </span>
 
       <!-- 操作按钮 -->

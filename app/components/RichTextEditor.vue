@@ -148,11 +148,13 @@ const extensions = computed(() => [
   TaskItem
 ])
 
+const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
+
 // 导入Markdown内容
 function importMarkdown(markdown: string) {
   const editor = editorRef.value?.editor
   if (!editor) {
-    console.warn('Editor not ready')
+    console.warn(editorData.value?.editorNotReady || 'Editor not ready')
     return
   }
 
@@ -164,7 +166,7 @@ function importMarkdown(markdown: string) {
 function exportMarkdown(): string {
   const editor = editorRef.value?.editor
   if (!editor) {
-    console.warn('Editor not ready')
+    console.warn(editorData.value?.editorNotReady || 'Editor not ready')
     return content.value || ''
   }
 

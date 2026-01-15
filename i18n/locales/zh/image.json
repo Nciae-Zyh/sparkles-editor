@@ -9,6 +9,7 @@
     "cancel": "取消",
     "confirm": "确认",
     "editAlt": "编辑图片描述",
-    "altPlaceholderShort": "输入图片描述（alt文本）..."
+    "altPlaceholderShort": "输入图片描述（alt文本）...",
+    "uploadFailed": "上传失败"
   }
 }

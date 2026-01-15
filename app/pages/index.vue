@@ -2,6 +2,7 @@
 import { useAuth } from '~/composables/useAuth'
 
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
+const appData = computed(() => $tm('app') as Record<string, string> | undefined)
 const { user, fetchUser, logout } = useAuth()
 const router = useRouter()
 const route = useRoute()
@@ -57,7 +58,7 @@ onMounted(async () => {
             size="sm"
             @click="createNewDocument"
           >
-            新建文档
+            {{ appData?.newDocument || '新建文档' }}
           </UButton>
           <UButton
             v-if="user"
@@ -66,7 +67,7 @@ onMounted(async () => {
             variant="soft"
             size="sm"
           >
-            我的文档
+            {{ appData?.myDocuments || '我的文档' }}
           </UButton>
           <UButton
             v-if="user"
@@ -84,7 +85,7 @@ onMounted(async () => {
             size="sm"
             @click="() => { authMode = 'login'; authModalOpen = true }"
           >
-            登录
+            {{ appData?.login || '登录' }}
           </UButton>
           <UButton
             v-if="user"
@@ -94,7 +95,7 @@ onMounted(async () => {
             size="sm"
             @click="async () => { await logout(); await router.push('/') }"
           >
-            退出
+            {{ appData?.logout || '退出' }}
           </UButton>
         </div>
       </template>

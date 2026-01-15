@@ -38,7 +38,7 @@ async function onFileChange() {
     showAltDialog.value = true
   } catch (e) {
     console.log(e)
-    error.value = (e as Error & { data: { message: string } }).data.message || '上传失败'
+    error.value = (e as Error & { data: { message: string } }).data.message || (imageData.value?.uploadFailed || '上传失败')
   } finally {
     loading.value = false
   }

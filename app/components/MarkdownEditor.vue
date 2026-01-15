@@ -37,7 +37,8 @@ const emit = defineEmits<{
 
 const { user } = useAuth()
 const { saveDocument } = useDocuments()
-const documentTitle = ref(props.documentTitle || '未命名文档')
+const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
+const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
 const documentId = ref(props.documentId)
 const isNewDocument = computed(() => !documentId.value)
 
@@ -163,7 +164,7 @@ const defaultContent = computed(() => {
 
 // 从内容中提取标题（取第一行作为标题）
 const extractTitleFromContent = (content: string): string => {
-  if (!content) return '未命名文档'
+  if (!content) return documentsData.value?.untitledDocument || '未命名文档'
 
   const lines = content.trim().split('\n')
   const firstLine = lines[0]?.trim() || ''
@@ -175,7 +176,7 @@ const extractTitleFromContent = (content: string): string => {
     .replace(/\*/g, '') // 移除斜体标记
     .trim()
 
-  return title || '未命名文档'
+  return title || (documentsData.value?.untitledDocument || '未命名文档')
 }
 
 // 自动保存逻辑已移至 watch([content, canSave]) 中
@@ -221,7 +222,7 @@ const extensions = computed(() => [
 function importMarkdown(markdown: string) {
   const editor = editorRef.value?.editor
   if (!editor) {
-    console.warn('Editor not ready')
+    console.warn(editorData.value?.editorNotReady || 'Editor not ready')
     return
   }
 
@@ -233,7 +234,7 @@ function importMarkdown(markdown: string) {
 function exportMarkdown(): string {
   const editor = editorRef.value?.editor
   if (!editor) {
-    console.warn('Editor not ready')
+    console.warn(editorData.value?.editorNotReady || 'Editor not ready')
     return content.value || ''
   }
 
@@ -290,7 +291,7 @@ async function handleFileImport(event: Event) {
     const text = await file.text()
     importMarkdown(text)
   } catch (error) {
-    console.error('导入文件失败:', error)
+    console.error(editorData.value?.importFileFailed || '导入文件失败:', error)
     alert(actionsData.value?.importFailed)
   } finally {
     isImporting.value = false
@@ -378,13 +379,13 @@ defineExpose({
                   name="i-lucide-loader-2"
                   class="w-3 h-3 animate-spin"
                 />
-                <span>自动保存中...</span>
+                <span>{{ editorData?.autoSaving || '自动保存中...' }}</span>
               </div>
               <div
                 v-if="user && canSave && lastSavedAt && !isAutoSaving"
                 class="text-xs text-gray-400"
               >
-                已保存
+                {{ editorData?.saved || '已保存' }}
               </div>
             </div>
           </div>
