@@ -33,7 +33,8 @@ export default eventHandler(async (event) => {
   }
 
   // 验证密码
-  if (!verifyPassword(password, user.password_hash)) {
+  const isValidPassword = await verifyPassword(password, user.password_hash)
+  if (!isValidPassword) {
     throw createError({
       statusCode: 401,
       message: 'Invalid email or password'

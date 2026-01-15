@@ -1,19 +1,41 @@
 import { getDB } from './db'
 import type { CloudflareEnv } from '../../types'
-import { randomBytes, createHash } from 'node:crypto'
 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-in-production'
 
+// 使用 Web Crypto API 生成随机 token（兼容 Cloudflare Workers）
 export function generateToken(): string {
-  return randomBytes(32).toString('hex')
+  const array = new Uint8Array(32)
+  crypto.getRandomValues(array)
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
-export function hashPassword(password: string): string {
-  return createHash('sha256').update(password + SESSION_SECRET).digest('hex')
+// 生成用户 ID（兼容 Cloudflare Workers）
+export function generateUserId(): string {
+  const array = new Uint8Array(16)
+  crypto.getRandomValues(array)
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
-export function verifyPassword(password: string, hash: string): boolean {
-  return hashPassword(password) === hash
+// 生成文档 ID（兼容 Cloudflare Workers）
+export function generateDocumentId(): string {
+  const array = new Uint8Array(16)
+  crypto.getRandomValues(array)
+  return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+// 使用 Web Crypto API 进行密码哈希（兼容 Cloudflare Workers）
+export async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(password + SESSION_SECRET)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  const passwordHash = await hashPassword(password)
+  return passwordHash === hash
 }
 
 export async function createSession(event: any, userId: string): Promise<string> {

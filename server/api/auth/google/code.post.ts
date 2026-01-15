@@ -1,6 +1,5 @@
 import { getDB, initDB } from '../../../utils/db'
-import { createSession } from '../../../utils/auth'
-import { randomBytes } from 'node:crypto'
+import { createSession, generateUserId } from '../../../utils/auth'
 
 export default eventHandler(async (event) => {
   const body = await readBody(event)
@@ -103,7 +102,7 @@ export default eventHandler(async (event) => {
     }
   } else {
     // 创建新用户
-    const userId = randomBytes(16).toString('hex')
+    const userId = generateUserId()
     await db.prepare(`
       INSERT INTO users (id, email, name, google_id, avatar_url, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)

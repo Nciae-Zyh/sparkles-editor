@@ -1,7 +1,7 @@
 import { getDB } from '../../utils/db'
 import { getCurrentUser } from '../../utils/auth'
 import { getR2Bucket, saveDocumentToR2 } from '../../utils/r2'
-import { randomBytes } from 'node:crypto'
+import { generateDocumentId } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
   const user = await getCurrentUser(event)
@@ -38,7 +38,7 @@ export default eventHandler(async (event) => {
     })
   }
 
-  const documentId = randomBytes(16).toString('hex')
+  const documentId = generateDocumentId()
   const now = Math.floor(Date.now() / 1000)
 
   // 保存到 R2

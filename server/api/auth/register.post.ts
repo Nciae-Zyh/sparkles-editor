@@ -1,6 +1,5 @@
 import { getDB, initDB } from '../../utils/db'
-import { hashPassword, createSession } from '../../utils/auth'
-import { randomBytes } from 'node:crypto'
+import { hashPassword, createSession, generateUserId } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
   try {
@@ -62,8 +61,8 @@ export default eventHandler(async (event) => {
     }
 
     // 创建新用户
-    const userId = randomBytes(16).toString('hex')
-    const passwordHash = hashPassword(password)
+    const userId = generateUserId()
+    const passwordHash = await hashPassword(password)
     const now = Math.floor(Date.now() / 1000)
 
     console.log('[Register] Creating user:', { userId, email, hasName: !!name })
