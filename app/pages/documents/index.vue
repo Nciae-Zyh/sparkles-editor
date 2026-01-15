@@ -5,7 +5,6 @@ definePageMeta({
   layout: 'documents'
 })
 
-const router = useRouter()
 const route = useRoute()
 const safeLocalePath = useSafeLocalePath()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
@@ -19,9 +18,11 @@ const currentFolderId = computed(() => route.query.folder as string | undefined)
       <UButton
         v-if="currentFolderId"
         icon="i-lucide-arrow-left"
-        variant="ghost"
         size="sm"
-        @click="router.push(safeLocalePath('/documents'))"
+        variant="ghost"
+        @click="navigateTo(safeLocalePath('/documents'), {
+          query: { function: 'create' }
+        })"
       >
         {{ documentsData?.back || '返回' }}
       </UButton>
