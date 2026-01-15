@@ -11,7 +11,8 @@ export default defineNuxtConfig({
     '@nuxt/hints',
     '@nuxt/image',
     '@nuxtjs/i18n',
-    'nuxt-vue3-google-signin'
+    'nuxt-vue3-google-signin',
+    '@nuxtjs/device'
   ],
   ssr: true,
 

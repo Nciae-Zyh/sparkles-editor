@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import type { EditorCustomHandlers } from '@nuxt/ui'
-import type { Editor } from '@tiptap/core'
-import { Emoji } from '@tiptap/extension-emoji'
-import { TaskItem, TaskList } from '@tiptap/extension-list'
-import { TableKit } from '@tiptap/extension-table'
-import { CellSelection } from 'prosemirror-tables'
-import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
-import { ImageUpload } from '~/components/editor/ImageUploadExtension'
-import { useAuth } from '~/composables/useAuth'
-import { useDocuments } from '~/composables/useDocuments'
+import type {EditorCustomHandlers} from '@nuxt/ui'
+import type {Editor} from '@tiptap/core'
+import {Emoji} from '@tiptap/extension-emoji'
+import {TaskItem, TaskList} from '@tiptap/extension-list'
+import {TableKit} from '@tiptap/extension-table'
+import {CellSelection} from 'prosemirror-tables'
+import {CodeBlockShiki} from 'tiptap-extension-code-block-shiki'
+import {ImageUpload} from '~/components/editor/ImageUploadExtension'
+import {useAuth} from '~/composables/useAuth'
+import {useDocuments} from '~/composables/useDocuments'
 
 interface Props {
   placeholder?: string
@@ -35,8 +35,8 @@ const emit = defineEmits<{
   'document-saved': [id: string]
 }>()
 
-const { user } = useAuth()
-const { saveDocument } = useDocuments()
+const {user} = useAuth()
+const {saveDocument} = useDocuments()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
 // 使用props.documentId作为初始值，如果提供了就使用（可能是新建时的临时ID）
@@ -48,7 +48,7 @@ watch(() => props.documentId, (newId) => {
   if (newId && !documentId.value) {
     documentId.value = newId
   }
-}, { immediate: true })
+}, {immediate: true})
 
 // 判断是否允许保存
 // readonly=true: 不允许保存（预览模式）
@@ -86,7 +86,10 @@ const lastSavedAt = ref<Date | null>(null)
 const AUTO_SAVE_DELAY = 3000 // 3秒后自动保存
 
 // 自动保存逻辑（只对已保存的文档且允许保存时）
-watch([content, canSave], () => {
+watch([
+  content,
+  canSave
+], () => {
   // 如果不允许保存，不执行自动保存
   if (!canSave.value) {
     // 清除定时器
@@ -130,8 +133,8 @@ watch([content, canSave], () => {
 // Custom handlers for editor
 const customHandlers = {
   imageUpload: {
-    canExecute: (editor: Editor) => editor.can().insertContent({ type: 'imageUpload' }),
-    execute: (editor: Editor) => editor.chain().focus().insertContent({ type: 'imageUpload' }),
+    canExecute: (editor: Editor) => editor.can().insertContent({type: 'imageUpload'}),
+    execute: (editor: Editor) => editor.chain().focus().insertContent({type: 'imageUpload'}),
     isActive: (editor: Editor) => editor.isActive('imageUpload'),
     isDisabled: undefined
   },
@@ -151,8 +154,8 @@ const customHandlers = {
   }
 } satisfies EditorCustomHandlers
 
-const { items: emojiItems } = useEditorEmojis()
-const { items: suggestionItems } = useEditorSuggestions(customHandlers)
+const {items: emojiItems} = useEditorEmojis()
+const {items: suggestionItems} = useEditorSuggestions(customHandlers)
 const {
   getItems: getDragHandleItems,
   onNodeChange
@@ -201,9 +204,9 @@ watch(editorData, () => {
   if (!content.value) {
     content.value = defaultContent.value
   }
-}, { deep: true })
+}, {deep: true})
 
-function onCreate({ editor: _editor }: { editor: Editor }) {
+function onCreate({editor: _editor}: { editor: Editor }) {
   // Editor created
 }
 
@@ -234,7 +237,7 @@ function importMarkdown(markdown: string) {
     return
   }
 
-  editor.commands.setContent(markdown, { contentType: 'markdown' })
+  editor.commands.setContent(markdown, {contentType: 'markdown'})
   content.value = markdown
 }
 
@@ -251,7 +254,10 @@ function exportMarkdown(): string {
 }
 
 // 下载功能
-const { downloadAsZip, isDownloading } = useDownloadZip()
+const {
+  downloadAsZip,
+  isDownloading
+} = useDownloadZip()
 
 async function handleDownload() {
   try {
@@ -334,7 +340,8 @@ defineExpose({
       @create="onCreate"
       @update:model-value="onUpdate"
     >
-      <div class="sticky top-0 z-50  h-(--ui-header-height) flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm">
+      <div
+        class="sticky top-(--ui-header-height) z-50 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm">
         <div class="container mx-auto px-4 sm:px-6 lg:px-14">
           <div class="flex items-center justify-between gap-4 py-3">
             <div class="flex-1 overflow-x-auto">
@@ -349,34 +356,40 @@ defineExpose({
             >
               <input
                 ref="fileInputRef"
-                type="file"
                 accept=".md,.markdown"
                 class="hidden"
+                type="file"
                 @change="handleFileImport"
               >
               <UButton
                 :loading="isImporting"
                 color="primary"
                 icon="i-lucide-upload"
-                :label="actionsData?.importMarkdown"
                 size="sm"
                 variant="soft"
                 @click="handleImportClick"
-              />
+              >
+                <span v-if="!$device.isMobile">
+                  {{ actionsData?.importMarkdown }}
+                </span>
+              </UButton>
               <UButton
                 :loading="isDownloading"
                 color="primary"
                 icon="i-lucide-download"
-                :label="actionsData?.downloadMarkdown"
                 size="sm"
                 variant="soft"
                 @click="handleDownload"
-              />
+              >
+                <span v-if="!$device.isMobile">
+                  {{ actionsData?.downloadMarkdown }}
+                </span>
+              </UButton>
               <DocumentsSaveDocumentButton
                 v-if="user && canSave"
-                :title="documentTitle"
                 :content="content || ''"
                 :document-id="documentId"
+                :title="documentTitle"
                 @saved="(id) => { documentId = id; $emit('document-saved', id) }"
               />
               <div
@@ -384,8 +397,8 @@ defineExpose({
                 class="flex items-center gap-1 text-xs text-gray-500"
               >
                 <UIcon
-                  name="i-lucide-loader-2"
                   class="w-3 h-3 animate-spin"
+                  name="i-lucide-loader-2"
                 />
                 <span>{{ editorData?.autoSaving || '自动保存中...' }}</span>
               </div>
@@ -412,7 +425,7 @@ defineExpose({
         layout="bubble"
       >
         <template #link>
-          <EditorLinkPopover :editor="editor" />
+          <EditorLinkPopover :editor="editor"/>
         </template>
       </UEditorToolbar>
 
@@ -425,7 +438,7 @@ defineExpose({
         layout="bubble"
       >
         <template #imageAlt>
-          <EditorImageAltPopover :editor="editor" />
+          <EditorImageAltPopover :editor="editor"/>
         </template>
       </UEditorToolbar>
 
