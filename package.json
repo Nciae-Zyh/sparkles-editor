@@ -1,0 +1,69 @@
+{
+  "name": "simple-editor",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "NODE_OPTIONS=--max-old-space-size=8192 nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "eslint . --fix",
+    "typecheck": "nuxt typecheck",
+    "deploy": "pnpm build && wrangler deploy",
+    "deploy:preview": "pnpm build && wrangler deploy --env preview"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.82",
+    "@iconify-json/simple-icons": "^1.2.63",
+    "@nuxt/a11y": "1.0.0-alpha.1",
+    "@nuxt/content": "3.10.0",
+    "@nuxt/hints": "1.0.0-alpha.5",
+    "@nuxt/image": "2.0.0",
+    "@nuxt/ui": "https://pkg.pr.new/@nuxt/ui@6ccb1f5",
+    "@nuxthub/core": "^0.10.4",
+    "@nuxtjs/device": "4.0.0",
+    "@nuxtjs/i18n": "10.2.1",
+    "@tiptap/core": "^3.15.3",
+    "@tiptap/extension-emoji": "^3.15.3",
+    "@tiptap/extension-list": "^3.15.3",
+    "@tiptap/extension-table": "^3.15.3",
+    "@tiptap/vue-3": "^3.15.3",
+    "@vercel/blob": "^2.0.0",
+    "@vueuse/core": "^14.1.0",
+    "better-sqlite3": "^12.6.0",
+    "jszip": "^3.10.1",
+    "lodash-es": "^4.17.22",
+    "nuxt": "^4.2.2",
+    "nuxt-vue3-google-signin": "^0.0.13",
+    "prosemirror-tables": "^1.8.5",
+    "scule": "^1.3.0",
+    "shiki": "^3.20.0",
+    "tailwindcss": "^4.1.18",
+    "tiptap-extension-code-block-shiki": "^1.0.0",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.12.1",
+    "@types/lodash-es": "^4.17.12",
+    "eslint": "^9.39.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vue-tsc": "^3.2.1",
+    "wrangler": "^3.0.0"
+  },
+  "packageManager": "pnpm@10.26.1",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@parcel/watcher",
+      "better-sqlite3",
+      "esbuild",
+      "sharp",
+      "sqlite3",
+      "unrs-resolver",
+      "vue-demi",
+      "workerd"
+    ]
+  }
+}

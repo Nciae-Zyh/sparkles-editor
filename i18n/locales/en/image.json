@@ -1,0 +1,15 @@
+{
+  "image": {
+    "upload": "Upload an image",
+    "uploadDescription": "SVG, PNG, JPG or GIF (max. 2MB)",
+    "setAlt": "Set Image Description",
+    "preview": "Preview",
+    "altLabel": "Image Description (Alt Text)",
+    "altPlaceholder": "Enter image description for accessibility...",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "editAlt": "Edit Image Description",
+    "altPlaceholderShort": "Enter image description (alt text)...",
+    "uploadFailed": "Upload failed"
+  }
+}

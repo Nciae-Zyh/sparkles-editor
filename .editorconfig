@@ -1,0 +1,47 @@
+# editorconfig.org
+# https://editorconfig.org
+root = true
+
+# 所有文件的默认配置
+[*]
+indent_size = 2
+indent_style = space
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Markdown 文件
+[*.md]
+trim_trailing_whitespace = false
+indent_size = 2
+
+# Vue 文件
+[*.vue]
+indent_size = 2
+indent_style = space
+
+# TypeScript/JavaScript 文件
+[*.{ts,tsx,js,jsx,mjs,cjs}]
+indent_size = 2
+indent_style = space
+
+# JSON 文件
+[*.json]
+indent_size = 2
+indent_style = space
+
+# YAML 文件
+[*.{yml,yaml}]
+indent_size = 2
+indent_style = space
+
+# CSS/SCSS 文件
+[*.{css,scss,sass}]
+indent_size = 2
+indent_style = space
+
+# 配置文件
+[*.{config.js,config.ts}]
+indent_size = 2
+indent_style = space

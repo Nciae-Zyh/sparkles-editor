@@ -1,0 +1,10 @@
+{
+  "app": {
+    "title": "Sparkles Editor",
+    "description": "A Notion-like WYSIWYG editor with AI-powered completions in Vue & Nuxt.",
+    "newDocument": "New Document",
+    "myDocuments": "My Documents",
+    "login": "Login",
+    "logout": "Logout"
+  }
+}
