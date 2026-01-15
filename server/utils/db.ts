@@ -1,4 +1,4 @@
-import type { CloudflareEnv } from '~/types'
+import type { CloudflareEnv } from '../../types'
 
 export function getDB(event: any) {
   const env = event.context.cloudflare?.env as CloudflareEnv

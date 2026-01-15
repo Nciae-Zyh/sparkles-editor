@@ -1,6 +1,6 @@
-import { getDB } from '~/server/utils/db'
-import { getCurrentUser } from '~/server/utils/auth'
-import { getR2Bucket, saveDocumentToR2 } from '~/server/utils/r2'
+import { getDB } from '../../utils/db'
+import { getCurrentUser } from '../../utils/auth'
+import { getR2Bucket, saveDocumentToR2 } from '../../utils/r2'
 import { randomBytes } from 'node:crypto'
 
 export default eventHandler(async (event) => {

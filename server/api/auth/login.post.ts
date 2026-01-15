@@ -1,5 +1,5 @@
-import { getDB } from '~/server/utils/db'
-import { verifyPassword, createSession } from '~/server/utils/auth'
+import { getDB } from '../../utils/db'
+import { verifyPassword, createSession } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
   const body = await readBody(event)

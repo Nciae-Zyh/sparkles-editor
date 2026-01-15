@@ -1,5 +1,5 @@
 import { getDB } from './db'
-import type { CloudflareEnv } from '~/types'
+import type { CloudflareEnv } from '../../types'
 import { randomBytes, createHash } from 'node:crypto'
 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-in-production'

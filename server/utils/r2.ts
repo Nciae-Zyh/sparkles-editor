@@ -1,4 +1,4 @@
-import type { CloudflareEnv } from '~/types'
+import type { CloudflareEnv } from '../../types'
 
 export function getR2Bucket(event: any): R2Bucket | null {
   const env = event.context.cloudflare?.env as CloudflareEnv

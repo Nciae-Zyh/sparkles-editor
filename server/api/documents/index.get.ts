@@ -1,5 +1,5 @@
-import { getDB } from '~/server/utils/db'
-import { getCurrentUser } from '~/server/utils/auth'
+import { getDB } from '../../utils/db'
+import { getCurrentUser } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
   const user = await getCurrentUser(event)

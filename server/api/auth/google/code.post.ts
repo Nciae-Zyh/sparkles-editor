@@ -1,5 +1,5 @@
-import { getDB, initDB } from '~/server/utils/db'
-import { createSession } from '~/server/utils/auth'
+import { getDB, initDB } from '../../../utils/db'
+import { createSession } from '../../../utils/auth'
 import { randomBytes } from 'node:crypto'
 
 export default eventHandler(async (event) => {
