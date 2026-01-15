@@ -14,8 +14,8 @@ const defaultContent = computed(() => {
   return editorData.value?.defaultContent || ''
 })
 
-// 使用 defineModel 定义内容，并设置默认值
-const content = defineModel<string>('')
+// 使用 ref 定义内容，并设置默认值
+const content = ref<string>('')
 const isNewDocument = ref(true)
 
 // 新建文档函数
