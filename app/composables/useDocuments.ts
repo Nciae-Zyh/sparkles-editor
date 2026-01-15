@@ -4,15 +4,32 @@ export const useDocuments = () => {
   const documents = ref<Document[]>([])
   const loading = ref(false)
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = async (parentId?: string) => {
     try {
       loading.value = true
-      const data = await $fetch<{ documents: Document[] }>('/api/documents')
+      const params = parentId ? { parentId } : {}
+      const data = await $fetch<{ documents: Document[] }>('/api/documents', { params })
       documents.value = data.documents
       return data.documents
     } catch (error) {
       console.error('Failed to fetch documents:', error)
       return []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const createFolder = async (title: string, parentId?: string) => {
+    try {
+      loading.value = true
+      const data = await $fetch<{ success: boolean; folder: Document }>('/api/folders', {
+        method: 'POST',
+        body: { title, parentId }
+      })
+      documents.value.unshift(data.folder)
+      return data.folder
+    } catch (error: any) {
+      throw new Error(error.data?.message || 'Failed to create folder')
     } finally {
       loading.value = false
     }
@@ -31,13 +48,13 @@ export const useDocuments = () => {
     }
   }
 
-  const saveDocument = async (title: string, content: string, documentId?: string) => {
+  const saveDocument = async (title: string, content: string, documentId?: string, parentId?: string) => {
     try {
       loading.value = true
       if (documentId) {
         const data = await $fetch<{ success: boolean; document: Document }>(`/api/documents/${documentId}`, {
           method: 'PUT',
-          body: { title, content }
+          body: { title, content, parentId }
         })
         // 更新本地列表
         const index = documents.value.findIndex(d => d.id === documentId)
@@ -48,7 +65,7 @@ export const useDocuments = () => {
       } else {
         const data = await $fetch<{ success: boolean; document: Document }>('/api/documents', {
           method: 'POST',
-          body: { title, content }
+          body: { title, content, parentId, type: 'document' }
         })
         documents.value.unshift(data.document)
         return data.document
@@ -80,6 +97,7 @@ export const useDocuments = () => {
     fetchDocuments,
     getDocument,
     saveDocument,
-    deleteDocument
+    deleteDocument,
+    createFolder
   }
 }

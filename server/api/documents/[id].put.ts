@@ -13,7 +13,7 @@ export default eventHandler(async (event) => {
 
   const { id } = getRouterParams(event)
   const body = await readBody(event)
-  const { title, content } = body
+  const { title, content, parentId } = body
 
   const db = getDB(event)
   if (!db) {
@@ -25,7 +25,7 @@ export default eventHandler(async (event) => {
 
   // 检查文档是否存在且属于当前用户
   const existing = await db.prepare(`
-    SELECT id, r2_key FROM documents WHERE id = ? AND user_id = ?
+    SELECT id, r2_key, type, path, parent_id FROM documents WHERE id = ? AND user_id = ?
   `).bind(id, user.id).first() as any
 
   if (!existing) {
@@ -35,31 +35,80 @@ export default eventHandler(async (event) => {
     })
   }
 
-  const r2 = getR2Bucket(event)
-  if (!r2) {
-    throw createError({
-      statusCode: 500,
-      message: 'R2 storage not available'
-    })
+  const now = Math.floor(Date.now() / 1000)
+  let r2Key = existing.r2_key
+  let newPath = existing.path
+  let newParentId = existing.parent_id
+
+  // 如果父目录改变，更新路径
+  if (parentId !== undefined && parentId !== existing.parent_id) {
+    let parentPath = '/'
+    if (parentId) {
+      const parent = await db.prepare('SELECT id, path, type FROM documents WHERE id = ? AND user_id = ?')
+        .bind(parentId, user.id)
+        .first() as any
+
+      if (!parent || parent.type !== 'folder') {
+        throw createError({
+          statusCode: 400,
+          message: 'Invalid parent folder'
+        })
+      }
+
+      parentPath = parent.path
+    }
+
+    newPath = parentPath === '/' ? `/${id}` : `${parentPath}/${id}`
+    newParentId = parentId || null
+
+    // 检查新路径是否已存在
+    const pathConflict = await db.prepare('SELECT id FROM documents WHERE path = ? AND user_id = ? AND id != ?')
+      .bind(newPath, user.id, id)
+      .first()
+
+    if (pathConflict) {
+      throw createError({
+        statusCode: 409,
+        message: 'A document or folder with this name already exists in this location'
+      })
+    }
   }
 
-  const now = Math.floor(Date.now() / 1000)
+  // 如果是文档类型，更新 R2 内容
+  if (existing.type === 'document') {
+    const r2 = getR2Bucket(event)
+    if (!r2) {
+      throw createError({
+        statusCode: 500,
+        message: 'R2 storage not available'
+      })
+    }
 
-  // 更新 R2 内容
-  const r2Key = await saveDocumentToR2(r2, user.id, id, content || '')
+    r2Key = await saveDocumentToR2(r2, user.id, id, content || '')
+  }
 
   // 更新数据库
   await db.prepare(`
     UPDATE documents
-    SET title = ?, r2_key = ?, updated_at = ?
+    SET title = ?, r2_key = ?, parent_id = ?, path = ?, updated_at = ?
     WHERE id = ? AND user_id = ?
-  `).bind(title || existing.title, r2Key, now, id, user.id).run()
+  `).bind(
+    title || existing.title,
+    r2Key,
+    newParentId,
+    newPath,
+    now,
+    id,
+    user.id
+  ).run()
 
   return {
     success: true,
     document: {
       id,
       title: title || existing.title,
+      parent_id: newParentId,
+      path: newPath,
       updated_at: now
     }
   }

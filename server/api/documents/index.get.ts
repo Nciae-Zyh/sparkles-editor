@@ -10,6 +10,9 @@ export default eventHandler(async (event) => {
     })
   }
 
+  const query = getQuery(event)
+  const parentId = query.parentId as string | undefined
+
   const db = getDB(event)
   if (!db) {
     throw createError({
@@ -18,12 +21,24 @@ export default eventHandler(async (event) => {
     })
   }
 
-  const documents = await db.prepare(`
-    SELECT id, title, created_at, updated_at
-    FROM documents
-    WHERE user_id = ?
-    ORDER BY updated_at DESC
-  `).bind(user.id).all()
+  // 如果指定了 parentId，返回该目录下的内容
+  // 否则返回根目录（parent_id IS NULL）的内容
+  let documents
+  if (parentId) {
+    documents = await db.prepare(`
+      SELECT id, title, type, parent_id, path, created_at, updated_at
+      FROM documents
+      WHERE user_id = ? AND parent_id = ?
+      ORDER BY type DESC, updated_at DESC
+    `).bind(user.id, parentId).all()
+  } else {
+    documents = await db.prepare(`
+      SELECT id, title, type, parent_id, path, created_at, updated_at
+      FROM documents
+      WHERE user_id = ? AND (parent_id IS NULL OR parent_id = '')
+      ORDER BY type DESC, updated_at DESC
+    `).bind(user.id).all()
+  }
 
   return {
     documents: documents.results || []

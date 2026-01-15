@@ -4,6 +4,9 @@ import { useDocuments } from '~/composables/useDocuments'
 
 const { user, fetchUser } = useAuth()
 const router = useRouter()
+const route = useRoute()
+
+const currentFolderId = computed(() => route.query.folder as string | undefined)
 
 onMounted(async () => {
   await fetchUser()
@@ -37,10 +40,21 @@ onMounted(async () => {
     </AppHeader>
 
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 class="text-2xl font-bold mb-6">
-        我的文档
-      </h1>
-      <DocumentList />
+      <div class="flex items-center gap-4 mb-6">
+        <UButton
+          v-if="currentFolderId"
+          icon="i-lucide-arrow-left"
+          variant="ghost"
+          size="sm"
+          @click="router.push('/documents')"
+        >
+          返回
+        </UButton>
+        <h1 class="text-2xl font-bold">
+          我的文档
+        </h1>
+      </div>
+      <DocumentList :parent-id="currentFolderId" />
     </div>
   </div>
 </template>

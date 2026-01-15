@@ -4,6 +4,7 @@ import { useAuth } from '~/composables/useAuth'
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
 const { user, fetchUser, logout } = useAuth()
 const router = useRouter()
+const route = useRoute()
 
 const authModalOpen = ref(false)
 const authMode = ref<'login' | 'register'>('login')
@@ -15,16 +16,29 @@ const defaultContent = computed(() => {
 
 // 使用 defineModel 定义内容，并设置默认值
 const content = defineModel<string>('')
+const isNewDocument = ref(true)
+
+// 新建文档函数
+const createNewDocument = () => {
+  content.value = ''
+  isNewDocument.value = true
+  // 如果已经在首页，不需要路由跳转
+  if (route.path !== '/') {
+    router.push('/')
+  }
+}
 
 // 监听语言变化，更新默认内容
 watch(editorData, () => {
-  if (!content.value) {
+  if (!content.value && !isNewDocument.value) {
     content.value = defaultContent.value
   }
 }, { deep: true })
 
 onMounted(async () => {
-  content.value = defaultContent.value
+  if (!content.value) {
+    content.value = defaultContent.value
+  }
   await fetchUser()
 })
 </script>
@@ -34,6 +48,15 @@ onMounted(async () => {
     <AppHeader>
       <template #default>
         <div class="flex items-center gap-2">
+          <UButton
+            v-if="user"
+            icon="i-lucide-file-plus"
+            variant="soft"
+            size="sm"
+            @click="createNewDocument"
+          >
+            新建文档
+          </UButton>
           <UButton
             v-if="user"
             :to="'/documents'"
@@ -75,7 +98,11 @@ onMounted(async () => {
       </template>
     </AppHeader>
 
-    <MarkdownEditor v-model="content" />
+    <MarkdownEditor
+      v-model="content"
+      :enable-before-unload="false"
+      @document-saved="(id) => { isNewDocument = false }"
+    />
 
     <AuthModal
       v-model:open="authModalOpen"

@@ -8,6 +8,7 @@ import { CellSelection } from 'prosemirror-tables'
 import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
 import { ImageUpload } from '~/components/editor/ImageUploadExtension'
 import { useAuth } from '~/composables/useAuth'
+import { useDocuments } from '~/composables/useDocuments'
 
 interface Props {
   placeholder?: string
@@ -19,7 +20,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '开始写作，输入 \'/\' 查看命令...',
-  enableBeforeUnload: true,
+  enableBeforeUnload: false,
   showImportExport: true,
   documentId: undefined,
   documentTitle: undefined
@@ -30,8 +31,10 @@ const emit = defineEmits<{
 }>()
 
 const { user } = useAuth()
+const { saveDocument } = useDocuments()
 const documentTitle = ref(props.documentTitle || '未命名文档')
 const documentId = ref(props.documentId)
+const isNewDocument = computed(() => !documentId.value)
 
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
@@ -46,11 +49,11 @@ const placeholder = computed(() => {
 
 const editorRef = ref<Editor | null>(null)
 
-// 添加 beforeunload 拦截
-const hasUnsavedChanges = ref(false)
-if (props.enableBeforeUnload) {
-  useBeforeUnload(hasUnsavedChanges)
-}
+// 自动保存相关
+const autoSaveTimer = ref<NodeJS.Timeout | null>(null)
+const isAutoSaving = ref(false)
+const lastSavedAt = ref<Date | null>(null)
+const AUTO_SAVE_DELAY = 3000 // 3秒后自动保存
 
 // Custom handlers for editor
 const customHandlers = {
@@ -96,9 +99,84 @@ const defaultContent = computed(() => {
 
 const content = defineModel<string>()
 
+// 从内容中提取标题（取第一行作为标题）
+const extractTitleFromContent = (content: string): string => {
+  if (!content) return '未命名文档'
+  
+  const lines = content.trim().split('\n')
+  const firstLine = lines[0]?.trim() || ''
+  
+  // 移除 Markdown 标题标记
+  const title = firstLine
+    .replace(/^#+\s*/, '') // 移除 # 标记
+    .replace(/\*\*/g, '') // 移除粗体标记
+    .replace(/\*/g, '') // 移除斜体标记
+    .trim()
+  
+  return title || '未命名文档'
+}
+
+// 自动保存逻辑（对所有已保存的文档）
+const autoSave = async () => {
+  if (!user.value || !content.value) {
+    return
+  }
+
+  // 如果内容为空或只有空白，不保存
+  if (!content.value.trim()) {
+    return
+  }
+
+  try {
+    isAutoSaving.value = true
+    
+    // 从内容中提取标题，如果没有则使用默认标题
+    const title = extractTitleFromContent(content.value) || documentTitle.value || '未命名文档'
+    
+    // 更新 documentTitle
+    if (title !== documentTitle.value) {
+      documentTitle.value = title
+    }
+    
+    const document = await saveDocument(title, content.value, documentId.value)
+    
+    // 更新 documentId，这样后续编辑会变成更新而不是新建
+    if (document.id && !documentId.value) {
+      documentId.value = document.id
+      emit('document-saved', document.id)
+    }
+    
+    lastSavedAt.value = new Date()
+    console.log('[AutoSave] Document saved:', document.id || 'new', 'Title:', title)
+  } catch (error: any) {
+    console.error('[AutoSave] Failed to save:', error)
+    // 自动保存失败不显示错误提示，避免打扰用户
+  } finally {
+    isAutoSaving.value = false
+  }
+}
+
+// 监听内容变化，触发自动保存（所有文档）
 watch(content, () => {
-  if (props.enableBeforeUnload) {
-    hasUnsavedChanges.value = true
+  if (!user.value) {
+    return
+  }
+
+  // 清除之前的定时器
+  if (autoSaveTimer.value) {
+    clearTimeout(autoSaveTimer.value)
+  }
+
+  // 设置新的自动保存定时器
+  autoSaveTimer.value = setTimeout(() => {
+    autoSave()
+  }, AUTO_SAVE_DELAY)
+}, { deep: true })
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (autoSaveTimer.value) {
+    clearTimeout(autoSaveTimer.value)
   }
 })
 
@@ -285,6 +363,22 @@ defineExpose({
                 :document-id="documentId"
                 @saved="(id) => { documentId = id; $emit('document-saved', id) }"
               />
+              <div
+                v-if="user && isAutoSaving"
+                class="flex items-center gap-1 text-xs text-gray-500"
+              >
+                <UIcon
+                  name="i-lucide-loader-2"
+                  class="w-3 h-3 animate-spin"
+                />
+                <span>自动保存中...</span>
+              </div>
+              <div
+                v-if="user && lastSavedAt && !isAutoSaving"
+                class="text-xs text-gray-400"
+              >
+                已保存
+              </div>
             </div>
           </div>
         </div>

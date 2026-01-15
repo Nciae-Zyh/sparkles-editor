@@ -1,6 +1,5 @@
 import { getDB } from '../../utils/db'
 import { getCurrentUser } from '../../utils/auth'
-import { getR2Bucket, saveDocumentToR2 } from '../../utils/r2'
 import { generateDocumentId } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -13,12 +12,12 @@ export default eventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { title, content, parentId, type = 'document' } = body
+  const { title, parentId } = body
 
   if (!title) {
     throw createError({
       statusCode: 400,
-      message: 'Title is required'
+      message: 'Folder name is required'
     })
   }
 
@@ -54,9 +53,9 @@ export default eventHandler(async (event) => {
     parentPath = parent.path
   }
 
-  const documentId = generateDocumentId()
+  const folderId = generateDocumentId()
   const now = Math.floor(Date.now() / 1000)
-  const path = parentPath === '/' ? `/${documentId}` : `${parentPath}/${documentId}`
+  const path = parentPath === '/' ? `/${folderId}` : `${parentPath}/${folderId}`
 
   // 检查路径是否已存在
   const existing = await db.prepare('SELECT id FROM documents WHERE path = ? AND user_id = ?')
@@ -66,25 +65,8 @@ export default eventHandler(async (event) => {
   if (existing) {
     throw createError({
       statusCode: 409,
-      message: 'A document or folder with this name already exists in this location'
+      message: 'A folder with this name already exists in this location'
     })
-  }
-
-  let r2Key = ''
-  if (type === 'document') {
-    const r2 = getR2Bucket(event)
-    if (!r2) {
-      throw createError({
-        statusCode: 500,
-        message: 'R2 storage not available'
-      })
-    }
-
-    // 保存到 R2
-    r2Key = await saveDocumentToR2(r2, user.id, documentId, content || '')
-  } else {
-    // 文件夹不需要 R2 key
-    r2Key = ''
   }
 
   // 保存到数据库
@@ -92,25 +74,25 @@ export default eventHandler(async (event) => {
     INSERT INTO documents (id, user_id, title, r2_key, parent_id, path, type, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
-    documentId,
+    folderId,
     user.id,
     title,
-    r2Key,
+    '', // 文件夹不需要 R2 key
     parentId || null,
     path,
-    type,
+    'folder',
     now,
     now
   ).run()
 
   return {
     success: true,
-    document: {
-      id: documentId,
+    folder: {
+      id: folderId,
       title,
       parent_id: parentId || null,
       path,
-      type,
+      type: 'folder',
       created_at: now,
       updated_at: now
     }

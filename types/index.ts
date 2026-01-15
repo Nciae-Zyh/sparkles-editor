@@ -18,8 +18,15 @@ export interface Document {
   title: string
   content?: string
   r2_key: string
+  parent_id?: string | null
+  path: string // 完整路径，如 "/folder1/folder2/document"
+  type: 'document' | 'folder' // 文档或文件夹
   created_at: number
   updated_at: number
+}
+
+export interface Folder extends Document {
+  type: 'folder'
 }
 
 export interface AuthSession {
