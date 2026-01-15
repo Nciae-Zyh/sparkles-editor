@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useDocuments } from '~/composables/useDocuments'
+import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import type { Document } from '~/types'
 
 interface DocumentTreeNode extends Document {
@@ -9,6 +10,7 @@ interface DocumentTreeNode extends Document {
 const { fetchDocumentTree, deleteDocument, createFolder, getDocument } = useDocuments()
 const { downloadAsZip, isDownloading } = useDownloadZip()
 const router = useRouter()
+const safeLocalePath = useSafeLocalePath()
 
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
@@ -148,7 +150,7 @@ const handleNodeClick = (node: DocumentTreeNode) => {
   if (node.type === 'folder') {
     toggleFolder(node.id)
   } else {
-    router.push(`/documents/${node.id}`)
+    router.push(`${safeLocalePath('/documents')}/${node.id}`)
   }
 }
 
@@ -172,7 +174,7 @@ onMounted(() => {
       </h2>
       <div class="flex gap-2">
         <UButton
-          to="/"
+          :to="safeLocalePath('/')"
           icon="i-lucide-file-plus"
           size="sm"
           variant="soft"

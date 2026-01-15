@@ -5,11 +5,13 @@ definePageMeta({
 
 import { useDocuments } from '~/composables/useDocuments'
 import { useAuth } from '~/composables/useAuth'
+import { useSafeLocalePath } from '~/utils/safeLocalePath'
 
 const route = useRoute()
 const router = useRouter()
 const { user } = useAuth()
 const { getDocument, loading } = useDocuments()
+const safeLocalePath = useSafeLocalePath()
 
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 
@@ -20,7 +22,7 @@ const documentTitle = ref('')
 
 onMounted(async () => {
   if (!user.value) {
-    router.push('/')
+    router.push(safeLocalePath('/'))
     return
   }
 
@@ -35,7 +37,7 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('Failed to load document:', error)
-    router.push('/documents')
+    router.push(safeLocalePath('/documents'))
   }
 })
 </script>

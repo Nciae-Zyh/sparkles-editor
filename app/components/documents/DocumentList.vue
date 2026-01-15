@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useDocuments } from '~/composables/useDocuments'
+import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import type { Document } from '~/types'
 
 interface Props {
@@ -10,6 +11,7 @@ const props = defineProps<Props>()
 
 const { documents, loading, fetchDocuments, deleteDocument, createFolder } = useDocuments()
 const router = useRouter()
+const safeLocalePath = useSafeLocalePath()
 
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
@@ -72,7 +74,7 @@ const handleCreateFolder = async () => {
 }
 
 const navigateToFolder = (folderId: string) => {
-  router.push(`/documents?folder=${folderId}`)
+  router.push(`${safeLocalePath('/documents')}?folder=${folderId}`)
 }
 
 const formatDate = (timestamp: number) => {
@@ -99,7 +101,7 @@ const formatDate = (timestamp: number) => {
           :text="documentsData?.newDocument || '新建文档'"
         >
           <UButton
-            :to="currentParentId ? `/?folder=${currentParentId}` : '/'"
+            :to="currentParentId ? `${safeLocalePath('/')}?folder=${currentParentId}` : safeLocalePath('/')"
             icon="i-lucide-file-plus"
             size="sm"
             variant="soft"
@@ -107,7 +109,7 @@ const formatDate = (timestamp: number) => {
         </UTooltip>
         <UButton
           v-else
-          :to="currentParentId ? `/?folder=${currentParentId}` : '/'"
+          :to="currentParentId ? `${safeLocalePath('/')}?folder=${currentParentId}` : safeLocalePath('/')"
           icon="i-lucide-file-plus"
           size="sm"
           variant="soft"
@@ -240,7 +242,7 @@ const formatDate = (timestamp: number) => {
           v-for="doc in files"
           :key="doc.id"
           class="cursor-pointer hover:shadow-lg transition-shadow"
-          @click="router.push(`/documents/${doc.id}`)"
+          @click="router.push(`${safeLocalePath('/documents')}/${doc.id}`)"
         >
           <template #header>
             <div class="flex items-start justify-between">

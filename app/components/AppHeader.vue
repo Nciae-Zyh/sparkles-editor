@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { useSafeLocalePath } from '~/utils/safeLocalePath'
+
 interface Props {
   hideTitle?: boolean
 }
@@ -6,6 +8,8 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   hideTitle: false
 })
+
+const safeLocalePath = useSafeLocalePath()
 </script>
 
 <template>
@@ -20,7 +24,7 @@ withDefaults(defineProps<Props>(), {
       v-if="!hideTitle"
       #left
     >
-      <NuxtLink to="/">
+      <NuxtLink :to="safeLocalePath('/')">
         <h1 class="font-bold text-lg sm:text-2xl">
           Sparkles
           <span class="text-primary">Editor</span>

@@ -3,8 +3,11 @@ definePageMeta({
   layout: 'documents'
 })
 
+import { useSafeLocalePath } from '~/utils/safeLocalePath'
+
 const router = useRouter()
 const route = useRoute()
+const safeLocalePath = useSafeLocalePath()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 
 const currentFolderId = computed(() => route.query.folder as string | undefined)
@@ -18,7 +21,7 @@ const currentFolderId = computed(() => route.query.folder as string | undefined)
         icon="i-lucide-arrow-left"
         variant="ghost"
         size="sm"
-        @click="router.push('/documents')"
+        @click="router.push(safeLocalePath('/documents'))"
       >
         {{ documentsData?.back || '返回' }}
       </UButton>
