@@ -54,7 +54,7 @@ onMounted(async () => {
           我的文档
         </h1>
       </div>
-      <DocumentList :parent-id="currentFolderId" />
+      <DocumentTree />
     </div>
   </div>
 </template>

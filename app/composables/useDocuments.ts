@@ -29,6 +29,19 @@ export const useDocuments = () => {
     }
   }
 
+  const fetchDocumentTree = async () => {
+    try {
+      loading.value = true
+      const data = await $fetch<{ tree: Document[], flat: Document[] }>('/api/documents/tree')
+      return data
+    } catch (error) {
+      console.error('Failed to fetch document tree:', error)
+      return { tree: [], flat: [] }
+    } finally {
+      loading.value = false
+    }
+  }
+
   const createFolder = async (title: string, parentId?: string) => {
     try {
       loading.value = true
@@ -139,6 +152,7 @@ export const useDocuments = () => {
     loading: readonly(loading),
     fetchDocuments,
     fetchFolders,
+    fetchDocumentTree,
     getDocument,
     saveDocument,
     deleteDocument,
