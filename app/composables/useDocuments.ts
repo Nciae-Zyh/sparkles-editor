@@ -67,7 +67,7 @@ export const useDocuments = () => {
         contentLength: content?.length || 0,
         parentId
       })
-      
+
       if (documentId) {
         console.log('[useDocuments] 更新现有文档:', documentId)
         const data = await $fetch<{ success: boolean, document: Document }>(`/api/documents/${documentId}`, {
@@ -99,7 +99,7 @@ export const useDocuments = () => {
         response: error?.response,
         error: error
       })
-      
+
       // 提取更详细的错误信息
       let errorMessage = '保存文档失败'
       if (error?.data?.message) {
@@ -113,7 +113,7 @@ export const useDocuments = () => {
       } else if (error?.statusCode === 400) {
         errorMessage = '请求参数错误'
       }
-      
+
       throw new Error(errorMessage)
     } finally {
       loading.value = false

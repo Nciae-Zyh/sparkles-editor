@@ -52,14 +52,14 @@ const handleSave = async () => {
       contentLength: props.content?.length || 0,
       parentId: selectedParentId.value
     })
-    
+
     const document = await saveDocument(
       titleInput.value.trim(),
       props.content,
       props.documentId,
       selectedParentId.value
     )
-    
+
     console.log('[SaveDocumentButton] 文档保存成功:', document.id)
     emit('saved', document.id)
     isOpen.value = false

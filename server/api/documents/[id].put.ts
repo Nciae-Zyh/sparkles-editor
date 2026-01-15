@@ -5,7 +5,7 @@ import { getR2Bucket, saveDocumentToR2 } from '../../utils/r2'
 export default eventHandler(async (event) => {
   const startTime = Date.now()
   const requestId = crypto.randomUUID()
-  
+
   console.log(`[PUT /api/documents/[id]] [${requestId}] 开始处理更新文档请求`)
 
   try {

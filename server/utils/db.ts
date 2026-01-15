@@ -13,7 +13,7 @@ export async function getDBWithMigration(event: any): Promise<D1Database> {
   if (!db) {
     throw new Error('Database not available')
   }
-  
+
   // 执行迁移检查（非阻塞，失败不影响主流程）
   try {
     await migrateDB(db)
@@ -21,7 +21,7 @@ export async function getDBWithMigration(event: any): Promise<D1Database> {
     console.warn('[getDBWithMigration] Migration check failed:', error?.message)
     // 迁移失败不应该阻止 API 调用，只记录警告
   }
-  
+
   return db
 }
 

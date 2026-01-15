@@ -6,7 +6,7 @@ import { parseFilePath, ensureFolderPath } from '../../utils/path'
 export default eventHandler(async (event) => {
   const startTime = Date.now()
   const requestId = crypto.randomUUID()
-  
+
   console.log(`[POST /api/documents] [${requestId}] 开始处理保存文档请求`)
 
   try {
@@ -134,7 +134,7 @@ export default eventHandler(async (event) => {
       try {
         finalParentId = await ensureFolderPath(db, user.id, folderPath, baseParentId)
         console.log(`[POST /api/documents] [${requestId}] 文件夹路径创建成功: finalParentId=${finalParentId}`)
-        
+
         // 更新 parentPath 用于后续路径计算
         if (finalParentId) {
           const finalParent = await db.prepare('SELECT path FROM documents WHERE id = ? AND user_id = ?')
@@ -263,7 +263,7 @@ export default eventHandler(async (event) => {
         documentId,
         userId: user.id
       })
-      
+
       // 如果R2已保存但数据库保存失败，尝试清理R2
       if (r2Key && type === 'document') {
         try {

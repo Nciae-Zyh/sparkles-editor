@@ -5,25 +5,25 @@ import type { CloudflareEnv } from '../../types'
  * 解析类似 WebStorm 的文件名，提取文件夹路径和文件名
  * 例如: "folder/subfolder/file.md" -> { folderPath: ["folder", "subfolder"], fileName: "file.md" }
  */
-export function parseFilePath(fileName: string): { folderPath: string[], fileName: string } {
+export function parseFilePath(filePath: string): { folderPath: string[], fileName: string } {
   // 移除开头的斜杠
-  const normalized = fileName.replace(/^\/+/, '')
-  
+  const normalized = filePath.replace(/^\/+/, '')
+
   // 分割路径
   const parts = normalized.split('/').filter(Boolean)
-  
+
   if (parts.length === 0) {
     return { folderPath: [], fileName: '' }
   }
-  
+
   if (parts.length === 1) {
     return { folderPath: [], fileName: parts[0] }
   }
-  
+
   // 最后一部分是文件名，其余是文件夹路径
   const fileName = parts[parts.length - 1]
   const folderPath = parts.slice(0, -1)
-  
+
   return { folderPath, fileName }
 }
 
@@ -46,14 +46,14 @@ export async function ensureFolderPath(
 
   for (let i = 0; i < folderPath.length; i++) {
     const folderName = folderPath[i]
-    
+
     // 获取当前父文件夹的路径
     let currentPath = '/'
     if (currentParentId) {
       const parent = await db.prepare('SELECT path FROM documents WHERE id = ? AND user_id = ?')
         .bind(currentParentId, userId)
         .first() as any
-      
+
       if (parent) {
         currentPath = parent.path
       }
@@ -79,7 +79,7 @@ export async function ensureFolderPath(
       const folderId = generateDocumentId()
       // 路径格式：/parentPath/folderId 或 /folderId（如果是根目录）
       const newPath = currentPath === '/' ? `/${folderId}` : `${currentPath}/${folderId}`
-      
+
       try {
         await db.prepare(`
           INSERT INTO documents (id, user_id, title, r2_key, parent_id, path, type, created_at, updated_at)
@@ -95,7 +95,7 @@ export async function ensureFolderPath(
           now,
           now
         ).run()
-        
+
         currentParentId = folderId
         console.log(`[ensureFolderPath] Created folder: ${folderName}, id=${folderId}, path=${newPath}`)
       } catch (error: any) {
