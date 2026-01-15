@@ -105,13 +105,13 @@ onMounted(async () => {
       :enable-before-unload="false"
       :readonly="!allowSave"
       :allow-save="allowSave"
-      @document-saved="(id) => { 
+      @document-saved="(id) => {
         isNewDocument = false
         allowSave.value = false // 保存后恢复预览模式
       }"
     />
 
-    <AuthAuthModal
+    <AuthModal
       v-model:open="authModalOpen"
       :mode="authMode"
     />
