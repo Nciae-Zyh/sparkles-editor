@@ -95,60 +95,41 @@ function cancelImage() {
 
     <UModal
       v-model:open="showAltDialog"
-      :ui="{ width: 'sm:max-w-md' }"
-      @close="cancelImage"
+      :title="imageData?.setAlt"
+      :ui="{ footer: 'justify-end', content: 'sm:max-w-md' }"
     >
-      <template #content>
-        <UCard>
-          <template #header>
-            <div class="flex items-center justify-between">
-              <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
-                {{ imageData?.setAlt }}
-              </h3>
-              <UButton
-                color="gray"
-                variant="ghost"
-                icon="i-lucide-x"
-                class="-my-1"
-                @click="cancelImage"
-              />
-            </div>
-          </template>
-
-          <div class="space-y-4">
-            <div class="flex justify-center">
-              <img
-                :src="imageSrc"
-                :alt="imageData?.preview"
-                class="w-full rounded-lg object-contain max-h-64 border border-gray-200 dark:border-gray-800"
-              >
-            </div>
-            <UInput
-              v-model="imageAlt"
-              class="w-full"
-              :label="imageData?.altLabel"
-              :placeholder="imageData?.altPlaceholder"
-              autofocus
-              @keydown.enter="confirmImage"
-            />
+      <template #body>
+        <div class="space-y-4">
+          <div class="flex justify-center">
+            <img
+              :src="imageSrc"
+              :alt="imageData?.preview"
+              class="w-full rounded-lg object-contain max-h-64 border border-gray-200 dark:border-gray-800"
+            >
           </div>
+          <UInput
+            v-model="imageAlt"
+            class="w-full"
+            :label="imageData?.altLabel"
+            :placeholder="imageData?.altPlaceholder"
+            autofocus
+            @keydown.enter="confirmImage"
+          />
+        </div>
+      </template>
 
-          <template #footer>
-            <div class="flex justify-end gap-2">
-              <UButton
-                color="gray"
-                variant="ghost"
-                :label="imageData?.cancel"
-                @click="cancelImage"
-              />
-              <UButton
-                color="primary"
-                :label="imageData?.confirm"
-                @click="confirmImage"
-              />
-            </div>
-          </template>
-        </UCard>
+      <template #footer="{ close }">
+        <UButton
+          color="gray"
+          variant="ghost"
+          :label="imageData?.cancel"
+          @click="cancelImage"
+        />
+        <UButton
+          color="primary"
+          :label="imageData?.confirm"
+          @click="confirmImage"
+        />
       </template>
     </UModal>
   </NodeViewWrapper>

@@ -107,44 +107,40 @@ const formatDate = (timestamp: number) => {
       </div>
     </div>
 
-    <UModal v-model="showCreateFolder">
-      <UCard>
-        <template #header>
-          <h3 class="text-lg font-semibold">
-            新建文件夹
-          </h3>
-        </template>
+    <UModal
+      v-model:open="showCreateFolder"
+      title="新建文件夹"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UFormGroup
+          label="文件夹名称"
+          name="folderName"
+          required
+        >
+          <UInput
+            v-model="newFolderName"
+            placeholder="请输入文件夹名称"
+            @keyup.enter="handleCreateFolder"
+          />
+        </UFormGroup>
+      </template>
 
-        <div class="space-y-4">
-          <UFormGroup
-            label="文件夹名称"
-            name="folderName"
-            required
-          >
-            <UInput
-              v-model="newFolderName"
-              placeholder="请输入文件夹名称"
-              @keyup.enter="handleCreateFolder"
-            />
-          </UFormGroup>
-
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="gray"
-              variant="ghost"
-              @click="showCreateFolder = false"
-            >
-              取消
-            </UButton>
-            <UButton
-              :loading="creatingFolder"
-              @click="handleCreateFolder"
-            >
-              创建
-            </UButton>
-          </div>
-        </div>
-      </UCard>
+      <template #footer="{ close }">
+        <UButton
+          color="gray"
+          variant="ghost"
+          @click="close"
+        >
+          取消
+        </UButton>
+        <UButton
+          :loading="creatingFolder"
+          @click="handleCreateFolder"
+        >
+          创建
+        </UButton>
+      </template>
     </UModal>
 
     <div

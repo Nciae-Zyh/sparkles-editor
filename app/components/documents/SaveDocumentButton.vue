@@ -72,14 +72,12 @@ const handleSave = async () => {
       保存文档
     </UButton>
 
-    <UModal v-model="isOpen">
-      <UCard>
-        <template #header>
-          <h3 class="text-lg font-semibold">
-            {{ documentId ? '更新文档' : '保存文档' }}
-          </h3>
-        </template>
-
+    <UModal
+      v-model:open="isOpen"
+      :title="documentId ? '更新文档' : '保存文档'"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
         <div class="space-y-4">
           <UFormGroup
             label="文档标题"
@@ -98,24 +96,24 @@ const handleSave = async () => {
             v-model="selectedParentId"
             label="保存位置"
           />
-
-          <div class="flex justify-end gap-2">
-            <UButton
-              color="gray"
-              variant="ghost"
-              @click="isOpen = false"
-            >
-              取消
-            </UButton>
-            <UButton
-              :loading="saving"
-              @click="handleSave"
-            >
-              保存
-            </UButton>
-          </div>
         </div>
-      </UCard>
+      </template>
+
+      <template #footer="{ close }">
+        <UButton
+          color="gray"
+          variant="ghost"
+          @click="close"
+        >
+          取消
+        </UButton>
+        <UButton
+          :loading="saving"
+          @click="handleSave"
+        >
+          保存
+        </UButton>
+      </template>
     </UModal>
   </div>
 </template>
