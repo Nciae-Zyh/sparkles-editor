@@ -7,18 +7,31 @@ import { TableKit } from '@tiptap/extension-table'
 import { CellSelection } from 'prosemirror-tables'
 import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
 import { ImageUpload } from '~/components/editor/ImageUploadExtension'
+import { useAuth } from '~/composables/useAuth'
 
 interface Props {
   placeholder?: string
   enableBeforeUnload?: boolean
   showImportExport?: boolean
+  documentId?: string
+  documentTitle?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '开始写作，输入 \'/\' 查看命令...',
   enableBeforeUnload: true,
-  showImportExport: true
+  showImportExport: true,
+  documentId: undefined,
+  documentTitle: undefined
 })
+
+const emit = defineEmits<{
+  'document-saved': [id: string]
+}>()
+
+const { user } = useAuth()
+const documentTitle = ref(props.documentTitle || '未命名文档')
+const documentId = ref(props.documentId)
 
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
@@ -218,7 +231,7 @@ defineExpose({
       :model-value="content"
       :placeholder="placeholder"
       :ui="{
-        base: 'p-6 sm:p-12',
+        base: 'p-4 sm:p-6 lg:p-12',
         content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'
       }"
       autofocus
@@ -234,7 +247,7 @@ defineExpose({
         />
         <div
           v-if="showImportExport"
-          class="flex gap-2"
+          class="flex gap-2 flex-wrap"
         >
           <input
             ref="fileInputRef"
@@ -260,6 +273,13 @@ defineExpose({
             size="sm"
             variant="soft"
             @click="handleDownload"
+          />
+          <SaveDocumentButton
+            v-if="user"
+            :title="documentTitle"
+            :content="content || ''"
+            :document-id="documentId"
+            @saved="(id) => { documentId = id; $emit('document-saved', id) }"
           />
         </div>
       </AppHeader>

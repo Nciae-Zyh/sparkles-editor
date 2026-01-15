@@ -44,3 +44,37 @@ html.dark .tiptap .shiki span {
 .tiptap .ProseMirror {
   @apply min-h-[600px] focus:outline-none;
 }
+
+/* 移动端优化 */
+@media (max-width: 640px) {
+  .editor-container {
+    @apply pb-20;
+  }
+
+  .tiptap .ProseMirror {
+    @apply min-h-[400px] text-base;
+  }
+
+  /* 移动端工具栏优化 */
+  .editor-wrapper [class*="toolbar"] {
+    @apply flex-wrap gap-1;
+  }
+
+  /* 移动端按钮优化 */
+  .editor-wrapper button {
+    @apply min-w-[36px] min-h-[36px];
+  }
+
+  /* 移动端输入框优化 */
+  .editor-wrapper input,
+  .editor-wrapper textarea {
+    @apply text-base;
+  }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+  .editor-wrapper button {
+    @apply min-h-[44px] min-w-[44px];
+  }
+}

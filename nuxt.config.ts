@@ -10,7 +10,8 @@ export default defineNuxtConfig({
     '@nuxt/a11y',
     '@nuxt/hints',
     '@nuxt/image',
-    '@nuxtjs/i18n'
+    '@nuxtjs/i18n',
+    'nuxt-vue3-google-signin'
   ],
   ssr: true,
 
@@ -43,6 +44,13 @@ export default defineNuxtConfig({
         vars: {
           // 正式环境环境变量
         },
+        d1_databases: [
+          {
+            binding: 'DB',
+            database_name: 'sparkles-db',
+            database_id: 'c5841703-0ca7-40ad-81a8-b263c3434f76'
+          }
+        ],
         r2_buckets: [
           {
             binding: 'BLOB',
@@ -122,5 +130,19 @@ export default defineNuxtConfig({
       }
     ],
     detectBrowserLanguage: false
+  },
+
+  googleSignIn: {
+    clientId: process.env.GOOGLE_CLIENT_ID || ''
+  },
+
+  runtimeConfig: {
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    sessionSecret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
+    public: {
+      googleClientId: process.env.GOOGLE_CLIENT_ID,
+      siteUrl: process.env.SITE_URL || 'http://localhost:3000'
+    }
   }
 })

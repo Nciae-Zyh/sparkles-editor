@@ -68,6 +68,9 @@ importers:
       nuxt:
         specifier: ^4.2.2
         version: 4.2.2(@parcel/watcher@2.5.1)(@vercel/blob@2.0.0)(@vue/compiler-sfc@3.5.26)(better-sqlite3@12.6.0)(cac@6.7.14)(db0@0.3.4(better-sqlite3@12.6.0))(eslint@9.39.2(jiti@2.6.1))(ioredis@5.8.2)(lightningcss@1.30.2)(magicast@0.5.1)(optionator@0.9.4)(rolldown@1.0.0-beta.57)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(vite@7.3.0(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.1(typescript@5.9.3))(yaml@2.8.2)
+      nuxt-vue3-google-signin:
+        specifier: ^0.0.13
+        version: 0.0.13(magicast@0.5.1)(vue@3.5.26(typescript@5.9.3))
       prosemirror-tables:
         specifier: ^1.8.5
         version: 1.8.5
@@ -5456,6 +5459,10 @@ packages:
   nuxt-define@1.0.0:
     resolution: {integrity: sha512-CYZ2WjU+KCyCDVzjYUM4eEpMF0rkPmkpiFrybTqqQCRpUbPt2h3snswWIpFPXTi+osRCY6Og0W/XLAQgDL4FfQ==}
 
+  nuxt-vue3-google-signin@0.0.13:
+    resolution: {integrity: sha512-D1X3XLzyRjEexgndHiOsM21K7jdK3Ypuz6aIGLAQwxxh9TWM197C19keAd0ZknlhRYMLsTfq7erwkM7GtRoUBA==}
+    engines: {node: '>=20.0.0'}
+
   nuxt@4.2.2:
     resolution: {integrity: sha512-n6oYFikgLEb70J4+K19jAzfx4exZcRSRX7yZn09P5qlf2Z59VNOBqNmaZO5ObzvyGUZ308SZfL629/Q2v2FVjw==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -7060,6 +7067,11 @@ packages:
     hasBin: true
     peerDependencies:
       typescript: '>=5.0.0'
+
+  vue3-google-signin@2.1.1:
+    resolution: {integrity: sha512-RwlwyeCv8+PZjK35C/UyJN4/9MH+Fsz4bJDO7IjtmRuOaTMrvmMmI6SP5qkJgD7w9MIKOCj5rYVFMAL7+NCM0A==}
+    peerDependencies:
+      vue: ^3
 
   vue@3.5.26:
     resolution: {integrity: sha512-SJ/NTccVyAoNUJmkM9KUqPcYlY+u8OVL1X5EW9RIs3ch5H2uERxyyIUI4MRxVCSOiEcupX9xNGde1tL9ZKpimA==}
@@ -13205,6 +13217,16 @@ snapshots:
 
   nuxt-define@1.0.0: {}
 
+  nuxt-vue3-google-signin@0.0.13(magicast@0.5.1)(vue@3.5.26(typescript@5.9.3)):
+    dependencies:
+      '@nuxt/kit': 4.2.2(magicast@0.5.1)
+      defu: 6.1.4
+      unimport: 5.6.0
+      vue3-google-signin: 2.1.1(vue@3.5.26(typescript@5.9.3))
+    transitivePeerDependencies:
+      - magicast
+      - vue
+
   nuxt@4.2.2(@parcel/watcher@2.5.1)(@vercel/blob@2.0.0)(@vue/compiler-sfc@3.5.26)(better-sqlite3@12.6.0)(cac@6.7.14)(db0@0.3.4(better-sqlite3@12.6.0))(eslint@9.39.2(jiti@2.6.1))(ioredis@5.8.2)(lightningcss@1.30.2)(magicast@0.5.1)(optionator@0.9.4)(rolldown@1.0.0-beta.57)(rollup@4.54.0)(terser@5.44.1)(tsx@4.21.0)(typescript@5.9.3)(vite@7.3.0(jiti@2.6.1)(lightningcss@1.30.2)(terser@5.44.1)(tsx@4.21.0)(yaml@2.8.2))(vue-tsc@3.2.1(typescript@5.9.3))(yaml@2.8.2):
     dependencies:
       '@dxup/nuxt': 0.2.2(magicast@0.5.1)
@@ -15283,6 +15305,10 @@ snapshots:
       '@volar/typescript': 2.4.27
       '@vue/language-core': 3.2.1
       typescript: 5.9.3
+
+  vue3-google-signin@2.1.1(vue@3.5.26(typescript@5.9.3)):
+    dependencies:
+      vue: 3.5.26(typescript@5.9.3)
 
   vue@3.5.26(typescript@5.9.3):
     dependencies:

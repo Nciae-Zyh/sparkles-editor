@@ -2,13 +2,13 @@
   <UHeader
     :toggle="false"
     :ui="{
-      container: 'sm:px-14!',
-      right: 'justify-end-safe overflow-x-auto py-2'
+      container: 'px-4 sm:px-6 lg:px-14!',
+      right: 'justify-end-safe overflow-x-auto py-2 gap-2'
     }"
   >
     <template #left>
       <NuxtLink to="/">
-        <h1 class="font-bold text-2xl">
+        <h1 class="font-bold text-lg sm:text-2xl">
           Sparkles
           <span class="text-primary">Editor</span>
         </h1>
