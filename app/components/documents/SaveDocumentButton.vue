@@ -46,16 +46,29 @@ const handleSave = async () => {
 
   try {
     saving.value = true
+    console.log('[SaveDocumentButton] 开始保存文档:', {
+      documentId: props.documentId,
+      title: titleInput.value.trim(),
+      contentLength: props.content?.length || 0,
+      parentId: selectedParentId.value
+    })
+    
     const document = await saveDocument(
       titleInput.value.trim(),
       props.content,
       props.documentId,
       selectedParentId.value
     )
+    
+    console.log('[SaveDocumentButton] 文档保存成功:', document.id)
     emit('saved', document.id)
     isOpen.value = false
   } catch (error: any) {
-    alert(error.message || '保存失败')
+    console.error('[SaveDocumentButton] 保存文档失败:', {
+      message: error?.message,
+      error: error
+    })
+    alert(error.message || '保存失败，请稍后重试')
   } finally {
     saving.value = false
   }

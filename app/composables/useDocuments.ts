@@ -61,11 +61,20 @@ export const useDocuments = () => {
   const saveDocument = async (title: string, content: string, documentId?: string, parentId?: string) => {
     try {
       loading.value = true
+      console.log('[useDocuments] 开始保存文档:', {
+        documentId,
+        title,
+        contentLength: content?.length || 0,
+        parentId
+      })
+      
       if (documentId) {
+        console.log('[useDocuments] 更新现有文档:', documentId)
         const data = await $fetch<{ success: boolean, document: Document }>(`/api/documents/${documentId}`, {
           method: 'PUT',
           body: { title, content, parentId }
         })
+        console.log('[useDocuments] 文档更新成功:', data.document.id)
         // 更新本地列表
         const index = documents.value.findIndex(d => d.id === documentId)
         if (index !== -1) {
@@ -73,15 +82,39 @@ export const useDocuments = () => {
         }
         return data.document
       } else {
+        console.log('[useDocuments] 创建新文档')
         const data = await $fetch<{ success: boolean, document: Document }>('/api/documents', {
           method: 'POST',
           body: { title, content, parentId, type: 'document' }
         })
+        console.log('[useDocuments] 文档创建成功:', data.document.id)
         documents.value.unshift(data.document)
         return data.document
       }
     } catch (error: any) {
-      throw new Error(error.data?.message || 'Failed to save document')
+      console.error('[useDocuments] 保存文档失败:', {
+        message: error?.message,
+        statusCode: error?.statusCode,
+        data: error?.data,
+        response: error?.response,
+        error: error
+      })
+      
+      // 提取更详细的错误信息
+      let errorMessage = '保存文档失败'
+      if (error?.data?.message) {
+        errorMessage = error.data.message
+      } else if (error?.message) {
+        errorMessage = error.message
+      } else if (error?.statusCode === 500) {
+        errorMessage = '服务器内部错误，请稍后重试'
+      } else if (error?.statusCode === 401) {
+        errorMessage = '请先登录'
+      } else if (error?.statusCode === 400) {
+        errorMessage = '请求参数错误'
+      }
+      
+      throw new Error(errorMessage)
     } finally {
       loading.value = false
     }

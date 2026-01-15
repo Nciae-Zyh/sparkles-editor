@@ -12,12 +12,30 @@ export async function saveDocumentToR2(
   content: string
 ): Promise<string> {
   const key = `documents/${userId}/${documentId}.md`
-  await r2.put(key, content, {
-    httpMetadata: {
-      contentType: 'text/markdown'
-    }
-  })
-  return key
+  
+  try {
+    console.log(`[saveDocumentToR2] 开始保存文档到R2: key=${key}, contentLength=${content.length}`)
+    
+    await r2.put(key, content, {
+      httpMetadata: {
+        contentType: 'text/markdown'
+      }
+    })
+    
+    console.log(`[saveDocumentToR2] R2保存成功: key=${key}`)
+    return key
+  } catch (error: any) {
+    console.error(`[saveDocumentToR2] R2保存失败:`, {
+      key,
+      userId,
+      documentId,
+      contentLength: content.length,
+      message: error?.message,
+      stack: error?.stack,
+      error: error
+    })
+    throw new Error(`Failed to save document to R2: ${error?.message || 'Unknown error'}`)
+  }
 }
 
 export async function getDocumentFromR2(r2: R2Bucket, key: string): Promise<string | null> {
