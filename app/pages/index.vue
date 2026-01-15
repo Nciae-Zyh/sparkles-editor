@@ -16,12 +16,14 @@ const defaultContent = computed(() => {
 
 // 使用 ref 定义内容，并设置默认值
 const content = ref<string>('')
-const isNewDocument = ref(true)
+const isNewDocument = ref(false) // 首页默认是预览模式
+const allowSave = ref(false) // 是否允许保存
 
-// 新建文档函数
+// 新建文档函数 - 进入可保存的新建模式
 const createNewDocument = () => {
   content.value = ''
   isNewDocument.value = true
+  allowSave.value = true // 允许保存
   // 如果已经在首页，不需要路由跳转
   if (route.path !== '/') {
     router.push('/')
@@ -101,7 +103,12 @@ onMounted(async () => {
     <MarkdownEditor
       v-model="content"
       :enable-before-unload="false"
-      @document-saved="(id) => { isNewDocument = false }"
+      :readonly="!allowSave"
+      :allow-save="allowSave"
+      @document-saved="(id) => { 
+        isNewDocument = false
+        allowSave.value = false // 保存后恢复预览模式
+      }"
     />
 
     <AuthAuthModal

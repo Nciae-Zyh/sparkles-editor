@@ -16,6 +16,8 @@ interface Props {
   showImportExport?: boolean
   documentId?: string
   documentTitle?: string
+  readonly?: boolean // 预览模式，不允许保存
+  allowSave?: boolean // 是否允许保存（默认：有 documentId 或 allowSave=true 时允许）
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -23,7 +25,9 @@ const props = withDefaults(defineProps<Props>(), {
   enableBeforeUnload: false,
   showImportExport: true,
   documentId: undefined,
-  documentTitle: undefined
+  documentTitle: undefined,
+  readonly: false,
+  allowSave: undefined // undefined 表示自动判断
 })
 
 const emit = defineEmits<{
@@ -35,6 +39,22 @@ const { saveDocument } = useDocuments()
 const documentTitle = ref(props.documentTitle || '未命名文档')
 const documentId = ref(props.documentId)
 const isNewDocument = computed(() => !documentId.value)
+
+// 判断是否允许保存
+// readonly=true: 不允许保存（预览模式）
+// allowSave 明确指定时使用指定值
+// 否则：有 documentId 或 allowSave 未指定但需要保存时允许
+const canSave = computed(() => {
+  if (props.readonly) {
+    return false // 预览模式不允许保存
+  }
+  if (props.allowSave !== undefined) {
+    return props.allowSave // 明确指定时使用指定值
+  }
+  // 默认：有 documentId 时可以保存（编辑已存在的文档）
+  // 或者 isNewDocument 且 allowSave 未指定时，需要明确设置 allowSave=true 才能保存
+  return !!documentId.value
+})
 
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
@@ -54,6 +74,48 @@ const autoSaveTimer = ref<NodeJS.Timeout | null>(null)
 const isAutoSaving = ref(false)
 const lastSavedAt = ref<Date | null>(null)
 const AUTO_SAVE_DELAY = 3000 // 3秒后自动保存
+
+// 自动保存逻辑（只对已保存的文档且允许保存时）
+watch([content, canSave], () => {
+  // 如果不允许保存，不执行自动保存
+  if (!canSave.value) {
+    // 清除定时器
+    if (autoSaveTimer.value) {
+      clearTimeout(autoSaveTimer.value)
+      autoSaveTimer.value = null
+    }
+    return
+  }
+
+  // 如果内容为空或只有空白，不保存
+  if (!content.value || !content.value.trim()) {
+    return
+  }
+
+  // 如果文档未保存（没有 documentId），不自动保存（需要手动保存）
+  if (!documentId.value) {
+    return
+  }
+
+  // 清除之前的定时器
+  if (autoSaveTimer.value) {
+    clearTimeout(autoSaveTimer.value)
+  }
+
+  // 设置新的自动保存定时器
+  autoSaveTimer.value = setTimeout(async () => {
+    try {
+      isAutoSaving.value = true
+      await saveDocument(documentTitle.value, content.value, documentId.value)
+      lastSavedAt.value = new Date()
+    } catch (error) {
+      // 自动保存失败不显示错误提示，避免打扰用户
+      console.error('Auto save failed:', error)
+    } finally {
+      isAutoSaving.value = false
+    }
+  }, AUTO_SAVE_DELAY)
+})
 
 // Custom handlers for editor
 const customHandlers = {
@@ -116,62 +178,7 @@ const extractTitleFromContent = (content: string): string => {
   return title || '未命名文档'
 }
 
-// 自动保存逻辑（对所有已保存的文档）
-const autoSave = async () => {
-  if (!user.value || !content.value) {
-    return
-  }
-
-  // 如果内容为空或只有空白，不保存
-  if (!content.value.trim()) {
-    return
-  }
-
-  try {
-    isAutoSaving.value = true
-
-    // 从内容中提取标题，如果没有则使用默认标题
-    const title = extractTitleFromContent(content.value) || documentTitle.value || '未命名文档'
-
-    // 更新 documentTitle
-    if (title !== documentTitle.value) {
-      documentTitle.value = title
-    }
-
-    const document = await saveDocument(title, content.value, documentId.value, selectedParentId.value)
-
-    // 更新 documentId，这样后续编辑会变成更新而不是新建
-    if (document.id && !documentId.value) {
-      documentId.value = document.id
-      emit('document-saved', document.id)
-    }
-
-    lastSavedAt.value = new Date()
-    console.log('[AutoSave] Document saved:', document.id || 'new', 'Title:', title)
-  } catch (error: any) {
-    console.error('[AutoSave] Failed to save:', error)
-    // 自动保存失败不显示错误提示，避免打扰用户
-  } finally {
-    isAutoSaving.value = false
-  }
-}
-
-// 监听内容变化，触发自动保存（所有文档）
-watch(content, () => {
-  if (!user.value) {
-    return
-  }
-
-  // 清除之前的定时器
-  if (autoSaveTimer.value) {
-    clearTimeout(autoSaveTimer.value)
-  }
-
-  // 设置新的自动保存定时器
-  autoSaveTimer.value = setTimeout(() => {
-    autoSave()
-  }, AUTO_SAVE_DELAY)
-}, { deep: true })
+// 自动保存逻辑已移至 watch([content, canSave]) 中
 
 // 组件卸载时清理定时器
 onUnmounted(() => {
@@ -357,14 +364,14 @@ defineExpose({
                 @click="handleDownload"
               />
               <DocumentsSaveDocumentButton
-                v-if="user"
+                v-if="user && canSave"
                 :title="documentTitle"
                 :content="content || ''"
                 :document-id="documentId"
                 @saved="(id) => { documentId = id; $emit('document-saved', id) }"
               />
               <div
-                v-if="user && isAutoSaving"
+                v-if="user && canSave && isAutoSaving"
                 class="flex items-center gap-1 text-xs text-gray-500"
               >
                 <UIcon
@@ -374,7 +381,7 @@ defineExpose({
                 <span>自动保存中...</span>
               </div>
               <div
-                v-if="user && lastSavedAt && !isAutoSaving"
+                v-if="user && canSave && lastSavedAt && !isAutoSaving"
                 class="text-xs text-gray-400"
               >
                 已保存
