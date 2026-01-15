@@ -22,6 +22,7 @@ const expandedFolders = ref<Set<string>>(new Set())
 const deletingId = ref<string | null>(null)
 const downloadingId = ref<string | null>(null)
 const renamingId = ref<string | null>(null)
+const renamingLoadingId = ref<string | null>(null)
 const showCreateFolder = ref(false)
 const newFolderName = ref('')
 const creatingFolder = ref(false)
@@ -147,11 +148,11 @@ const handleDownload = async (id: string, event: Event) => {
 }
 
 // 处理节点点击
-const handleNodeClick = (node: DocumentTreeNode) => {
+const handleNodeClick = async (node: DocumentTreeNode) => {
   if (node.type === 'folder') {
     toggleFolder(node.id)
   } else {
-    router.push(`${safeLocalePath('/documents')}/${node.id}`)
+    await navigateTo(`${safeLocalePath('/documents')}/${node.id}`)
   }
 }
 
@@ -175,6 +176,7 @@ const handleCancelRename = () => {
 // 处理重命名
 const handleRename = async (id: string, newTitle: string) => {
   try {
+    renamingLoadingId.value = id
     await renameDocument(id, newTitle)
     // 重新加载树
     await loadTree()
@@ -182,6 +184,8 @@ const handleRename = async (id: string, newTitle: string) => {
   } catch (error: any) {
     console.error('重命名失败:', error)
     alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+  } finally {
+    renamingLoadingId.value = null
   }
 }
 
@@ -307,6 +311,7 @@ onMounted(() => {
         :deleting-id="deletingId"
         :downloading-id="downloadingId"
         :renaming-id="renamingId"
+        :renaming-loading-id="renamingLoadingId"
         @toggle="(id: string) => toggleFolder(id)"
         @click="(n: DocumentTreeNode) => handleNodeClick(n)"
         @delete="(id: string, e: Event) => handleDelete(id, e)"

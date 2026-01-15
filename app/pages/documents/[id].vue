@@ -22,6 +22,7 @@ const documentTitle = ref('')
 const isReadOnly = ref(false) // 是否只读模式（文档不属于当前用户）
 const isRenaming = ref(false) // 是否正在重命名
 const renameInput = ref('')
+const isRenamingLoading = ref(false) // 重命名加载状态
 
 onMounted(async () => {
   // 等待用户认证加载完成
@@ -29,7 +30,7 @@ onMounted(async () => {
 
   // 如果用户未登录，跳转到首页
   if (!user.value) {
-    router.push(safeLocalePath('/'))
+    await navigateTo(safeLocalePath('/'))
     return
   }
 
@@ -53,7 +54,7 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('Failed to load document:', error)
-    router.push(safeLocalePath('/documents'))
+    await navigateTo(safeLocalePath('/documents'))
   }
 })
 
@@ -83,6 +84,7 @@ const saveRename = async () => {
   }
 
   try {
+    isRenamingLoading.value = true
     await renameDocument(documentId.value, renameInput.value.trim())
     documentTitle.value = renameInput.value.trim()
     // 更新文档对象
@@ -94,6 +96,8 @@ const saveRename = async () => {
   } catch (error: any) {
     console.error('重命名失败:', error)
     alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+  } finally {
+    isRenamingLoading.value = false
   }
 }
 </script>
@@ -117,6 +121,7 @@ const saveRename = async () => {
     :readonly="isReadOnly"
     :is-renaming="isRenaming"
     :rename-input="renameInput"
+    :rename-loading="isRenamingLoading"
     @start-rename="startRename"
     @save-rename="saveRename"
     @cancel-rename="cancelRename"

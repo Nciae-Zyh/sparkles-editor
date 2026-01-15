@@ -12,6 +12,7 @@ interface Props {
   deletingId: string | null
   downloadingId: string | null
   renamingId: string | null
+  renamingLoadingId: string | null
 }
 
 const props = defineProps<Props>()
@@ -28,6 +29,7 @@ const emit = defineEmits<{
 }>()
 
 const isRenaming = computed(() => props.renamingId === props.node.id)
+const isRenamingLoading = computed(() => props.renamingLoadingId === props.node.id)
 const renameInput = ref('')
 
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
@@ -203,6 +205,7 @@ const handleCancelRename = () => {
         :deleting-id="deletingId"
         :downloading-id="downloadingId"
         :renaming-id="renamingId"
+        :renaming-loading-id="renamingLoadingId"
         @toggle="(id: string) => emit('toggle', id)"
         @click="(n: DocumentTreeNode) => emit('click', n)"
         @delete="(id: string, e: Event) => emit('delete', id, e)"

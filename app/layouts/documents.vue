@@ -13,7 +13,7 @@ const currentFolderId = computed(() => route.query.folder as string | undefined)
 onMounted(async () => {
   await fetchUser()
   if (!user.value) {
-    router.push(safeLocalePath('/'))
+    await navigateTo(safeLocalePath('/'))
   }
 })
 </script>

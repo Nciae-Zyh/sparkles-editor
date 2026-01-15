@@ -20,9 +20,7 @@ const currentFolderId = computed(() => route.query.folder as string | undefined)
         icon="i-lucide-arrow-left"
         size="sm"
         variant="ghost"
-        @click="navigateTo(safeLocalePath('/documents'), {
-          query: { function: 'create' }
-        })"
+        @click="navigateTo(safeLocalePath('/documents'))"
       >
         {{ documentsData?.back || '返回' }}
       </UButton>

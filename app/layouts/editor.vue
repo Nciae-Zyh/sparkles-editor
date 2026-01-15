@@ -11,7 +11,7 @@ const safeLocalePath = useSafeLocalePath()
 onMounted(async () => {
   await fetchUser()
   if (!user.value) {
-    router.push(safeLocalePath('/'))
+    await navigateTo(safeLocalePath('/'))
   }
 })
 </script>

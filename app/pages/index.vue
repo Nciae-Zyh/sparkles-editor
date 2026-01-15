@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import { generateDocumentId } from '~/utils/documentId'
 
+import { useSafeLocalePath } from '~/utils/safeLocalePath'
+
 const route = useRoute()
-const router = useRouter()
+const safeLocalePath = useSafeLocalePath()
 
 // 使用 ref 定义内容
 const content = ref<string>('')
@@ -19,7 +21,7 @@ const checkCreateDocument = () => {
     allowSave.value = true
     newDocumentId.value = generateDocumentId()
     // 清除 URL 参数，但保持在同一页面
-    router.replace({ query: {} })
+    navigateTo({ query: {} })
   }
 }
 
@@ -40,10 +42,12 @@ onMounted(() => {
     :readonly="!allowSave"
     :allow-save="allowSave"
     :document-id="newDocumentId"
-    @document-saved="(id) => {
+    @document-saved="async (id) => {
       isNewDocument = false
       allowSave.value = false // 保存后恢复预览模式
       newDocumentId.value = undefined // 清除临时ID
+      // 保存后跳转到文档编辑页面
+      await navigateTo(safeLocalePath(`/documents/${id}`))
     }"
   />
 </template>

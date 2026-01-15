@@ -20,6 +20,7 @@ interface Props {
   allowSave?: boolean // 是否允许保存（默认：有 documentId 或 allowSave=true 时允许）
   isRenaming?: boolean // 是否正在重命名（从父组件传入）
   renameInput?: string // 重命名输入值（从父组件传入）
+  renameLoading?: boolean // 重命名加载状态
 }
 
 const emit = defineEmits<{
@@ -39,7 +40,8 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false,
   allowSave: undefined, // undefined 表示自动判断
   isRenaming: false,
-  renameInput: ''
+  renameInput: '',
+  renameLoading: false
 })
 
 const content = defineModel<string>()
@@ -449,6 +451,7 @@ defineExpose({
                     icon="i-lucide-check"
                     size="xs"
                     color="primary"
+                    :loading="props.renameLoading"
                     @click="$emit('save-rename')"
                   />
                   <UButton

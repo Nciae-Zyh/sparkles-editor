@@ -101,7 +101,7 @@ onMounted(async () => {
           variant="soft"
           color="error"
           size="sm"
-          @click="async () => { await logout(); await router.push(safeLocalePath('/')) }"
+          @click="async () => { await logout(); await navigateTo(safeLocalePath('/')) }"
         >
           {{ appData?.logout || '退出' }}
         </UButton>

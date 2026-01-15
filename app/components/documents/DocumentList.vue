@@ -73,8 +73,8 @@ const handleCreateFolder = async () => {
   }
 }
 
-const navigateToFolder = (folderId: string) => {
-  router.push(`${safeLocalePath('/documents')}?folder=${folderId}`)
+const navigateToFolder = async (folderId: string) => {
+  await navigateTo(`${safeLocalePath('/documents')}?folder=${folderId}`)
 }
 
 const formatDate = (timestamp: number) => {
@@ -242,7 +242,7 @@ const formatDate = (timestamp: number) => {
           v-for="doc in files"
           :key="doc.id"
           class="cursor-pointer hover:shadow-lg transition-shadow"
-          @click="router.push(`${safeLocalePath('/documents')}/${doc.id}`)"
+          @click="navigateTo(`${safeLocalePath('/documents')}/${doc.id}`)"
         >
           <template #header>
             <div class="flex items-start justify-between">
