@@ -12,12 +12,11 @@ const authMode = ref<'login' | 'register'>('login')
 
 // 新建文档函数
 const createNewDocument = () => {
-  const newDocumentId = generateDocumentId()
   // 如果已经在首页，使用 replace 避免历史记录堆积
   if (route.path === '/') {
-    router.replace({ query: { new: newDocumentId } })
+    router.replace({ query: { function: 'create' } })
   } else {
-    router.push({ path: '/', query: { new: newDocumentId } })
+    router.push({ path: '/', query: { function: 'create' } })
   }
 }
 

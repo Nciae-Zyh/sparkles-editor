@@ -210,12 +210,6 @@ const {
   getTableToolbarItems
 } = useEditorToolbar(customHandlers)
 
-// Default content - only used when Y.js document is empty
-const defaultContent = computed(() => {
-  return editorData.value?.defaultContent || ''
-})
-
-
 // 从内容中提取标题（取第一行作为标题）
 const extractTitleFromContent = (content: string): string => {
   if (!content) return documentsData.value?.untitledDocument || '未命名文档'
@@ -242,13 +236,7 @@ onUnmounted(() => {
   }
 })
 
-// 监听语言变化，更新默认内容（新文档不设置默认内容）
-watch(editorData, () => {
-  // 如果文档还未保存到服务器，不设置默认内容（保持空文档）
-  if (!content.value && hasBeenSaved.value) {
-    content.value = defaultContent.value
-  }
-}, {deep: true})
+// 移除了监听语言变化的逻辑，因为多语言不会在页面内切换
 
 function onCreate({editor: _editor}: { editor: Editor }) {
   // Editor created
