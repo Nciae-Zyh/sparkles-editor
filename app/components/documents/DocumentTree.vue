@@ -7,7 +7,7 @@ interface DocumentTreeNode extends Document {
   children?: DocumentTreeNode[]
 }
 
-const { fetchDocumentTree, deleteDocument, createFolder, getDocument } = useDocuments()
+const { fetchDocumentTree, deleteDocument, createFolder, getDocument, renameDocument } = useDocuments()
 const { downloadAsZip, isDownloading } = useDownloadZip()
 const router = useRouter()
 const safeLocalePath = useSafeLocalePath()
@@ -21,10 +21,12 @@ const loading = ref(false)
 const expandedFolders = ref<Set<string>>(new Set())
 const deletingId = ref<string | null>(null)
 const downloadingId = ref<string | null>(null)
+const renamingId = ref<string | null>(null)
 const showCreateFolder = ref(false)
 const newFolderName = ref('')
 const creatingFolder = ref(false)
 const selectedParentId = ref<string | null>(null)
+const { renameDocument } = useDocuments()
 
 // 加载文档树
 const loadTree = async () => {
@@ -161,6 +163,29 @@ const handleCreateSubFolder = (folderId: string, event: Event) => {
   showCreateFolder.value = true
 }
 
+// 处理开始重命名
+const handleStartRename = (id: string) => {
+  renamingId.value = id
+}
+
+// 处理取消重命名
+const handleCancelRename = () => {
+  renamingId.value = null
+}
+
+// 处理重命名
+const handleRename = async (id: string, newTitle: string) => {
+  try {
+    await renameDocument(id, newTitle)
+    // 重新加载树
+    await loadTree()
+    renamingId.value = null
+  } catch (error: any) {
+    console.error('重命名失败:', error)
+    alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+  }
+}
+
 onMounted(() => {
   loadTree()
 })
@@ -282,11 +307,15 @@ onMounted(() => {
         :expanded-folders="expandedFolders"
         :deleting-id="deletingId"
         :downloading-id="downloadingId"
+        :renaming-id="renamingId"
         @toggle="(id: string) => toggleFolder(id)"
         @click="(n: DocumentTreeNode) => handleNodeClick(n)"
         @delete="(id: string, e: Event) => handleDelete(id, e)"
         @create-sub-folder="(id: string, e: Event) => handleCreateSubFolder(id, e)"
         @download="(id: string, e: Event) => handleDownload(id, e)"
+        @rename="(id: string, title: string) => handleRename(id, title)"
+        @start-rename="(id: string) => handleStartRename(id)"
+        @cancel-rename="() => handleCancelRename()"
       />
     </div>
   </div>

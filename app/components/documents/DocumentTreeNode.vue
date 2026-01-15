@@ -11,6 +11,7 @@ interface Props {
   expandedFolders: Set<string>
   deletingId: string | null
   downloadingId: string | null
+  renamingId: string | null
 }
 
 const props = defineProps<Props>()
@@ -21,7 +22,13 @@ const emit = defineEmits<{
   delete: [id: string, event: Event]
   'create-sub-folder': [folderId: string, event: Event]
   download: [id: string, event: Event]
+  rename: [id: string, newTitle: string]
+  'start-rename': [id: string]
+  'cancel-rename': []
 }>()
+
+const isRenaming = computed(() => props.renamingId === props.node.id)
+const renameInput = ref('')
 
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 
@@ -49,6 +56,28 @@ const handleCreateSubFolder = (event: Event) => {
 
 const handleDownload = (event: Event) => {
   emit('download', props.node.id, event)
+}
+
+const handleStartRename = (event: Event) => {
+  event.stopPropagation()
+  renameInput.value = props.node.title
+  emit('start-rename', props.node.id)
+}
+
+const handleSaveRename = () => {
+  if (!renameInput.value.trim()) {
+    alert(documentsData.value?.pleaseEnterTitle || '请输入名称')
+    return
+  }
+  if (renameInput.value.trim() === props.node.title) {
+    emit('cancel-rename')
+    return
+  }
+  emit('rename', props.node.id, renameInput.value.trim())
+}
+
+const handleCancelRename = () => {
+  emit('cancel-rename')
 }
 </script>
 
@@ -85,12 +114,50 @@ const handleDownload = (event: Event) => {
       />
 
       <!-- 标题 -->
-      <span class="flex-1 truncate text-sm">
+      <span
+        v-if="!isRenaming"
+        class="flex-1 truncate text-sm"
+      >
         {{ node.title || (documentsData?.untitled || '未命名') }}
       </span>
+      <div
+        v-else
+        class="flex-1 flex items-center gap-1"
+      >
+        <UInput
+          v-model="renameInput"
+          size="xs"
+          class="flex-1"
+          autofocus
+          @keyup.enter="handleSaveRename"
+          @keyup.esc="handleCancelRename"
+        />
+        <UButton
+          icon="i-lucide-check"
+          size="xs"
+          color="primary"
+          @click="handleSaveRename"
+        />
+        <UButton
+          icon="i-lucide-x"
+          size="xs"
+          variant="ghost"
+          @click="handleCancelRename"
+        />
+      </div>
 
       <!-- 操作按钮 -->
-      <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div
+        v-if="!isRenaming"
+        class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <UButton
+          icon="i-lucide-pencil"
+          size="xs"
+          variant="ghost"
+          color="neutral"
+          @click="handleStartRename"
+        />
         <UButton
           v-if="node.type === 'folder'"
           icon="i-lucide-folder-plus"
@@ -129,11 +196,15 @@ const handleDownload = (event: Event) => {
         :expanded-folders="expandedFolders"
         :deleting-id="deletingId"
         :downloading-id="downloadingId"
+        :renaming-id="renamingId"
         @toggle="(id: string) => emit('toggle', id)"
         @click="(n: DocumentTreeNode) => emit('click', n)"
         @delete="(id: string, e: Event) => emit('delete', id, e)"
         @create-sub-folder="(id: string, e: Event) => emit('create-sub-folder', id, e)"
         @download="(id: string, e: Event) => emit('download', id, e)"
+        @rename="(id: string, title: string) => emit('rename', id, title)"
+        @start-rename="(id: string) => emit('start-rename', id)"
+        @cancel-rename="() => emit('cancel-rename')"
       />
     </div>
   </div>

@@ -75,17 +75,6 @@ const checkDocumentExists = async (id: string) => {
   }
 }
 
-// 监听props.documentTitle的变化，更新原始标题
-watch(() => props.documentTitle, (newTitle) => {
-  if (newTitle) {
-    documentTitle.value = newTitle
-    // 如果原始标题还未设置，或者这是从服务器加载的标题，更新原始标题
-    if (!originalDocumentTitle.value || hasBeenSaved.value) {
-      originalDocumentTitle.value = newTitle
-    }
-  }
-}, { immediate: true })
-
 // 监听props.documentId的变化（例如从首页传入的新建文档ID）
 watch(() => props.documentId, async (newId) => {
   if (newId !== documentId.value) {

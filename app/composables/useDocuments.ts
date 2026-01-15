@@ -168,6 +168,34 @@ export const useDocuments = () => {
     }
   }
 
+  const renameDocument = async (id: string, newTitle: string) => {
+    try {
+      loading.value = true
+      // 获取当前文档内容
+      const currentDoc = await getDocument(id)
+      // 使用 PUT 更新文档标题（只更新标题，内容保持不变）
+      const data = await $fetch<{ success: boolean, document: Document }>(`/api/documents/${id}`, {
+        method: 'PUT',
+        body: { title: newTitle, content: currentDoc.content || '' }
+      })
+      // 更新本地列表
+      const index = documents.value.findIndex(d => d.id === id)
+      if (index !== -1) {
+        documents.value[index] = { ...documents.value[index], ...data.document }
+      }
+      return data.document
+    } catch (error: any) {
+      console.error('[useDocuments] 重命名文档失败:', {
+        message: error?.message,
+        statusCode: error?.statusCode,
+        data: error?.data
+      })
+      throw new Error(error.data?.message || error.message || '重命名文档失败')
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     documents: readonly(documents),
     loading: readonly(loading),
@@ -177,6 +205,7 @@ export const useDocuments = () => {
     getDocument,
     saveDocument,
     deleteDocument,
-    createFolder
+    createFolder,
+    renameDocument
   }
 }
