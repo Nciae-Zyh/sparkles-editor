@@ -1,4 +1,4 @@
-import type { User } from '~/types'
+import type { User } from '~~/types'
 
 export const useAuth = () => {
   const user = useState<User | null>('auth.user', () => null)
@@ -91,7 +91,7 @@ export const useAuth = () => {
     fetchUser,
     login,
     register,
-    loginWithGoogle,
+    loginWithGoogleCode,
     logout
   }
 }
