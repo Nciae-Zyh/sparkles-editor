@@ -5,6 +5,20 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
   const { tm: $tm } = useNuxtApp().$i18n
   const toolbarData = computed(() => $tm('toolbar') as Record<string, string> | undefined)
 
+  // 辅助函数：如果 label 超过10个字符，将其移到 tooltip，按钮只显示图标
+  const processToolbarItem = <TItem extends EditorToolbarItem<T>>(item: TItem): TItem => {
+    if (item.label && item.label.length > 10) {
+      // 如果 label 超过10个字符，将其移到 tooltip
+      const labelText = item.label
+      return {
+        ...item,
+        label: undefined, // 移除 label，按钮只显示图标
+        tooltip: item.tooltip || { text: labelText } // 将 label 移到 tooltip
+      } as TItem
+    }
+    return item
+  }
+
   const toolbarItems = computed(() => {
     const toolbar = toolbarData.value
     return [[{
@@ -15,17 +29,17 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
       kind: 'redo',
       icon: 'i-lucide-redo',
       tooltip: { text: toolbar?.redo }
-    }], [{
+    }], [processToolbarItem({
       kind: 'imageUpload',
       label: toolbar?.add,
       icon: 'i-lucide-image',
       tooltip: { text: toolbar?.addImage }
-    }]] satisfies EditorToolbarItem<T>[][]
+    })]] satisfies EditorToolbarItem<T>[][]
   })
 
   const bubbleToolbarItems = computed(() => {
     const toolbar = toolbarData.value
-    return [[{
+    return [[processToolbarItem({
       label: toolbar?.turnInto,
       trailingIcon: 'i-lucide-chevron-down',
       activeColor: 'neutral',
@@ -40,52 +54,52 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
       items: [{
         type: 'label',
         label: toolbar?.turnInto
-      }, {
+      }, processToolbarItem({
         kind: 'paragraph',
         label: toolbar?.paragraph,
         icon: 'i-lucide-type'
-      }, {
+      }), processToolbarItem({
         kind: 'heading',
         level: 1,
         label: toolbar?.heading1,
         icon: 'i-lucide-heading-1'
-      }, {
+      }), processToolbarItem({
         kind: 'heading',
         level: 2,
         label: toolbar?.heading2,
         icon: 'i-lucide-heading-2'
-      }, {
+      }), processToolbarItem({
         kind: 'heading',
         level: 3,
         label: toolbar?.heading3,
         icon: 'i-lucide-heading-3'
-      }, {
+      }), processToolbarItem({
         kind: 'heading',
         level: 4,
         label: toolbar?.heading4,
         icon: 'i-lucide-heading-4'
-      }, {
+      }), processToolbarItem({
         kind: 'bulletList',
         label: toolbar?.bulletList,
         icon: 'i-lucide-list'
-      }, {
+      }), processToolbarItem({
         kind: 'orderedList',
         label: toolbar?.orderedList,
         icon: 'i-lucide-list-ordered'
-      }, {
+      }), processToolbarItem({
         kind: 'taskList',
         label: toolbar?.taskList,
         icon: 'i-lucide-list-check'
-      }, {
+      }), processToolbarItem({
         kind: 'blockquote',
         label: toolbar?.blockquote,
         icon: 'i-lucide-text-quote'
-      }, {
+      }), processToolbarItem({
         kind: 'codeBlock',
         label: toolbar?.codeBlock,
         icon: 'i-lucide-square-code'
-      }]
-    }], [{
+      })]
+    })], [{
       kind: 'mark',
       mark: 'bold',
       icon: 'i-lucide-bold',

@@ -94,7 +94,19 @@ const formatDate = (timestamp: number) => {
         {{ documentsData?.documentList || '文档列表' }}
       </h2>
       <div class="flex gap-2">
+        <UTooltip
+          v-if="(documentsData?.newDocument || '新建文档').length > 10"
+          :text="documentsData?.newDocument || '新建文档'"
+        >
+          <UButton
+            :to="currentParentId ? `/?folder=${currentParentId}` : '/'"
+            icon="i-lucide-file-plus"
+            size="sm"
+            variant="soft"
+          />
+        </UTooltip>
         <UButton
+          v-else
           :to="currentParentId ? `/?folder=${currentParentId}` : '/'"
           icon="i-lucide-file-plus"
           size="sm"
@@ -102,7 +114,18 @@ const formatDate = (timestamp: number) => {
         >
           {{ documentsData?.newDocument || '新建文档' }}
         </UButton>
+        <UTooltip
+          v-if="(documentsData?.newFolder || '新建文件夹').length > 10"
+          :text="documentsData?.newFolder || '新建文件夹'"
+        >
+          <UButton
+            icon="i-lucide-folder-plus"
+            size="sm"
+            @click="showCreateFolder = true"
+          />
+        </UTooltip>
         <UButton
+          v-else
           icon="i-lucide-folder-plus"
           size="sm"
           @click="showCreateFolder = true"

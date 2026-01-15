@@ -70,7 +70,18 @@ const handleSave = async () => {
 
 <template>
   <div>
+    <UTooltip
+      v-if="(actionsData?.saveDocument || '保存文档').length > 10"
+      :text="actionsData?.saveDocument || '保存文档'"
+    >
+      <UButton
+        :loading="loading"
+        icon="i-lucide-save"
+        @click="isOpen = true"
+      />
+    </UTooltip>
     <UButton
+      v-else
       :loading="loading"
       icon="i-lucide-save"
       @click="isOpen = true"

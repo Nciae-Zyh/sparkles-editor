@@ -35,6 +35,11 @@ export default defineAppConfig({
       slots: {
         root: 'w-full'
       }
+    },
+    button: {
+      slots: {
+        base: ['justify-center']
+      }
     }
   }
 })

@@ -361,7 +361,21 @@ defineExpose({
                 type="file"
                 @change="handleFileImport"
               >
+              <UTooltip
+                v-if="actionsData?.importMarkdown && actionsData.importMarkdown.length > 10"
+                :text="actionsData.importMarkdown"
+              >
+                <UButton
+                  :loading="isImporting"
+                  color="primary"
+                  icon="i-lucide-upload"
+                  size="sm"
+                  variant="soft"
+                  @click="handleImportClick"
+                />
+              </UTooltip>
               <UButton
+                v-else
                 :loading="isImporting"
                 color="primary"
                 icon="i-lucide-upload"
@@ -373,7 +387,21 @@ defineExpose({
                   {{ actionsData?.importMarkdown }}
                 </span>
               </UButton>
+              <UTooltip
+                v-if="actionsData?.downloadMarkdown && actionsData.downloadMarkdown.length > 10"
+                :text="actionsData.downloadMarkdown"
+              >
+                <UButton
+                  :loading="isDownloading"
+                  color="primary"
+                  icon="i-lucide-download"
+                  size="sm"
+                  variant="soft"
+                  @click="handleDownload"
+                />
+              </UTooltip>
               <UButton
+                v-else
                 :loading="isDownloading"
                 color="primary"
                 icon="i-lucide-download"

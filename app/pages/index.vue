@@ -54,8 +54,19 @@ onMounted(async () => {
     <AppHeader>
       <template #default>
         <div class="flex items-center gap-2">
+          <UTooltip
+            v-if="user && (appData?.newDocument || '新建文档').length > 10"
+            :text="appData?.newDocument || '新建文档'"
+          >
+            <UButton
+              icon="i-lucide-file-plus"
+              variant="soft"
+              size="sm"
+              @click="createNewDocument"
+            />
+          </UTooltip>
           <UButton
-            v-if="user"
+            v-else-if="user"
             icon="i-lucide-file-plus"
             variant="soft"
             size="sm"
@@ -63,8 +74,19 @@ onMounted(async () => {
           >
             {{ appData?.newDocument || '新建文档' }}
           </UButton>
+          <UTooltip
+            v-if="user && (appData?.myDocuments || '我的文档').length > 10"
+            :text="appData?.myDocuments || '我的文档'"
+          >
+            <UButton
+              :to="'/documents'"
+              icon="i-lucide-folder"
+              variant="soft"
+              size="sm"
+            />
+          </UTooltip>
           <UButton
-            v-if="user"
+            v-else-if="user"
             :to="'/documents'"
             icon="i-lucide-folder"
             variant="soft"
