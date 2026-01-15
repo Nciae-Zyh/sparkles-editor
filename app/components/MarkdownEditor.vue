@@ -240,49 +240,55 @@ defineExpose({
       @create="onCreate"
       @update:model-value="onUpdate"
     >
-      <AppHeader>
-        <UEditorToolbar
-          :editor="editor"
-          :items="toolbarItems"
-        />
-        <div
-          v-if="showImportExport"
-          class="flex gap-2 flex-wrap"
-        >
-          <input
-            ref="fileInputRef"
-            type="file"
-            accept=".md,.markdown"
-            class="hidden"
-            @change="handleFileImport"
-          >
-          <UButton
-            :loading="isImporting"
-            color="primary"
-            icon="i-lucide-upload"
-            :label="actionsData?.importMarkdown"
-            size="sm"
-            variant="soft"
-            @click="handleImportClick"
-          />
-          <UButton
-            :loading="isDownloading"
-            color="primary"
-            icon="i-lucide-download"
-            :label="actionsData?.downloadMarkdown"
-            size="sm"
-            variant="soft"
-            @click="handleDownload"
-          />
-          <SaveDocumentButton
-            v-if="user"
-            :title="documentTitle"
-            :content="content || ''"
-            :document-id="documentId"
-            @saved="(id) => { documentId = id; $emit('document-saved', id) }"
-          />
+      <div class="sticky top-0 z-50  h-(--ui-header-height) flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-14">
+          <div class="flex items-center justify-between gap-4 py-3">
+            <div class="flex-1 overflow-x-auto">
+              <UEditorToolbar
+                :editor="editor"
+                :items="toolbarItems"
+              />
+            </div>
+            <div
+              v-if="showImportExport"
+              class="flex gap-2 flex-wrap shrink-0"
+            >
+              <input
+                ref="fileInputRef"
+                type="file"
+                accept=".md,.markdown"
+                class="hidden"
+                @change="handleFileImport"
+              >
+              <UButton
+                :loading="isImporting"
+                color="primary"
+                icon="i-lucide-upload"
+                :label="actionsData?.importMarkdown"
+                size="sm"
+                variant="soft"
+                @click="handleImportClick"
+              />
+              <UButton
+                :loading="isDownloading"
+                color="primary"
+                icon="i-lucide-download"
+                :label="actionsData?.downloadMarkdown"
+                size="sm"
+                variant="soft"
+                @click="handleDownload"
+              />
+              <SaveDocumentButton
+                v-if="user"
+                :title="documentTitle"
+                :content="content || ''"
+                :document-id="documentId"
+                @saved="(id) => { documentId = id; $emit('document-saved', id) }"
+              />
+            </div>
+          </div>
         </div>
-      </AppHeader>
+      </div>
       <UEditorToolbar
         :editor="editor"
         :items="bubbleToolbarItems"

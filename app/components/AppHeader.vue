@@ -1,3 +1,13 @@
+<script lang="ts" setup>
+interface Props {
+  hideTitle?: boolean
+}
+
+withDefaults(defineProps<Props>(), {
+  hideTitle: false
+})
+</script>
+
 <template>
   <UHeader
     :toggle="false"
@@ -6,7 +16,10 @@
       right: 'justify-end-safe overflow-x-auto py-2 gap-2'
     }"
   >
-    <template #left>
+    <template
+      v-if="!hideTitle"
+      #left
+    >
       <NuxtLink to="/">
         <h1 class="font-bold text-lg sm:text-2xl">
           Sparkles

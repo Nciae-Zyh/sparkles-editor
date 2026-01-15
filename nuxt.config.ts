@@ -133,15 +133,15 @@ export default defineNuxtConfig({
   },
 
   googleSignIn: {
-    clientId: process.env.GOOGLE_CLIENT_ID || ''
+    clientId: '463658926746-1nb91dmr6eouqq2h7gvvgcmvpmdn53fk.apps.googleusercontent.com'
   },
 
   runtimeConfig: {
     googleClientId: process.env.GOOGLE_CLIENT_ID,
-    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    googleClientSecret: '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',
     sessionSecret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
     public: {
-      googleClientId: process.env.GOOGLE_CLIENT_ID,
+      googleClientId: '463658926746-1nb91dmr6eouqq2h7gvvgcmvpmdn53fk.apps.googleusercontent.com',
       siteUrl: process.env.SITE_URL || 'http://localhost:3000'
     }
   }

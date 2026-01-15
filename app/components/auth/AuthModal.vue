@@ -68,13 +68,21 @@ const handleGoogleError = (errorResponse: ImplicitFlowErrorResponse) => {
   console.error('Google login error:', errorResponse)
 }
 
+const config = useRuntimeConfig()
+const clientId = config.public.googleClientId
+
 const { isReady, login: triggerGoogleLogin } = useCodeClient({
   onSuccess: handleGoogleSuccess,
   onError: handleGoogleError,
-  scope: 'openid email profile'
+  scope: 'openid email profile',
+  client_id: clientId || ''
 })
 
 const handleGoogleLogin = () => {
+  if (!clientId) {
+    error.value = 'Google OAuth 未配置，请联系管理员'
+    return
+  }
   if (!isReady.value) {
     error.value = 'Google 登录服务未就绪，请稍后再试'
     return
@@ -170,7 +178,7 @@ const switchMode = () => {
           block
           icon="i-simple-icons-google"
           :loading="loading"
-          :disabled="!isReady"
+          :disabled="!isReady || !clientId"
           @click="handleGoogleLogin"
         >
           使用 Google 登录
