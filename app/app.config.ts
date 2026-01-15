@@ -30,6 +30,11 @@ export default defineAppConfig({
           '[&_ul[data-type=taskList]_li[data-checked=true]>div>p]:line-through [&_ul[data-type=taskList]_li[data-checked=true]>div>p]:opacity-50'
         ]
       }
+    },
+    input: {
+      slots: {
+        root: 'w-full'
+      }
     }
   }
 })

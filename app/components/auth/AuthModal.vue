@@ -2,6 +2,8 @@
 import { useAuth } from '~/composables/useAuth'
 import { useCodeClient } from 'vue3-google-signin'
 import type { ImplicitFlowSuccessResponse, ImplicitFlowErrorResponse } from 'vue3-google-signin'
+import * as z from 'zod'
+import type { FormSubmitEvent, FormErrorEvent } from '@nuxt/ui'
 
 interface Props {
   open: boolean
@@ -24,31 +26,61 @@ const isOpen = computed({
 })
 
 const currentMode = ref(props.mode)
-const email = ref('')
-const password = ref('')
-const name = ref('')
 const error = ref('')
+
+// 登录表单 schema
+const loginSchema = z.object({
+  email: z.string().email('请输入有效的邮箱地址').min(1, '邮箱不能为空'),
+  password: z.string().min(6, '密码至少需要6个字符')
+})
+
+// 注册表单 schema
+const registerSchema = z.object({
+  name: z.string().optional(),
+  email: z.string().email('请输入有效的邮箱地址').min(1, '邮箱不能为空'),
+  password: z.string().min(6, '密码至少需要6个字符')
+})
+
+const schema = computed(() => currentMode.value === 'login' ? loginSchema : registerSchema)
+
+type LoginSchema = z.output<typeof loginSchema>
+type RegisterSchema = z.output<typeof registerSchema>
+type FormSchema = LoginSchema | RegisterSchema
+
+const state = reactive<Partial<FormSchema>>({
+  email: undefined,
+  password: undefined,
+  name: undefined
+})
 
 watch(() => props.mode, (newMode) => {
   currentMode.value = newMode
   error.value = ''
-  email.value = ''
-  password.value = ''
-  name.value = ''
+  state.email = undefined
+  state.password = undefined
+  state.name = undefined
 })
 
-const handleSubmit = async () => {
+const handleSubmit = async (event: FormSubmitEvent<FormSchema>) => {
   error.value = ''
   try {
     if (currentMode.value === 'login') {
-      await login(email.value, password.value)
+      const data = event.data as LoginSchema
+      await login(data.email, data.password)
       isOpen.value = false
     } else {
-      await register(email.value, password.value, name.value || undefined)
+      const data = event.data as RegisterSchema
+      await register(data.email, data.password, data.name)
       isOpen.value = false
     }
   } catch (err: any) {
     error.value = err.message || '操作失败'
+  }
+}
+
+const handleError = (event: FormErrorEvent) => {
+  if (event?.errors?.[0]?.message) {
+    error.value = event.errors[0].message
   }
 }
 
@@ -112,45 +144,44 @@ const switchMode = () => {
         />
 
         <UForm
+          :schema="schema"
+          :state="state"
           class="space-y-4"
-          @submit.prevent="handleSubmit"
+          @submit="handleSubmit"
+          @error="handleError"
         >
-          <UFormGroup
+          <UFormField
             v-if="currentMode === 'register'"
             label="姓名"
             name="name"
           >
             <UInput
-              v-model="name"
+              v-model="state.name"
               placeholder="请输入姓名（可选）"
             />
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup
+          <UFormField
             label="邮箱"
             name="email"
-            required
           >
             <UInput
-              v-model="email"
+              v-model="state.email"
               type="email"
               placeholder="请输入邮箱"
-              required
             />
-          </UFormGroup>
+          </UFormField>
 
-          <UFormGroup
+          <UFormField
             label="密码"
             name="password"
-            required
           >
             <UInput
-              v-model="password"
+              v-model="state.password"
               type="password"
               placeholder="请输入密码"
-              required
             />
-          </UFormGroup>
+          </UFormField>
 
           <UButton
             type="submit"
