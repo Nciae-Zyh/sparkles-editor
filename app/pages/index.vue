@@ -1,8 +1,4 @@
 <script lang="ts" setup>
-definePageMeta({
-  layout: 'default'
-})
-
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
 const route = useRoute()
 const router = useRouter()

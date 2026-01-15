@@ -29,78 +29,76 @@ onMounted(async () => {
 <template>
   <div>
     <AppHeader>
-      <template #default>
-        <div class="flex items-center gap-2">
-          <UTooltip
-            v-if="user && (appData?.newDocument || '新建文档').length > 10"
-            :text="appData?.newDocument || '新建文档'"
-          >
-            <UButton
-              icon="i-lucide-file-plus"
-              variant="soft"
-              size="sm"
-              @click="createNewDocument"
-            />
-          </UTooltip>
+      <div class="flex items-center gap-2">
+        <UTooltip
+          v-if="user && (appData?.newDocument || '新建文档').length > 10"
+          :text="appData?.newDocument || '新建文档'"
+        >
           <UButton
-            v-else-if="user"
             icon="i-lucide-file-plus"
             variant="soft"
             size="sm"
             @click="createNewDocument"
-          >
-            {{ appData?.newDocument || '新建文档' }}
-          </UButton>
-          <UTooltip
-            v-if="user && (appData?.myDocuments || '我的文档').length > 10"
-            :text="appData?.myDocuments || '我的文档'"
-          >
-            <UButton
-              :to="'/documents'"
-              icon="i-lucide-folder"
-              variant="soft"
-              size="sm"
-            />
-          </UTooltip>
+          />
+        </UTooltip>
+        <UButton
+          v-else-if="user"
+          icon="i-lucide-file-plus"
+          variant="soft"
+          size="sm"
+          @click="createNewDocument"
+        >
+          {{ appData?.newDocument || '新建文档' }}
+        </UButton>
+        <UTooltip
+          v-if="user && (appData?.myDocuments || '我的文档').length > 10"
+          :text="appData?.myDocuments || '我的文档'"
+        >
           <UButton
-            v-else-if="user"
             :to="'/documents'"
             icon="i-lucide-folder"
             variant="soft"
             size="sm"
-          >
-            {{ appData?.myDocuments || '我的文档' }}
-          </UButton>
-          <UButton
-            v-if="user"
-            :to="'/documents'"
-            icon="i-lucide-user"
-            variant="soft"
-            size="sm"
-          >
-            {{ user.name || user.email }}
-          </UButton>
-          <UButton
-            v-if="!user"
-            icon="i-lucide-log-in"
-            variant="soft"
-            size="sm"
-            @click="() => { authMode = 'login'; authModalOpen = true }"
-          >
-            {{ appData?.login || '登录' }}
-          </UButton>
-          <UButton
-            v-if="user"
-            icon="i-lucide-log-out"
-            variant="soft"
-            color="error"
-            size="sm"
-            @click="async () => { await logout(); await router.push('/') }"
-          >
-            {{ appData?.logout || '退出' }}
-          </UButton>
-        </div>
-      </template>
+          />
+        </UTooltip>
+        <UButton
+          v-else-if="user"
+          :to="'/documents'"
+          icon="i-lucide-folder"
+          variant="soft"
+          size="sm"
+        >
+          {{ appData?.myDocuments || '我的文档' }}
+        </UButton>
+        <UButton
+          v-if="user"
+          :to="'/documents'"
+          icon="i-lucide-user"
+          variant="soft"
+          size="sm"
+        >
+          {{ user.name || user.email }}
+        </UButton>
+        <UButton
+          v-if="!user"
+          icon="i-lucide-log-in"
+          variant="soft"
+          size="sm"
+          @click="() => { authMode = 'login'; authModalOpen = true }"
+        >
+          {{ appData?.login || '登录' }}
+        </UButton>
+        <UButton
+          v-if="user"
+          icon="i-lucide-log-out"
+          variant="soft"
+          color="error"
+          size="sm"
+          @click="async () => { await logout(); await router.push('/') }"
+        >
+          {{ appData?.logout || '退出' }}
+        </UButton>
+      </div>
     </AppHeader>
 
     <slot />
