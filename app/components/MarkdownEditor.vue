@@ -36,19 +36,51 @@ const emit = defineEmits<{
 }>()
 
 const {user} = useAuth()
-const {saveDocument} = useDocuments()
+const {saveDocument, getDocument} = useDocuments()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
 // 使用props.documentId作为初始值，如果提供了就使用（可能是新建时的临时ID）
 const documentId = ref(props.documentId)
-const isNewDocument = computed(() => !documentId.value)
+// 标记文档是否已经保存到服务器（用于控制自动保存）
+const hasBeenSaved = ref(false)
+
+// 检查文档是否已存在于服务器的函数
+const checkDocumentExists = async (id: string) => {
+  if (!id) {
+    hasBeenSaved.value = false
+    return
+  }
+  
+  try {
+    await getDocument(id)
+    // 如果获取成功，说明文档已存在，允许自动保存
+    hasBeenSaved.value = true
+  } catch (error: any) {
+    // 如果获取失败（404），说明是新文档，还未保存
+    if (error?.statusCode === 404 || error?.status === 404) {
+      hasBeenSaved.value = false
+    } else {
+      // 其他错误，保守处理，不允许自动保存
+      hasBeenSaved.value = false
+    }
+  }
+}
 
 // 监听props.documentId的变化（例如从首页传入的新建文档ID）
-watch(() => props.documentId, (newId) => {
-  if (newId && !documentId.value) {
+watch(() => props.documentId, async (newId) => {
+  if (newId !== documentId.value) {
     documentId.value = newId
+    // 检查文档是否已存在于服务器
+    await checkDocumentExists(newId)
   }
 }, {immediate: true})
+
+// 组件挂载时，如果已有 documentId，也检查一次
+onMounted(async () => {
+  if (props.documentId) {
+    await checkDocumentExists(props.documentId)
+  }
+})
 
 // 判断是否允许保存
 // readonly=true: 不允许保存（预览模式）
@@ -85,13 +117,24 @@ const isAutoSaving = ref(false)
 const lastSavedAt = ref<Date | null>(null)
 const AUTO_SAVE_DELAY = 3000 // 3秒后自动保存
 
-// 自动保存逻辑（只对已保存的文档且允许保存时）
+// 自动保存逻辑（只对已保存到服务器的文档且允许保存时）
 watch([
   content,
-  canSave
+  canSave,
+  hasBeenSaved
 ], () => {
   // 如果不允许保存，不执行自动保存
   if (!canSave.value) {
+    // 清除定时器
+    if (autoSaveTimer.value) {
+      clearTimeout(autoSaveTimer.value)
+      autoSaveTimer.value = null
+    }
+    return
+  }
+
+  // 如果文档还未保存到服务器（第一次保存前），不自动保存
+  if (!hasBeenSaved.value) {
     // 清除定时器
     if (autoSaveTimer.value) {
       clearTimeout(autoSaveTimer.value)
@@ -199,9 +242,10 @@ onUnmounted(() => {
   }
 })
 
-// 监听语言变化，更新默认内容
+// 监听语言变化，更新默认内容（新文档不设置默认内容）
 watch(editorData, () => {
-  if (!content.value) {
+  // 如果文档还未保存到服务器，不设置默认内容（保持空文档）
+  if (!content.value && hasBeenSaved.value) {
     content.value = defaultContent.value
   }
 }, {deep: true})
@@ -418,7 +462,11 @@ defineExpose({
                 :content="content || ''"
                 :document-id="documentId"
                 :title="documentTitle"
-                @saved="(id) => { documentId = id; $emit('document-saved', id) }"
+                @saved="(id) => { 
+                  documentId = id
+                  hasBeenSaved = true // 标记文档已保存，允许自动保存
+                  $emit('document-saved', id) 
+                }"
               />
               <div
                 v-if="user && canSave && isAutoSaving"

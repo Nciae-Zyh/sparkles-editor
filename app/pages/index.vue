@@ -34,7 +34,7 @@ const createNewDocument = () => {
   }
 }
 
-// 监听语言变化，更新默认内容
+// 监听语言变化，更新默认内容（新文档不设置默认内容）
 watch(editorData, () => {
   if (!content.value && !isNewDocument.value) {
     content.value = defaultContent.value
@@ -42,7 +42,8 @@ watch(editorData, () => {
 }, { deep: true })
 
 onMounted(async () => {
-  if (!content.value) {
+  // 如果是新文档，保持空内容，不设置默认内容
+  if (!content.value && !isNewDocument.value) {
     content.value = defaultContent.value
   }
   await fetchUser()
