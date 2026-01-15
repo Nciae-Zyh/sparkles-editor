@@ -7,9 +7,13 @@ interface Props {
   label?: string
 }
 
+const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
+
 const props = withDefaults(defineProps<Props>(), {
-  label: '保存位置'
+  label: undefined
 })
+
+const labelText = computed(() => props.label || documentsData.value?.saveLocation || '保存位置')
 
 const emit = defineEmits<{
   'update:modelValue': [value: string | undefined]
@@ -29,17 +33,18 @@ const buildFolderTree = (folders: Document[]): Array<Document & { level: number,
   const result: Array<Document & { level: number, displayName: string }> = []
 
   // 添加根目录选项
+  const rootDirectoryName = documentsData.value?.rootDirectory || '根目录'
   result.push({
     id: '',
     user_id: '',
-    title: '根目录',
+    title: rootDirectoryName,
     path: '/',
     type: 'folder',
     r2_key: '',
     created_at: 0,
     updated_at: 0,
     level: 0,
-    displayName: '根目录'
+    displayName: rootDirectoryName
   } as any)
 
   // 按路径排序，构建层级显示
@@ -79,14 +84,14 @@ onMounted(async () => {
 
 <template>
   <UFormField
-    :label="label"
+    :label="labelText"
     name="parentId"
   >
     <USelect
       v-model="selectedValue"
       :options="folderOptions"
       :loading="loading"
-      placeholder="选择文件夹（可选，默认保存到根目录）"
+      :placeholder="documentsData?.selectFolder || '选择文件夹（可选，默认保存到根目录）'"
       searchable
     />
   </UFormField>

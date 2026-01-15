@@ -14,6 +14,8 @@
     "pleaseLogin": "请先登录",
     "pleaseEnterPath": "请输入存储路径",
     "saveFailed": "保存失败，请稍后重试",
+    "serverError": "服务器内部错误，请稍后重试",
+    "invalidRequest": "请求参数错误",
     "downloadDocument": "下载文档",
     "downloadFailed": "下载失败，请稍后重试",
     "documentEmpty": "文档内容为空"

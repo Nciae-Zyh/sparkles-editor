@@ -28,20 +28,22 @@ const isOpen = computed({
 const currentMode = ref(props.mode)
 const error = ref('')
 
+const authData = computed(() => $tm('auth') as Record<string, string> | undefined)
+
 // 登录表单 schema
-const loginSchema = z.object({
-  email: z.string().email('请输入有效的邮箱地址').min(1, '邮箱不能为空'),
-  password: z.string().min(6, '密码至少需要6个字符')
-})
+const loginSchema = computed(() => z.object({
+  email: z.string().email(authData.value?.emailInvalid || '请输入有效的邮箱地址').min(1, authData.value?.emailRequired || '邮箱不能为空'),
+  password: z.string().min(6, authData.value?.passwordMinLength || '密码至少需要6个字符')
+}))
 
 // 注册表单 schema
-const registerSchema = z.object({
+const registerSchema = computed(() => z.object({
   name: z.string().optional(),
-  email: z.string().email('请输入有效的邮箱地址').min(1, '邮箱不能为空'),
-  password: z.string().min(6, '密码至少需要6个字符')
-})
+  email: z.string().email(authData.value?.emailInvalid || '请输入有效的邮箱地址').min(1, authData.value?.emailRequired || '邮箱不能为空'),
+  password: z.string().min(6, authData.value?.passwordMinLength || '密码至少需要6个字符')
+}))
 
-const schema = computed(() => currentMode.value === 'login' ? loginSchema : registerSchema)
+const schema = computed(() => currentMode.value === 'login' ? loginSchema.value : registerSchema.value)
 
 type LoginSchema = z.output<typeof loginSchema>
 type RegisterSchema = z.output<typeof registerSchema>
@@ -79,7 +81,7 @@ const handleSubmit = async (event: FormSubmitEvent<FormSchema>) => {
       stack: err.stack,
       error: err
     })
-    error.value = err.message || '操作失败，请查看控制台获取详细信息'
+    error.value = err.message || authData.value?.operationFailed || '操作失败，请查看控制台获取详细信息'
   }
 }
 
@@ -96,12 +98,12 @@ const handleGoogleSuccess = async (response: ImplicitFlowSuccessResponse) => {
     await loginWithGoogleCode(response.code)
     isOpen.value = false
   } catch (err: any) {
-    error.value = err.message || 'Google 登录失败'
+    error.value = err.message || authData.value?.googleLoginFailed || 'Google 登录失败'
   }
 }
 
 const handleGoogleError = (errorResponse: ImplicitFlowErrorResponse) => {
-  error.value = errorResponse.error || 'Google 登录失败'
+  error.value = errorResponse.error || authData.value?.googleLoginFailed || 'Google 登录失败'
   console.error('Google login error:', errorResponse)
 }
 
@@ -117,11 +119,11 @@ const { isReady, login: triggerGoogleLogin } = useCodeClient({
 
 const handleGoogleLogin = () => {
   if (!clientId) {
-    error.value = 'Google OAuth 未配置，请联系管理员'
+    error.value = authData.value?.googleOAuthNotConfigured || 'Google OAuth 未配置，请联系管理员'
     return
   }
   if (!isReady.value) {
-    error.value = 'Google 登录服务未就绪，请稍后再试'
+    error.value = authData.value?.googleLoginNotReady || 'Google 登录服务未就绪，请稍后再试'
     return
   }
   error.value = ''
@@ -137,7 +139,7 @@ const switchMode = () => {
 <template>
   <UModal
     v-model:open="isOpen"
-    :title="currentMode === 'login' ? '登录' : '注册'"
+    :title="currentMode === 'login' ? (authData?.login || '登录') : (authData?.register || '注册')"
   >
     <template #body>
       <div class="space-y-4">
@@ -157,34 +159,34 @@ const switchMode = () => {
         >
           <UFormField
             v-if="currentMode === 'register'"
-            label="姓名"
+            :label="authData?.name || '姓名'"
             name="name"
           >
             <UInput
               v-model="state.name"
-              placeholder="请输入姓名（可选）"
+              :placeholder="authData?.enterName || '请输入姓名（可选）'"
             />
           </UFormField>
 
           <UFormField
-            label="邮箱"
+            :label="authData?.email || '邮箱'"
             name="email"
           >
             <UInput
               v-model="state.email"
               type="email"
-              placeholder="请输入邮箱"
+              :placeholder="authData?.enterEmail || '请输入邮箱'"
             />
           </UFormField>
 
           <UFormField
-            label="密码"
+            :label="authData?.password || '密码'"
             name="password"
           >
             <UInput
               v-model="state.password"
               type="password"
-              placeholder="请输入密码"
+              :placeholder="authData?.enterPassword || '请输入密码'"
             />
           </UFormField>
 
@@ -193,7 +195,7 @@ const switchMode = () => {
             block
             :loading="loading"
           >
-            {{ currentMode === 'login' ? '登录' : '注册' }}
+            {{ currentMode === 'login' ? (authData?.login || '登录') : (authData?.register || '注册') }}
           </UButton>
         </UForm>
 
@@ -203,7 +205,7 @@ const switchMode = () => {
           </div>
           <div class="relative flex justify-center text-sm">
             <span class="px-2 bg-white dark:bg-gray-900 text-gray-500">
-              或
+              {{ authData?.or || '或' }}
             </span>
           </div>
         </div>
@@ -217,7 +219,7 @@ const switchMode = () => {
           :disabled="!isReady || !clientId"
           @click="handleGoogleLogin"
         >
-          使用 Google 登录
+          {{ authData?.loginWithGoogle || '使用 Google 登录' }}
         </UButton>
 
         <div class="text-center text-sm">
@@ -226,7 +228,7 @@ const switchMode = () => {
             class="text-primary hover:underline"
             @click="switchMode"
           >
-            {{ currentMode === 'login' ? '还没有账号？立即注册' : '已有账号？立即登录' }}
+            {{ currentMode === 'login' ? (authData?.noAccount || '还没有账号？立即注册') : (authData?.hasAccount || '已有账号？立即登录') }}
           </button>
         </div>
       </div>

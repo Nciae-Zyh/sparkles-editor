@@ -6,6 +6,8 @@ const { user, fetchUser } = useAuth()
 const router = useRouter()
 const route = useRoute()
 
+const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
+
 const currentFolderId = computed(() => route.query.folder as string | undefined)
 
 onMounted(async () => {
@@ -26,7 +28,7 @@ onMounted(async () => {
           variant="soft"
           size="sm"
         >
-          新建文档
+          {{ documentsData?.newDocument || '新建文档' }}
         </UButton>
         <UButton
           :to="'/documents'"
@@ -48,10 +50,10 @@ onMounted(async () => {
           size="sm"
           @click="router.push('/documents')"
         >
-          返回
+          {{ documentsData?.back || '返回' }}
         </UButton>
         <h1 class="text-2xl font-bold">
-          我的文档
+          {{ documentsData?.myDocuments || '我的文档' }}
         </h1>
       </div>
       <DocumentsDocumentTree />

@@ -1,6 +1,7 @@
 import type { Document } from '~/types'
 
 export const useDocuments = () => {
+  const { t } = useI18n()
   const documents = ref<Document[]>([])
   const loading = ref(false)
 
@@ -113,17 +114,17 @@ export const useDocuments = () => {
       })
 
       // 提取更详细的错误信息
-      let errorMessage = '保存文档失败'
+      let errorMessage = t('actions.saveFailed') || '保存文档失败'
       if (error?.data?.message) {
         errorMessage = error.data.message
       } else if (error?.message) {
         errorMessage = error.message
       } else if (error?.statusCode === 500) {
-        errorMessage = '服务器内部错误，请稍后重试'
+        errorMessage = t('actions.serverError') || '服务器内部错误，请稍后重试'
       } else if (error?.statusCode === 401) {
-        errorMessage = '请先登录'
+        errorMessage = t('actions.pleaseLogin') || '请先登录'
       } else if (error?.statusCode === 400) {
-        errorMessage = '请求参数错误'
+        errorMessage = t('actions.invalidRequest') || '请求参数错误'
       }
 
       throw new Error(errorMessage)

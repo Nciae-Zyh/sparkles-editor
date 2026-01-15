@@ -30,6 +30,7 @@ const props = withDefaults(defineProps<Props>(), {
   allowSave: undefined // undefined 表示自动判断
 })
 
+const content = defineModel<string>()
 const emit = defineEmits<{
   'document-saved': [id: string]
 }>()
@@ -159,7 +160,6 @@ const defaultContent = computed(() => {
   return editorData.value?.defaultContent || ''
 })
 
-const content = defineModel<string>()
 
 // 从内容中提取标题（取第一行作为标题）
 const extractTitleFromContent = (content: string): string => {

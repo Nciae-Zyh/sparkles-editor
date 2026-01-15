@@ -2,7 +2,9 @@ import { merge } from 'lodash-es';
 
 import enActions from './locales/en/actions.json';
 import enApp from './locales/en/app.json';
+import enAuth from './locales/en/auth.json';
 import enBeforeunload from './locales/en/beforeunload.json';
+import enDocuments from './locales/en/documents.json';
 import enDragHandle from './locales/en/dragHandle.json';
 import enEditor from './locales/en/editor.json';
 import enImage from './locales/en/image.json';
@@ -11,7 +13,9 @@ import enSuggestions from './locales/en/suggestions.json';
 import enToolbar from './locales/en/toolbar.json';
 import zhActions from './locales/zh/actions.json';
 import zhApp from './locales/zh/app.json';
+import zhAuth from './locales/zh/auth.json';
 import zhBeforeunload from './locales/zh/beforeunload.json';
+import zhDocuments from './locales/zh/documents.json';
 import zhDragHandle from './locales/zh/dragHandle.json';
 import zhEditor from './locales/zh/editor.json';
 import zhImage from './locales/zh/image.json';
@@ -42,8 +46,8 @@ const mergeAllLanguage = (arr: any[], language?: string) => {
  * 用于运行时动态合并。
  */
 const LanguageModuleArrays = {
-  'en': [enActions, enApp, enBeforeunload, enDragHandle, enEditor, enImage, enLink, enSuggestions, enToolbar] as const,
-  'zh': [zhActions, zhApp, zhBeforeunload, zhDragHandle, zhEditor, zhImage, zhLink, zhSuggestions, zhToolbar] as const,
+  'en': [enActions, enApp, enAuth, enBeforeunload, enDocuments, enDragHandle, enEditor, enImage, enLink, enSuggestions, enToolbar] as const,
+  'zh': [zhActions, zhApp, zhAuth, zhBeforeunload, zhDocuments, zhDragHandle, zhEditor, zhImage, zhLink, zhSuggestions, zhToolbar] as const,
 } as const;
 
 // 动态构建最终的 messages 对象

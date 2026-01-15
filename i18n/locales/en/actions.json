@@ -14,6 +14,8 @@
     "pleaseLogin": "Please login first",
     "pleaseEnterPath": "Please enter storage path",
     "saveFailed": "Save failed, please try again later",
+    "serverError": "Internal server error, please try again later",
+    "invalidRequest": "Invalid request parameters",
     "downloadDocument": "Download Document",
     "downloadFailed": "Download failed, please try again later",
     "documentEmpty": "Document content is empty"

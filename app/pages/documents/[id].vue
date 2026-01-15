@@ -7,6 +7,8 @@ const router = useRouter()
 const { user, fetchUser } = useAuth()
 const { getDocument, loading } = useDocuments()
 
+const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
+
 const documentId = computed(() => route.params.id as string)
 const document = ref<any>(null)
 const content = ref('')
@@ -23,7 +25,7 @@ onMounted(async () => {
     const doc = await getDocument(documentId.value)
     document.value = doc
     content.value = doc.content || ''
-    documentTitle.value = doc.title || '未命名文档'
+    documentTitle.value = doc.title || (documentsData.value?.untitledDocument || '未命名文档')
     // 如果文档有父文件夹，设置到编辑器中
     if (doc.parent_id) {
       // 可以通过 props 传递给 MarkdownEditor
@@ -55,7 +57,7 @@ onMounted(async () => {
           variant="soft"
           size="sm"
         >
-          返回
+          {{ documentsData?.back || '返回' }}
         </UButton>
         <UButton
           to="/"
@@ -63,7 +65,7 @@ onMounted(async () => {
           variant="soft"
           size="sm"
         >
-          新建文档
+          {{ documentsData?.newDocument || '新建文档' }}
         </UButton>
       </template>
     </AppHeader>

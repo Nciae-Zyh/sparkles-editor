@@ -11,6 +11,7 @@ const { downloadAsZip, isDownloading } = useDownloadZip()
 const router = useRouter()
 
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
+const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 
 const tree = ref<DocumentTreeNode[]>([])
 const flat = ref<Document[]>([])
@@ -72,9 +73,11 @@ const collapseAll = () => {
 const handleDelete = async (id: string, event: Event) => {
   event.stopPropagation()
   const item = flat.value.find(d => d.id === id)
-  const itemType = item?.type === 'folder' ? '文件夹' : '文档'
+  const itemType = item?.type === 'folder' ? (documentsData.value?.folder || '文件夹') : (documentsData.value?.document || '文档')
+  const deleteConfirm = documentsData.value?.deleteConfirm?.replace('{type}', itemType) || `确定要删除这个${itemType}吗？`
+  const deleteWarning = item?.type === 'folder' ? (documentsData.value?.deleteFolderWarning || '文件夹内的所有内容也会被删除。') : ''
 
-  if (!confirm(`确定要删除这个${itemType}吗？${item?.type === 'folder' ? '文件夹内的所有内容也会被删除。' : ''}`)) {
+  if (!confirm(`${deleteConfirm}${deleteWarning}`)) {
     return
   }
 
@@ -84,7 +87,7 @@ const handleDelete = async (id: string, event: Event) => {
     // 重新加载树
     await loadTree()
   } catch (error: any) {
-    alert(error.message || '删除失败')
+    alert(error.message || documentsData.value?.deleteFailed || '删除失败')
   } finally {
     deletingId.value = null
   }
@@ -93,7 +96,7 @@ const handleDelete = async (id: string, event: Event) => {
 // 处理创建文件夹
 const handleCreateFolder = async () => {
   if (!newFolderName.value.trim()) {
-    alert('请输入文件夹名称')
+    alert(documentsData.value?.enterFolderName || '请输入文件夹名称')
     return
   }
 
@@ -106,7 +109,7 @@ const handleCreateFolder = async () => {
     // 重新加载树
     await loadTree()
   } catch (error: any) {
-    alert(error.message || '创建文件夹失败')
+    alert(error.message || documentsData.value?.createFolderFailed || '创建文件夹失败')
   } finally {
     creatingFolder.value = false
   }
@@ -165,7 +168,7 @@ onMounted(() => {
   <div class="space-y-4">
     <div class="flex items-center justify-between gap-4">
       <h2 class="text-xl font-semibold">
-        文档树
+        {{ documentsData?.documentTree || '文档树' }}
       </h2>
       <div class="flex gap-2">
         <UButton
@@ -174,14 +177,14 @@ onMounted(() => {
           size="sm"
           variant="soft"
         >
-          新建文档
+          {{ documentsData?.newDocument || '新建文档' }}
         </UButton>
         <UButton
           icon="i-lucide-folder-plus"
           size="sm"
           @click="() => { selectedParentId = null; showCreateFolder = true }"
         >
-          新建文件夹
+          {{ documentsData?.newFolder || '新建文件夹' }}
         </UButton>
         <UButton
           icon="i-lucide-chevrons-down-up"
@@ -189,7 +192,7 @@ onMounted(() => {
           variant="ghost"
           @click="expandAll"
         >
-          展开全部
+          {{ documentsData?.expandAll || '展开全部' }}
         </UButton>
         <UButton
           icon="i-lucide-chevrons-up-down"
@@ -197,7 +200,7 @@ onMounted(() => {
           variant="ghost"
           @click="collapseAll"
         >
-          折叠全部
+          {{ documentsData?.collapseAll || '折叠全部' }}
         </UButton>
       </div>
     </div>
@@ -205,18 +208,18 @@ onMounted(() => {
     <!-- 创建文件夹模态框 -->
     <UModal
       v-model:open="showCreateFolder"
-      title="新建文件夹"
+      :title="documentsData?.newFolder || '新建文件夹'"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UFormField
-          label="文件夹名称"
+          :label="documentsData?.folderName || '文件夹名称'"
           name="folderName"
           required
         >
           <UInput
             v-model="newFolderName"
-            placeholder="请输入文件夹名称"
+            :placeholder="documentsData?.enterFolderName || '请输入文件夹名称'"
             @keyup.enter="handleCreateFolder"
           />
         </UFormField>
@@ -224,7 +227,7 @@ onMounted(() => {
           v-if="selectedParentId"
           class="mt-2 text-sm text-gray-500"
         >
-          将在选中的文件夹内创建
+          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
         </div>
       </template>
 
@@ -234,13 +237,13 @@ onMounted(() => {
           variant="ghost"
           @click="close"
         >
-          取消
+          {{ actionsData?.cancel || '取消' }}
         </UButton>
         <UButton
           :loading="creatingFolder"
           @click="handleCreateFolder"
         >
-          创建
+          {{ documentsData?.create || '创建' }}
         </UButton>
       </template>
     </UModal>
@@ -261,7 +264,7 @@ onMounted(() => {
       v-else-if="tree.length === 0"
       class="text-center py-12 text-gray-500"
     >
-      还没有文档，开始创建你的第一个文档吧！
+      {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
     </div>
 
     <!-- 树形视图 -->

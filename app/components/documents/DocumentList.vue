@@ -11,6 +11,9 @@ const props = defineProps<Props>()
 const { documents, loading, fetchDocuments, deleteDocument, createFolder } = useDocuments()
 const router = useRouter()
 
+const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
+const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
+
 const deletingId = ref<string | null>(null)
 const currentParentId = ref(props.parentId)
 const showCreateFolder = ref(false)
@@ -32,9 +35,11 @@ onMounted(() => {
 const handleDelete = async (id: string, event: Event) => {
   event.stopPropagation()
   const item = documents.value.find(d => d.id === id)
-  const itemType = item?.type === 'folder' ? '文件夹' : '文档'
+  const itemType = item?.type === 'folder' ? (documentsData.value?.folder || '文件夹') : (documentsData.value?.document || '文档')
+  const deleteConfirm = documentsData.value?.deleteConfirm?.replace('{type}', itemType) || `确定要删除这个${itemType}吗？`
+  const deleteWarning = item?.type === 'folder' ? (documentsData.value?.deleteFolderWarning || '文件夹内的所有内容也会被删除。') : ''
 
-  if (!confirm(`确定要删除这个${itemType}吗？${item?.type === 'folder' ? '文件夹内的所有内容也会被删除。' : ''}`)) {
+  if (!confirm(`${deleteConfirm}${deleteWarning}`)) {
     return
   }
 
@@ -42,7 +47,7 @@ const handleDelete = async (id: string, event: Event) => {
     deletingId.value = id
     await deleteDocument(id)
   } catch (error: any) {
-    alert(error.message || '删除失败')
+    alert(error.message || documentsData.value?.deleteFailed || '删除失败')
   } finally {
     deletingId.value = null
   }
@@ -50,7 +55,7 @@ const handleDelete = async (id: string, event: Event) => {
 
 const handleCreateFolder = async () => {
   if (!newFolderName.value.trim()) {
-    alert('请输入文件夹名称')
+    alert(documentsData.value?.enterFolderName || '请输入文件夹名称')
     return
   }
 
@@ -60,7 +65,7 @@ const handleCreateFolder = async () => {
     newFolderName.value = ''
     showCreateFolder.value = false
   } catch (error: any) {
-    alert(error.message || '创建文件夹失败')
+    alert(error.message || documentsData.value?.createFolderFailed || '创建文件夹失败')
   } finally {
     creatingFolder.value = false
   }
@@ -86,7 +91,7 @@ const formatDate = (timestamp: number) => {
   <div class="space-y-4">
     <div class="flex items-center justify-between gap-4">
       <h2 class="text-xl font-semibold">
-        文档列表
+        {{ documentsData?.documentList || '文档列表' }}
       </h2>
       <div class="flex gap-2">
         <UButton
@@ -95,32 +100,32 @@ const formatDate = (timestamp: number) => {
           size="sm"
           variant="soft"
         >
-          新建文档
+          {{ documentsData?.newDocument || '新建文档' }}
         </UButton>
         <UButton
           icon="i-lucide-folder-plus"
           size="sm"
           @click="showCreateFolder = true"
         >
-          新建文件夹
+          {{ documentsData?.newFolder || '新建文件夹' }}
         </UButton>
       </div>
     </div>
 
     <UModal
       v-model:open="showCreateFolder"
-      title="新建文件夹"
+      :title="documentsData?.newFolder || '新建文件夹'"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UFormField
-          label="文件夹名称"
+          :label="documentsData?.folderName || '文件夹名称'"
           name="folderName"
           required
         >
           <UInput
             v-model="newFolderName"
-            placeholder="请输入文件夹名称"
+            :placeholder="documentsData?.enterFolderName || '请输入文件夹名称'"
             @keyup.enter="handleCreateFolder"
           />
         </UFormField>
@@ -132,13 +137,13 @@ const formatDate = (timestamp: number) => {
           variant="ghost"
           @click="close"
         >
-          取消
+          {{ actionsData?.cancel || '取消' }}
         </UButton>
         <UButton
           :loading="creatingFolder"
           @click="handleCreateFolder"
         >
-          创建
+          {{ documentsData?.create || '创建' }}
         </UButton>
       </template>
     </UModal>
@@ -157,7 +162,7 @@ const formatDate = (timestamp: number) => {
       v-else-if="documents.length === 0"
       class="text-center py-12 text-gray-500"
     >
-      还没有文档，开始创建你的第一个文档吧！
+      {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
     </div>
 
     <div
@@ -198,7 +203,7 @@ const formatDate = (timestamp: number) => {
           </template>
 
           <div class="text-sm text-gray-500">
-            文件夹
+            {{ documentsData?.folder || '文件夹' }}
           </div>
         </UCard>
       </div>
@@ -222,7 +227,7 @@ const formatDate = (timestamp: number) => {
                   class="w-5 h-5 text-blue-500"
                 />
                 <h3 class="font-semibold text-lg truncate">
-                  {{ doc.title || '未命名文档' }}
+                  {{ doc.title || (documentsData?.untitledDocument || '未命名文档') }}
                 </h3>
               </div>
               <UButton
@@ -238,10 +243,10 @@ const formatDate = (timestamp: number) => {
 
           <div class="text-sm text-gray-500 space-y-1">
             <div>
-              创建时间：{{ formatDate(doc.created_at) }}
+              {{ documentsData?.createdAt || '创建时间' }}：{{ formatDate(doc.created_at) }}
             </div>
             <div>
-              更新时间：{{ formatDate(doc.updated_at) }}
+              {{ documentsData?.updatedAt || '更新时间' }}：{{ formatDate(doc.updated_at) }}
             </div>
           </div>
         </UCard>
