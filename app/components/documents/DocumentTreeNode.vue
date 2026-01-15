@@ -88,14 +88,14 @@ const handleCreateSubFolder = (event: Event) => {
           icon="i-lucide-folder-plus"
           size="xs"
           variant="ghost"
-          color="gray"
+          color="neutral"
           @click="handleCreateSubFolder"
         />
         <UButton
           icon="i-lucide-trash-2"
           size="xs"
           variant="ghost"
-          color="red"
+          color="error"
           :loading="deletingId === node.id"
           @click="handleDelete"
         />

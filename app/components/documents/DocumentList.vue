@@ -128,7 +128,7 @@ const formatDate = (timestamp: number) => {
 
       <template #footer="{ close }">
         <UButton
-          color="gray"
+          color="neutral"
           variant="ghost"
           @click="close"
         >
@@ -187,7 +187,7 @@ const formatDate = (timestamp: number) => {
                 </h3>
               </div>
               <UButton
-                color="red"
+                color="error"
                 variant="ghost"
                 icon="i-lucide-trash-2"
                 size="sm"
@@ -226,7 +226,7 @@ const formatDate = (timestamp: number) => {
                 </h3>
               </div>
               <UButton
-                color="red"
+                color="error"
                 variant="ghost"
                 icon="i-lucide-trash-2"
                 size="sm"

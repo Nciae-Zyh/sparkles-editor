@@ -114,7 +114,7 @@ const handleSave = async () => {
 
       <template #footer="{ close }">
         <UButton
-          color="gray"
+          color="neutral"
           variant="ghost"
           @click="close"
         >

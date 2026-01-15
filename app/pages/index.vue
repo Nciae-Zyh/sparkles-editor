@@ -88,7 +88,7 @@ onMounted(async () => {
             v-if="user"
             icon="i-lucide-log-out"
             variant="soft"
-            color="red"
+            color="error"
             size="sm"
             @click="async () => { await logout(); await router.push('/') }"
           >

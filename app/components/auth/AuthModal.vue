@@ -143,7 +143,7 @@ const switchMode = () => {
       <div class="space-y-4">
         <UAlert
           v-if="error"
-          color="red"
+          color="error"
           variant="soft"
           :title="error"
         />
@@ -209,7 +209,7 @@ const switchMode = () => {
         </div>
 
         <UButton
-          color="gray"
+          color="neutral"
           variant="outline"
           block
           icon="i-simple-icons-google"

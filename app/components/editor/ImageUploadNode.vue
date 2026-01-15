@@ -120,7 +120,7 @@ function cancelImage() {
 
       <template #footer="{ close }">
         <UButton
-          color="gray"
+          color="neutral"
           variant="ghost"
           :label="imageData?.cancel"
           @click="cancelImage"
