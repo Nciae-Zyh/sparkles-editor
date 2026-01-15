@@ -1,10 +1,14 @@
 <script lang="ts" setup>
-import { useAuth } from '~/composables/useAuth'
+definePageMeta({
+  layout: 'editor'
+})
+
 import { useDocuments } from '~/composables/useDocuments'
+import { useAuth } from '~/composables/useAuth'
 
 const route = useRoute()
 const router = useRouter()
-const { user, fetchUser } = useAuth()
+const { user } = useAuth()
 const { getDocument, loading } = useDocuments()
 
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
@@ -15,7 +19,6 @@ const content = ref('')
 const documentTitle = ref('')
 
 onMounted(async () => {
-  await fetchUser()
   if (!user.value) {
     router.push('/')
     return
@@ -48,32 +51,10 @@ onMounted(async () => {
     />
   </div>
 
-  <div v-else>
-    <AppHeader>
-      <template #default>
-        <UButton
-          to="/documents"
-          icon="i-lucide-arrow-left"
-          variant="soft"
-          size="sm"
-        >
-          {{ documentsData?.back || '返回' }}
-        </UButton>
-        <UButton
-          to="/"
-          icon="i-lucide-plus"
-          variant="soft"
-          size="sm"
-        >
-          {{ documentsData?.newDocument || '新建文档' }}
-        </UButton>
-      </template>
-    </AppHeader>
-
-    <MarkdownEditor
-      v-model="content"
-      :document-id="documentId"
-      :document-title="documentTitle"
-    />
-  </div>
+  <MarkdownEditor
+    v-else
+    v-model="content"
+    :document-id="documentId"
+    :document-title="documentTitle"
+  />
 </template>

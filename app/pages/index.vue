@@ -1,15 +1,11 @@
 <script lang="ts" setup>
-import { useAuth } from '~/composables/useAuth'
-import { generateDocumentId } from '~/utils/documentId'
+definePageMeta({
+  layout: 'default'
+})
 
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
-const appData = computed(() => $tm('app') as Record<string, string> | undefined)
-const { user, fetchUser, logout } = useAuth()
-const router = useRouter()
 const route = useRoute()
-
-const authModalOpen = ref(false)
-const authMode = ref<'login' | 'register'>('login')
+const router = useRouter()
 
 // Default content - only used when Y.js document is empty
 const defaultContent = computed(() => {
@@ -22,15 +18,16 @@ const isNewDocument = ref(false) // 首页默认是预览模式
 const allowSave = ref(false) // 是否允许保存
 const newDocumentId = ref<string | undefined>(undefined) // 新建文档时的唯一ID
 
-// 新建文档函数 - 进入可保存的新建模式，生成唯一ID
-const createNewDocument = () => {
-  content.value = ''
-  isNewDocument.value = true
-  allowSave.value = true // 允许保存
-  newDocumentId.value = generateDocumentId() // 生成唯一ID
-  // 如果已经在首页，不需要路由跳转
-  if (route.path !== '/') {
-    router.push('/')
+// 检查 URL 参数，判断是否是新文档
+const checkNewDocument = () => {
+  const newId = route.query.new as string | undefined
+  if (newId) {
+    content.value = ''
+    isNewDocument.value = true
+    allowSave.value = true
+    newDocumentId.value = newId
+    // 清除 URL 参数，但保持在同一页面
+    router.replace({ query: {} })
   }
 }
 
@@ -41,108 +38,31 @@ watch(editorData, () => {
   }
 }, { deep: true })
 
-onMounted(async () => {
+// 监听路由变化
+watch(() => route.query.new, () => {
+  checkNewDocument()
+})
+
+onMounted(() => {
   // 如果是新文档，保持空内容，不设置默认内容
   if (!content.value && !isNewDocument.value) {
     content.value = defaultContent.value
   }
-  await fetchUser()
+  checkNewDocument()
 })
 </script>
 
 <template>
-  <div>
-    <AppHeader>
-      <template #default>
-        <div class="flex items-center gap-2">
-          <UTooltip
-            v-if="user && (appData?.newDocument || '新建文档').length > 10"
-            :text="appData?.newDocument || '新建文档'"
-          >
-            <UButton
-              icon="i-lucide-file-plus"
-              variant="soft"
-              size="sm"
-              @click="createNewDocument"
-            />
-          </UTooltip>
-          <UButton
-            v-else-if="user"
-            icon="i-lucide-file-plus"
-            variant="soft"
-            size="sm"
-            @click="createNewDocument"
-          >
-            {{ appData?.newDocument || '新建文档' }}
-          </UButton>
-          <UTooltip
-            v-if="user && (appData?.myDocuments || '我的文档').length > 10"
-            :text="appData?.myDocuments || '我的文档'"
-          >
-            <UButton
-              :to="'/documents'"
-              icon="i-lucide-folder"
-              variant="soft"
-              size="sm"
-            />
-          </UTooltip>
-          <UButton
-            v-else-if="user"
-            :to="'/documents'"
-            icon="i-lucide-folder"
-            variant="soft"
-            size="sm"
-          >
-            {{ appData?.myDocuments || '我的文档' }}
-          </UButton>
-          <UButton
-            v-if="user"
-            :to="'/documents'"
-            icon="i-lucide-user"
-            variant="soft"
-            size="sm"
-          >
-            {{ user.name || user.email }}
-          </UButton>
-          <UButton
-            v-if="!user"
-            icon="i-lucide-log-in"
-            variant="soft"
-            size="sm"
-            @click="() => { authMode = 'login'; authModalOpen = true }"
-          >
-            {{ appData?.login || '登录' }}
-          </UButton>
-          <UButton
-            v-if="user"
-            icon="i-lucide-log-out"
-            variant="soft"
-            color="error"
-            size="sm"
-            @click="async () => { await logout(); await router.push('/') }"
-          >
-            {{ appData?.logout || '退出' }}
-          </UButton>
-        </div>
-      </template>
-    </AppHeader>
-
-    <MarkdownEditor
-      v-model="content"
-      :enable-before-unload="false"
-      :readonly="!allowSave"
-      :allow-save="allowSave"
-      :document-id="newDocumentId"
-      @document-saved="(id) => {
-        isNewDocument = false
-        allowSave.value = false // 保存后恢复预览模式
-        newDocumentId.value = undefined // 清除临时ID
-      }"
-    />
-
-    <AuthModal
-      v-model:open="authModalOpen"
-      :mode="authMode"
-    />
-  </div>
+  <MarkdownEditor
+    v-model="content"
+    :enable-before-unload="false"
+    :readonly="!allowSave"
+    :allow-save="allowSave"
+    :document-id="newDocumentId"
+    @document-saved="(id) => {
+      isNewDocument = false
+      allowSave.value = false // 保存后恢复预览模式
+      newDocumentId.value = undefined // 清除临时ID
+    }"
+  />
 </template>
