@@ -32,7 +32,7 @@ onMounted(async () => {
 <template>
   <div>
     <AppHeader>
-      <template #right>
+      <template #default>
         <div class="flex items-center gap-2">
           <UButton
             v-if="user"
