@@ -9,7 +9,7 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const { user } = useAuth()
+const { user, fetchUser, loading: authLoading } = useAuth()
 const { getDocument, loading } = useDocuments()
 const safeLocalePath = useSafeLocalePath()
 
@@ -21,7 +21,10 @@ const content = ref('')
 const documentTitle = ref('')
 
 onMounted(async () => {
-  await nextTick()
+  // 等待用户认证加载完成
+  await fetchUser()
+  
+  // 如果用户未登录，跳转到首页
   if (!user.value) {
     router.push(safeLocalePath('/'))
     return

@@ -39,6 +39,8 @@ const {user} = useAuth()
 const {saveDocument, getDocument} = useDocuments()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
+// 保存原始文档标题，用于自动保存（避免标题被覆盖）
+const originalDocumentTitle = ref<string | null>(null)
 // 使用props.documentId作为初始值，如果提供了就使用（可能是新建时的临时ID）
 const documentId = ref(props.documentId)
 // 标记文档是否已经保存到服务器（用于控制自动保存）
@@ -48,23 +50,41 @@ const hasBeenSaved = ref(false)
 const checkDocumentExists = async (id: string) => {
   if (!id) {
     hasBeenSaved.value = false
+    originalDocumentTitle.value = null
     return
   }
 
   try {
-    await getDocument(id)
+    const doc = await getDocument(id)
     // 如果获取成功，说明文档已存在，允许自动保存
     hasBeenSaved.value = true
+    // 保存原始标题，用于自动保存
+    if (doc.title) {
+      originalDocumentTitle.value = doc.title
+    }
   } catch (error: any) {
     // 如果获取失败（404），说明是新文档，还未保存
     if (error?.statusCode === 404 || error?.status === 404) {
       hasBeenSaved.value = false
+      originalDocumentTitle.value = null
     } else {
       // 其他错误，保守处理，不允许自动保存
       hasBeenSaved.value = false
+      originalDocumentTitle.value = null
     }
   }
 }
+
+// 监听props.documentTitle的变化，更新原始标题
+watch(() => props.documentTitle, (newTitle) => {
+  if (newTitle) {
+    documentTitle.value = newTitle
+    // 如果原始标题还未设置，或者这是从服务器加载的标题，更新原始标题
+    if (!originalDocumentTitle.value || hasBeenSaved.value) {
+      originalDocumentTitle.value = newTitle
+    }
+  }
+}, { immediate: true })
 
 // 监听props.documentId的变化（例如从首页传入的新建文档ID）
 watch(() => props.documentId, async (newId) => {
@@ -79,6 +99,10 @@ watch(() => props.documentId, async (newId) => {
 onMounted(async () => {
   if (props.documentId) {
     await checkDocumentExists(props.documentId)
+  }
+  // 如果通过 props 传入了标题，设置为原始标题
+  if (props.documentTitle && !originalDocumentTitle.value) {
+    originalDocumentTitle.value = props.documentTitle
   }
 })
 
@@ -162,7 +186,9 @@ watch([
   autoSaveTimer.value = setTimeout(async () => {
     try {
       isAutoSaving.value = true
-      await saveDocument(documentTitle.value, content.value, documentId.value)
+      // 自动保存时使用原始标题，避免标题被覆盖
+      const titleToSave = originalDocumentTitle.value || documentTitle.value
+      await saveDocument(titleToSave, content.value, documentId.value)
       lastSavedAt.value = new Date()
     } catch (error) {
       // 自动保存失败不显示错误提示，避免打扰用户
@@ -453,6 +479,8 @@ defineExpose({
                 @saved="(id) => {
                   documentId = id
                   hasBeenSaved = true // 标记文档已保存，允许自动保存
+                  // 保存当前标题作为原始标题，用于后续自动保存
+                  originalDocumentTitle.value = documentTitle.value
                   $emit('document-saved', id)
                 }"
               />
