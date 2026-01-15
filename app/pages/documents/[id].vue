@@ -36,7 +36,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div v-if="loading && !document" class="flex justify-center items-center min-h-screen">
+  <div
+    v-if="loading && !document"
+    class="flex justify-center items-center min-h-screen"
+  >
     <UIcon
       name="i-lucide-loader-2"
       class="w-8 h-8 animate-spin"

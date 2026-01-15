@@ -21,13 +21,13 @@ const loading = ref(false)
 
 const selectedValue = computed({
   get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  set: value => emit('update:modelValue', value)
 })
 
 // 构建文件夹树形结构用于显示
-const buildFolderTree = (folders: Document[]): Array<Document & { level: number; displayName: string }> => {
-  const result: Array<Document & { level: number; displayName: string }> = []
-  
+const buildFolderTree = (folders: Document[]): Array<Document & { level: number, displayName: string }> => {
+  const result: Array<Document & { level: number, displayName: string }> = []
+
   // 添加根目录选项
   result.push({
     id: '',
@@ -41,10 +41,10 @@ const buildFolderTree = (folders: Document[]): Array<Document & { level: number;
     level: 0,
     displayName: '根目录'
   } as any)
-  
+
   // 按路径排序，构建层级显示
   const sortedFolders = [...folders].sort((a, b) => a.path.localeCompare(b.path))
-  
+
   for (const folder of sortedFolders) {
     const pathParts = folder.path.split('/').filter(Boolean)
     const indent = '  '.repeat(pathParts.length - 1)
@@ -54,7 +54,7 @@ const buildFolderTree = (folders: Document[]): Array<Document & { level: number;
       displayName: `${indent}${folder.title}`
     } as any)
   }
-  
+
   return result
 }
 

@@ -21,7 +21,7 @@ export const useAuth = () => {
   const login = async (email: string, password: string) => {
     try {
       loading.value = true
-      const data = await $fetch<{ success: boolean; user: User }>('/api/auth/login', {
+      const data = await $fetch<{ success: boolean, user: User }>('/api/auth/login', {
         method: 'POST',
         body: { email, password }
       })
@@ -38,7 +38,7 @@ export const useAuth = () => {
   const register = async (email: string, password: string, name?: string) => {
     try {
       loading.value = true
-      const data = await $fetch<{ success: boolean; user: User }>('/api/auth/register', {
+      const data = await $fetch<{ success: boolean, user: User }>('/api/auth/register', {
         method: 'POST',
         body: { email, password, name }
       })
@@ -57,7 +57,7 @@ export const useAuth = () => {
 
       // 提取详细错误信息
       let errorMessage = 'Registration failed'
-      
+
       if (error.data?.message) {
         errorMessage = error.data.message
       } else if (error.message) {
@@ -85,7 +85,7 @@ export const useAuth = () => {
       loading.value = true
       // 获取当前页面的 origin 作为 redirect_uri
       const redirectUri = typeof window !== 'undefined' ? window.location.origin : ''
-      const data = await $fetch<{ success: boolean; user: User }>('/api/auth/google/code', {
+      const data = await $fetch<{ success: boolean, user: User }>('/api/auth/google/code', {
         method: 'POST',
         body: { code, redirectUri }
       })

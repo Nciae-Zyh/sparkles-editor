@@ -8,7 +8,7 @@ export function getDB(event: any) {
 export async function initDB(db: D1Database) {
   try {
     console.log('[initDB] Starting database initialization')
-    
+
     // 创建用户表 - 使用 prepare().run() 而不是 exec()
     try {
       await db.prepare(`
@@ -48,7 +48,7 @@ export async function initDB(db: D1Database) {
         )
       `).run()
       console.log('[initDB] Documents table created/verified')
-      
+
       // 迁移现有数据：为旧数据添加默认路径和类型
       try {
         await db.prepare(`

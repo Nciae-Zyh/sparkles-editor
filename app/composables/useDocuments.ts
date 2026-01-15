@@ -32,7 +32,7 @@ export const useDocuments = () => {
   const createFolder = async (title: string, parentId?: string) => {
     try {
       loading.value = true
-      const data = await $fetch<{ success: boolean; folder: Document }>('/api/folders', {
+      const data = await $fetch<{ success: boolean, folder: Document }>('/api/folders', {
         method: 'POST',
         body: { title, parentId }
       })
@@ -62,7 +62,7 @@ export const useDocuments = () => {
     try {
       loading.value = true
       if (documentId) {
-        const data = await $fetch<{ success: boolean; document: Document }>(`/api/documents/${documentId}`, {
+        const data = await $fetch<{ success: boolean, document: Document }>(`/api/documents/${documentId}`, {
           method: 'PUT',
           body: { title, content, parentId }
         })
@@ -73,7 +73,7 @@ export const useDocuments = () => {
         }
         return data.document
       } else {
-        const data = await $fetch<{ success: boolean; document: Document }>('/api/documents', {
+        const data = await $fetch<{ success: boolean, document: Document }>('/api/documents', {
           method: 'POST',
           body: { title, content, parentId, type: 'document' }
         })

@@ -33,7 +33,7 @@ const handleDelete = async (id: string, event: Event) => {
   event.stopPropagation()
   const item = documents.value.find(d => d.id === id)
   const itemType = item?.type === 'folder' ? '文件夹' : '文档'
-  
+
   if (!confirm(`确定要删除这个${itemType}吗？${item?.type === 'folder' ? '文件夹内的所有内容也会被删除。' : ''}`)) {
     return
   }

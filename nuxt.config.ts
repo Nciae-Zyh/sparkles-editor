@@ -34,6 +34,16 @@ export default defineNuxtConfig({
     }
   },
 
+  runtimeConfig: {
+    googleClientId: '463658926746-1nb91dmr6eouqq2h7gvvgcmvpmdn53fk.apps.googleusercontent.com',
+    googleClientSecret: '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',
+    sessionSecret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
+    public: {
+      googleClientId: '463658926746-1nb91dmr6eouqq2h7gvvgcmvpmdn53fk.apps.googleusercontent.com',
+      siteUrl: process.env.SITE_URL || 'http://localhost:3000'
+    }
+  },
+
   compatibilityDate: '2025-07-15',
 
   nitro: {
@@ -115,6 +125,10 @@ export default defineNuxtConfig({
     }
   },
 
+  googleSignIn: {
+    clientId: '463658926746-1nb91dmr6eouqq2h7gvvgcmvpmdn53fk.apps.googleusercontent.com'
+  },
+
   i18n: {
     defaultLocale: 'en',
     locales: [
@@ -130,19 +144,5 @@ export default defineNuxtConfig({
       }
     ],
     detectBrowserLanguage: false
-  },
-
-  googleSignIn: {
-    clientId: '463658926746-1nb91dmr6eouqq2h7gvvgcmvpmdn53fk.apps.googleusercontent.com'
-  },
-
-  runtimeConfig: {
-    googleClientId: '463658926746-1nb91dmr6eouqq2h7gvvgcmvpmdn53fk.apps.googleusercontent.com',
-    googleClientSecret: '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',
-    sessionSecret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
-    public: {
-      googleClientId: '463658926746-1nb91dmr6eouqq2h7gvvgcmvpmdn53fk.apps.googleusercontent.com',
-      siteUrl: process.env.SITE_URL || 'http://localhost:3000'
-    }
   }
 })

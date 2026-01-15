@@ -22,7 +22,7 @@ const { login, register, loginWithGoogleCode, loading } = useAuth()
 
 const isOpen = computed({
   get: () => props.open,
-  set: (value) => emit('update:open', value)
+  set: value => emit('update:open', value)
 })
 
 const currentMode = ref(props.mode)

@@ -112,17 +112,17 @@ const content = defineModel<string>()
 // 从内容中提取标题（取第一行作为标题）
 const extractTitleFromContent = (content: string): string => {
   if (!content) return '未命名文档'
-  
+
   const lines = content.trim().split('\n')
   const firstLine = lines[0]?.trim() || ''
-  
+
   // 移除 Markdown 标题标记
   const title = firstLine
     .replace(/^#+\s*/, '') // 移除 # 标记
     .replace(/\*\*/g, '') // 移除粗体标记
     .replace(/\*/g, '') // 移除斜体标记
     .trim()
-  
+
   return title || '未命名文档'
 }
 
@@ -139,23 +139,23 @@ const autoSave = async () => {
 
   try {
     isAutoSaving.value = true
-    
+
     // 从内容中提取标题，如果没有则使用默认标题
     const title = extractTitleFromContent(content.value) || documentTitle.value || '未命名文档'
-    
+
     // 更新 documentTitle
     if (title !== documentTitle.value) {
       documentTitle.value = title
     }
-    
+
     const document = await saveDocument(title, content.value, documentId.value, selectedParentId.value)
-    
+
     // 更新 documentId，这样后续编辑会变成更新而不是新建
     if (document.id && !documentId.value) {
       documentId.value = document.id
       emit('document-saved', document.id)
     }
-    
+
     lastSavedAt.value = new Date()
     console.log('[AutoSave] Document saved:', document.id || 'new', 'Title:', title)
   } catch (error: any) {
@@ -366,14 +366,14 @@ defineExpose({
                 variant="soft"
                 @click="handleDownload"
               />
-          <SaveDocumentButton
-            v-if="user"
-            :title="documentTitle"
-            :content="content || ''"
-            :document-id="documentId"
-            :default-parent-id="selectedParentId"
-            @saved="(id) => { documentId = id; $emit('document-saved', id) }"
-          />
+              <DocumentsSaveDocumentButton
+                v-if="user"
+                :title="documentTitle"
+                :content="content || ''"
+                :document-id="documentId"
+                :default-parent-id="selectedParentId"
+                @saved="(id) => { documentId = id; $emit('document-saved', id) }"
+              />
               <div
                 v-if="user && isAutoSaving"
                 class="flex items-center gap-1 text-xs text-gray-500"
