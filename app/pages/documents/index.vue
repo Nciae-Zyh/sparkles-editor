@@ -1,9 +1,9 @@
 <script lang="ts" setup>
+import { useSafeLocalePath } from '~/utils/safeLocalePath'
+
 definePageMeta({
   layout: 'documents'
 })
-
-import { useSafeLocalePath } from '~/utils/safeLocalePath'
 
 const router = useRouter()
 const route = useRoute()

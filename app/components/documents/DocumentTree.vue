@@ -121,7 +121,7 @@ const handleCreateFolder = async () => {
 // 处理下载文档
 const handleDownload = async (id: string, event: Event) => {
   event.stopPropagation()
-  
+
   try {
     downloadingId.value = id
     // 获取文档内容
@@ -132,7 +132,7 @@ const handleDownload = async (id: string, event: Event) => {
     }
 
     // 生成文件名（使用文档标题，如果没有则使用 ID）
-    const filename = document.title 
+    const filename = document.title
       ? `${document.title.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '-')}.zip`
       : `document-${id}.zip`
 

@@ -23,7 +23,7 @@ onMounted(async () => {
     <AppHeader>
       <template #default>
         <UButton
-          :to="currentFolderId ? `${safeLocalePath('/')}?folder=${currentFolderId}` : safeLocalePath('/')"
+          :to="currentFolderId ? `${safeLocalePath('/')}?folder=${currentFolderId}&function=create` : `${safeLocalePath('/')}?function=create`"
           icon="i-lucide-plus"
           variant="soft"
           size="sm"

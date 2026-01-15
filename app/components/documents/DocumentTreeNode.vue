@@ -17,12 +17,12 @@ interface Props {
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  toggle: [folderId: string]
-  click: [node: DocumentTreeNode]
-  delete: [id: string, event: Event]
+  'toggle': [folderId: string]
+  'click': [node: DocumentTreeNode]
+  'delete': [id: string, event: Event]
   'create-sub-folder': [folderId: string, event: Event]
-  download: [id: string, event: Event]
-  rename: [id: string, newTitle: string]
+  'download': [id: string, event: Event]
+  'rename': [id: string, newTitle: string]
   'start-rename': [id: string]
   'cancel-rename': []
 }>()

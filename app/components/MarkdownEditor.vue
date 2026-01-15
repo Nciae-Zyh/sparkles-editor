@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import type {EditorCustomHandlers} from '@nuxt/ui'
-import type {Editor} from '@tiptap/core'
-import {Emoji} from '@tiptap/extension-emoji'
-import {TaskItem, TaskList} from '@tiptap/extension-list'
-import {TableKit} from '@tiptap/extension-table'
-import {CellSelection} from 'prosemirror-tables'
-import {CodeBlockShiki} from 'tiptap-extension-code-block-shiki'
-import {ImageUpload} from '~/components/editor/ImageUploadExtension'
-import {useAuth} from '~/composables/useAuth'
-import {useDocuments} from '~/composables/useDocuments'
+import type { EditorCustomHandlers } from '@nuxt/ui'
+import type { Editor } from '@tiptap/core'
+import { Emoji } from '@tiptap/extension-emoji'
+import { TaskItem, TaskList } from '@tiptap/extension-list'
+import { TableKit } from '@tiptap/extension-table'
+import { CellSelection } from 'prosemirror-tables'
+import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
+import { ImageUpload } from '~/components/editor/ImageUploadExtension'
+import { useAuth } from '~/composables/useAuth'
+import { useDocuments } from '~/composables/useDocuments'
 
 interface Props {
   placeholder?: string
@@ -44,8 +44,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const content = defineModel<string>()
 
-const {user} = useAuth()
-const {saveDocument, getDocument} = useDocuments()
+const { user } = useAuth()
+const { saveDocument, getDocument } = useDocuments()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
 // 保存原始文档标题，用于自动保存（沿用用户设置的标题，不从内容提取）
@@ -104,7 +104,7 @@ watch(() => props.documentId, async (newId) => {
     // 检查文档是否已存在于服务器
     await checkDocumentExists(newId)
   }
-}, {immediate: true})
+}, { immediate: true })
 
 // 组件挂载时，如果已有 documentId，也检查一次
 onMounted(async () => {
@@ -213,8 +213,8 @@ watch([
 // Custom handlers for editor
 const customHandlers = {
   imageUpload: {
-    canExecute: (editor: Editor) => editor.can().insertContent({type: 'imageUpload'}),
-    execute: (editor: Editor) => editor.chain().focus().insertContent({type: 'imageUpload'}),
+    canExecute: (editor: Editor) => editor.can().insertContent({ type: 'imageUpload' }),
+    execute: (editor: Editor) => editor.chain().focus().insertContent({ type: 'imageUpload' }),
     isActive: (editor: Editor) => editor.isActive('imageUpload'),
     isDisabled: undefined
   },
@@ -234,8 +234,8 @@ const customHandlers = {
   }
 } satisfies EditorCustomHandlers
 
-const {items: emojiItems} = useEditorEmojis()
-const {items: suggestionItems} = useEditorSuggestions(customHandlers)
+const { items: emojiItems } = useEditorEmojis()
+const { items: suggestionItems } = useEditorSuggestions(customHandlers)
 const {
   getItems: getDragHandleItems,
   onNodeChange
@@ -260,7 +260,7 @@ onUnmounted(() => {
 
 // 移除了监听语言变化的逻辑，因为多语言不会在页面内切换
 
-function onCreate({editor: _editor}: { editor: Editor }) {
+function onCreate({ editor: _editor}: { editor: Editor }) {
   // Editor created
   // 如果是只读模式，禁用编辑器编辑
   if (props.readonly) {
@@ -303,7 +303,7 @@ function importMarkdown(markdown: string) {
     return
   }
 
-  editor.commands.setContent(markdown, {contentType: 'markdown'})
+  editor.commands.setContent(markdown, { contentType: 'markdown' })
   content.value = markdown
 }
 
@@ -407,7 +407,8 @@ defineExpose({
       @update:model-value="onUpdate"
     >
       <div
-        class="sticky top-(--ui-header-height) z-50 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm">
+        class="sticky top-(--ui-header-height) z-50 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm"
+      >
         <div class="container mx-auto px-4 sm:px-6 lg:px-14">
           <div class="flex items-center justify-between gap-4 py-3">
             <div class="flex items-center gap-4 flex-1 min-w-0">
@@ -582,7 +583,7 @@ defineExpose({
         layout="bubble"
       >
         <template #link>
-          <EditorLinkPopover :editor="editor"/>
+          <EditorLinkPopover :editor="editor" />
         </template>
       </UEditorToolbar>
 
@@ -596,7 +597,7 @@ defineExpose({
         layout="bubble"
       >
         <template #imageAlt>
-          <EditorImageAltPopover :editor="editor"/>
+          <EditorImageAltPopover :editor="editor" />
         </template>
       </UEditorToolbar>
 

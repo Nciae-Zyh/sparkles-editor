@@ -16,9 +16,15 @@ const createNewDocument = () => {
   const homePath = safeLocalePath('/')
   // 如果已经在首页，使用 replace 避免历史记录堆积
   if (route.path === homePath || route.path === '/') {
-    router.replace({ path: homePath, query: { function: 'create' } })
+    navigateTo({
+      path: homePath,
+      query: { function: 'create' }
+    })
   } else {
-    router.push({ path: homePath, query: { function: 'create' } })
+    navigateTo({
+      path: homePath,
+      query: { function: 'create' }
+    })
   }
 }
 
@@ -62,43 +68,43 @@ onMounted(async () => {
             size="sm"
           />
         </UTooltip>
-          <UButton
-            v-else-if="user"
-            :to="safeLocalePath('/documents')"
-            icon="i-lucide-folder"
-            variant="soft"
-            size="sm"
-          >
-            {{ appData?.myDocuments || '我的文档' }}
-          </UButton>
-          <UButton
-            v-if="user"
-            :to="safeLocalePath('/documents')"
-            icon="i-lucide-user"
-            variant="soft"
-            size="sm"
-          >
-            {{ user.name || user.email }}
-          </UButton>
-          <UButton
-            v-if="!user"
-            icon="i-lucide-log-in"
-            variant="soft"
-            size="sm"
-            @click="() => { authMode = 'login'; authModalOpen = true }"
-          >
-            {{ appData?.login || '登录' }}
-          </UButton>
-          <UButton
-            v-if="user"
-            icon="i-lucide-log-out"
-            variant="soft"
-            color="error"
-            size="sm"
-            @click="async () => { await logout(); await router.push(safeLocalePath('/')) }"
-          >
-            {{ appData?.logout || '退出' }}
-          </UButton>
+        <UButton
+          v-else-if="user"
+          :to="safeLocalePath('/documents')"
+          icon="i-lucide-folder"
+          variant="soft"
+          size="sm"
+        >
+          {{ appData?.myDocuments || '我的文档' }}
+        </UButton>
+        <UButton
+          v-if="user"
+          :to="safeLocalePath('/documents')"
+          icon="i-lucide-user"
+          variant="soft"
+          size="sm"
+        >
+          {{ user.name || user.email }}
+        </UButton>
+        <UButton
+          v-if="!user"
+          icon="i-lucide-log-in"
+          variant="soft"
+          size="sm"
+          @click="() => { authMode = 'login'; authModalOpen = true }"
+        >
+          {{ appData?.login || '登录' }}
+        </UButton>
+        <UButton
+          v-if="user"
+          icon="i-lucide-log-out"
+          variant="soft"
+          color="error"
+          size="sm"
+          @click="async () => { await logout(); await router.push(safeLocalePath('/')) }"
+        >
+          {{ appData?.logout || '退出' }}
+        </UButton>
       </div>
     </AppHeader>
 

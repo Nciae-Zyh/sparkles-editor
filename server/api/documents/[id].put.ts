@@ -102,7 +102,7 @@ export default eventHandler(async (event) => {
       console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤6: 解析新存储路径`)
       const { folderPath, fileName } = parseFilePath(title.trim())
       const finalTitle = fileName || title.trim()
-      
+
       console.log(`[PUT /api/documents/[id]] [${requestId}] 路径解析结果:`, {
         originalPath: title,
         folderPath,
@@ -248,10 +248,12 @@ export default eventHandler(async (event) => {
     console.log(`[PUT /api/documents/[id]] [${requestId}] 请求处理成功，耗时: ${duration}ms`)
 
     // 如果标题更新了，使用解析后的文件名；否则保持原标题
-    const finalTitle = title !== undefined ? (() => {
-      const { fileName } = parseFilePath(title.trim())
-      return fileName || title.trim()
-    })() : existing.title
+    const finalTitle = title !== undefined
+      ? (() => {
+          const { fileName } = parseFilePath(title.trim())
+          return fileName || title.trim()
+        })()
+      : existing.title
 
     return {
       success: true,

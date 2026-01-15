@@ -116,7 +116,7 @@ export default eventHandler(async (event) => {
     // 6. 生成或使用客户端提供的文档ID和路径
     console.log(`[POST /api/documents] [${requestId}] 步骤6: 生成或使用文档ID和路径`)
     let documentId: string
-    
+
     // 如果客户端提供了ID，验证它是否已存在
     if (clientDocumentId) {
       console.log(`[POST /api/documents] [${requestId}] 客户端提供了文档ID: ${clientDocumentId}`)
@@ -124,7 +124,7 @@ export default eventHandler(async (event) => {
       const existing = await db.prepare('SELECT id FROM documents WHERE id = ? AND user_id = ?')
         .bind(clientDocumentId, user.id)
         .first()
-      
+
       if (existing) {
         console.log(`[POST /api/documents] [${requestId}] 文档ID已存在，将使用PUT更新而不是创建`)
         // 如果已存在，应该使用PUT更新，但这里为了兼容性，我们生成新ID
@@ -134,7 +134,7 @@ export default eventHandler(async (event) => {
           message: 'Document with this ID already exists. Use PUT to update instead.'
         })
       }
-      
+
       // 验证ID格式（32位十六进制字符串）
       if (!/^[0-9a-f]{32}$/.test(clientDocumentId)) {
         console.error(`[POST /api/documents] [${requestId}] 客户端提供的ID格式无效: ${clientDocumentId}`)
@@ -143,14 +143,14 @@ export default eventHandler(async (event) => {
           message: 'Invalid document ID format'
         })
       }
-      
+
       documentId = clientDocumentId
       console.log(`[POST /api/documents] [${requestId}] 使用客户端提供的文档ID: ${documentId}`)
     } else {
       documentId = generateDocumentId()
       console.log(`[POST /api/documents] [${requestId}] 生成新的文档ID: ${documentId}`)
     }
-    
+
     const now = Math.floor(Date.now() / 1000)
     const path = parentPath === '/' ? `/${documentId}` : `${parentPath}/${documentId}`
     console.log(`[POST /api/documents] [${requestId}] 文档ID确定: documentId=${documentId}, path=${path}`)

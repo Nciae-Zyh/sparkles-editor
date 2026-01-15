@@ -26,9 +26,9 @@ export const useSafeLocalePath = () => {
 
     // 检查当前语言的路由是否存在
     try {
-      if(currentLocalePath.length){
+      if (currentLocalePath.length) {
         return currentLocalePath
-      }else {
+      } else {
         return fallbackPath
       }
     } catch (e) {
