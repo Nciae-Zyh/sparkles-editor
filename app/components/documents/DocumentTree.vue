@@ -26,7 +26,6 @@ const showCreateFolder = ref(false)
 const newFolderName = ref('')
 const creatingFolder = ref(false)
 const selectedParentId = ref<string | null>(null)
-const { renameDocument } = useDocuments()
 
 // 加载文档树
 const loadTree = async () => {
