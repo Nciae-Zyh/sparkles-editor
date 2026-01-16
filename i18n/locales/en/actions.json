@@ -18,6 +18,7 @@
     "invalidRequest": "Invalid request parameters",
     "downloadDocument": "Download Document",
     "downloadFailed": "Download failed, please try again later",
-    "documentEmpty": "Document content is empty"
+    "documentEmpty": "Document content is empty",
+    "pleaseSaveFirst": "Please save the document first"
   }
 }

@@ -17,6 +17,8 @@ const emit = defineEmits<{
 }>()
 
 const safeLocalePath = useSafeLocalePath()
+const sharesData = computed(() => $tm('shares') as Record<string, string> | undefined)
+const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
 
 // 使用 defineModel 实现双向绑定
 const open = defineModel<boolean>('open', { default: false })
@@ -100,7 +102,7 @@ const createShare = async (event: FormSubmitEvent<FormSchema>) => {
       shareUrl.value = `${window.location.origin}${safeLocalePath(`/share/${response.share.id}`)}`
     }
   } catch (err: any) {
-    error.value = err.data?.message || '创建分享失败，请稍后重试'
+    error.value = err.data?.message || sharesData.value?.createShareFailed || '创建分享失败，请稍后重试'
   } finally {
     loading.value = false
   }
@@ -109,9 +111,9 @@ const createShare = async (event: FormSubmitEvent<FormSchema>) => {
 // 复制分享链接
 const copyShareLink = () => {
   navigator.clipboard.writeText(shareUrl.value).then(() => {
-    alert('分享链接已复制到剪贴板')
+    alert(sharesData.value?.shareLinkCopied || '分享链接已复制到剪贴板')
   }).catch(() => {
-    alert('复制失败，请手动复制')
+    alert(sharesData.value?.copyFailed || '复制失败，请手动复制')
   })
 }
 
@@ -138,7 +140,7 @@ watch(() => props.documentId, () => {
 <template>
   <UModal
     v-model:open="open"
-    title="分享文档"
+    :title="sharesData?.shareDocument || '分享文档'"
     :ui="{ footer: 'justify-end' }"
   >
     <template #body>
@@ -156,7 +158,7 @@ watch(() => props.documentId, () => {
         >
           <div class="bg-green-50 border border-green-200 rounded-lg p-4">
             <p class="text-sm text-green-800 mb-2">
-              ✓ 分享链接已创建
+              ✓ {{ sharesData?.shareLinkCreated || '分享链接已创建' }}
             </p>
             <div class="flex items-center gap-2 bg-white rounded px-3 py-2">
               <input
@@ -168,7 +170,7 @@ watch(() => props.documentId, () => {
                 @click="copyShareLink"
                 class="text-blue-600 hover:text-blue-700 text-sm font-medium"
               >
-                复制
+                {{ sharesData?.copy || '复制' }}
               </button>
             </div>
           </div>
@@ -192,23 +194,23 @@ watch(() => props.documentId, () => {
           />
 
           <UFormField
-            label="访问密码（可选）"
+            :label="sharesData?.accessPassword || '访问密码（可选）'"
             name="password"
           >
             <UInput
               v-model="state.password"
               type="password"
-              placeholder="留空则无需密码"
+              :placeholder="sharesData?.passwordPlaceholder || '留空则无需密码'"
             />
             <template #description>
               <p class="text-xs text-gray-500">
-                设置密码后，访问者需要输入密码才能查看文档
+                {{ sharesData?.passwordDescription || '设置密码后，访问者需要输入密码才能查看文档' }}
               </p>
             </template>
           </UFormField>
 
           <UFormField
-            label="过期时间（可选）"
+            :label="sharesData?.expiresAt || '过期时间（可选）'"
             name="expiresAt"
           >
             <UInputDate
@@ -217,7 +219,7 @@ watch(() => props.documentId, () => {
             />
             <template #description>
               <p class="text-xs text-gray-500">
-                设置过期时间后，链接将在指定时间后失效
+                {{ sharesData?.expiresAtDescription || '设置过期时间后，链接将在指定时间后失效' }}
               </p>
             </template>
           </UFormField>
@@ -228,7 +230,7 @@ watch(() => props.documentId, () => {
             :loading="loading"
             class="mt-4"
           >
-            创建分享链接
+            {{ sharesData?.createShareLink || '创建分享链接' }}
           </UButton>
         </UForm>
       </div>
@@ -240,7 +242,7 @@ watch(() => props.documentId, () => {
           variant="soft"
           @click="closeModal"
         >
-          取消
+          {{ actionsData?.cancel || sharesData?.cancel || '取消' }}
         </UButton>
       </template>
       <template v-else>
@@ -248,12 +250,12 @@ watch(() => props.documentId, () => {
           variant="soft"
           @click="reset"
         >
-          创建新链接
+          {{ sharesData?.createNewLink || '创建新链接' }}
         </UButton>
         <UButton
           @click="closeModal"
         >
-          完成
+          {{ sharesData?.done || '完成' }}
         </UButton>
       </template>
     </template>

@@ -52,6 +52,16 @@
     "titleCannotContainPath": "标题不能包含路径分隔符（/ 或 \\）",
     "pleaseEnterTitle": "请输入名称",
     "name": "名称",
-    "save": "保存"
+    "save": "保存",
+    "fixPaths": "修复路径",
+    "fixPathsConfirm": "确定要修复所有文档路径吗？这将重新计算所有文档和文件夹的路径，确保路径与文件夹结构一致。",
+    "fixPathsSuccess": "路径修复完成！修复了 {fixed} 个项目，{errors} 个错误。",
+    "fixPathsFailed": "修复路径失败，请稍后重试",
+    "moveFailed": "移动失败，请稍后重试",
+    "moveToRootFailed": "移动到根目录失败，请稍后重试",
+    "cannotMoveToSelf": "不能将项目移动到自己的位置",
+    "cannotMoveIntoSubfolder": "不能将文件夹移动到自己的子文件夹中",
+    "loadFolderFailed": "加载文件夹内容失败，请稍后重试",
+    "renameFailedRetry": "重命名失败，请稍后重试"
   }
 }

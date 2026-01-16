@@ -110,7 +110,7 @@ const loadFolderChildren = async (folderId: string, item: ExtendedTreeItem, forc
     item._loaded = true
   } catch (error) {
     console.error('Failed to load folder children:', error)
-    alert('加载文件夹内容失败，请稍后重试')
+    alert(documentsData.value?.loadFolderFailed || '加载文件夹内容失败，请稍后重试')
     // 加载失败时，保持为空数组，这样用户仍然可以看到文件夹是可展开的
     item.children = []
     item._loaded = true
@@ -350,7 +350,7 @@ const handleRename = async () => {
     }
   } catch (error: any) {
     console.error('重命名失败:', error)
-    alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+    alert(error.message || documentsData.value?.renameFailedRetry || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
   } finally {
     renamingLoadingId.value = null
   }
@@ -541,7 +541,7 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
   // 防止将文件夹移动到自己的子文件夹中
   if (draggedItemId.value) {
     if (draggedItemId.value === targetItem.id) {
-      alert('不能将项目移动到自己的位置')
+      alert(documentsData.value?.cannotMoveToSelf || '不能将项目移动到自己的位置')
       dragOverItemId.value = null
       dragOverPosition.value = null
       draggedItemId.value = null
@@ -549,7 +549,7 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
     }
 
     if (targetItem.type === 'folder' && isDescendant(draggedItemId.value, targetItem.id)) {
-      alert('不能将文件夹移动到自己的子文件夹中')
+      alert(documentsData.value?.cannotMoveIntoSubfolder || '不能将文件夹移动到自己的子文件夹中')
       dragOverItemId.value = null
       dragOverPosition.value = null
       draggedItemId.value = null
@@ -644,7 +644,7 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
     await refreshExpandedFolders()
   } catch (error: any) {
     console.error('移动失败:', error)
-    alert(error.message || '移动失败，请稍后重试')
+    alert(error.message || documentsData.value?.moveFailed || '移动失败，请稍后重试')
   } finally {
     movingDocument.value = false
     dragOverItemId.value = null
@@ -725,7 +725,7 @@ const handleRootDrop = async (event: DragEvent) => {
     await refreshExpandedFolders()
   } catch (error: any) {
     console.error('移动到根目录失败:', error)
-    alert(error.message || '移动到根目录失败，请稍后重试')
+    alert(error.message || documentsData.value?.moveToRootFailed || '移动到根目录失败，请稍后重试')
   } finally {
     movingDocument.value = false
     dragOverItemId.value = null
@@ -738,7 +738,7 @@ const handleRootDrop = async (event: DragEvent) => {
 // 修复路径
 const fixingPaths = ref(false)
 const handleFixPaths = async () => {
-  if (!confirm('确定要修复所有文档路径吗？这将重新计算所有文档和文件夹的路径，确保路径与文件夹结构一致。')) {
+  if (!confirm(documentsData.value?.fixPathsConfirm || '确定要修复所有文档路径吗？这将重新计算所有文档和文件夹的路径，确保路径与文件夹结构一致。')) {
     return
   }
 
@@ -749,12 +749,12 @@ const handleFixPaths = async () => {
     })
 
     if (result.success) {
-      alert(`路径修复完成！修复了 ${result.fixed} 个项目，${result.errors} 个错误。`)
+      alert((documentsData.value?.fixPathsSuccess || '路径修复完成！修复了 {fixed} 个项目，{errors} 个错误。').replace('{fixed}', String(result.fixed)).replace('{errors}', String(result.errors)))
       await loadRootItems()
     }
   } catch (error: any) {
     console.error('修复路径失败:', error)
-    alert(error.message || '修复路径失败，请稍后重试')
+    alert(error.message || documentsData.value?.fixPathsFailed || '修复路径失败，请稍后重试')
   } finally {
     fixingPaths.value = false
   }
@@ -974,7 +974,7 @@ const dropdownItems = computed(() => [
     onSelect: collapseAll
   },
   {
-    label: '修复路径',
+    label: documentsData.value?.fixPaths || '修复路径',
     icon: 'i-lucide-wrench',
     onSelect: handleFixPaths,
     disabled: fixingPaths.value
@@ -1068,7 +1068,7 @@ watch(currentDocumentId, async (newId) => {
           variant="ghost"
           @click="handleFixPaths"
         >
-          修复路径
+          {{ documentsData?.fixPaths || '修复路径' }}
         </UButton>
       </div>
     </div>

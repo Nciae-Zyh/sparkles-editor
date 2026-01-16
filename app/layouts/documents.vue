@@ -5,6 +5,7 @@ import { useDocuments } from '~/composables/useDocuments'
 
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
+const appData = computed(() => $tm('app') as Record<string, string> | undefined)
 const { user, fetchUser } = useAuth()
 const router = useRouter()
 const route = useRoute()
@@ -72,7 +73,7 @@ onMounted(async () => {
           variant="soft"
           size="sm"
         >
-          我的分享
+          {{ appData?.myShares || '我的分享' }}
         </UButton>
         <UButton
           :to="safeLocalePath('/documents')"

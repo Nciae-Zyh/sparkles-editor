@@ -4,6 +4,7 @@
     "description": "一个类似 Notion 的所见即所得编辑器，支持 AI 驱动的自动补全功能，基于 Vue 和 Nuxt 构建。",
     "newDocument": "新建文档",
     "myDocuments": "我的文档",
+    "myShares": "我的分享",
     "login": "登录",
     "logout": "退出"
   }

@@ -51,6 +51,8 @@ const content = defineModel<string>()
 const { user } = useAuth()
 const { saveDocument, getDocument } = useDocuments()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
+const appData = computed(() => $tm('app') as Record<string, string> | undefined)
+const sharesData = computed(() => $tm('shares') as Record<string, string> | undefined)
 const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
 const showShareModal = ref(false)
 const safeLocalePath = useSafeLocalePath()
@@ -606,7 +608,7 @@ defineExpose({
                   color="primary"
                   @click="showShareModal = true"
                 >
-                  <span v-if="!$device.isMobile">分享</span>
+                  <span v-if="!$device.isMobile">{{ sharesData?.shareDocument || '分享' }}</span>
                 </UButton>
                 <UButton
                   v-if="user"
@@ -616,7 +618,7 @@ defineExpose({
                   variant="soft"
                   color="primary"
                 >
-                  <span v-if="!$device.isMobile">我的分享</span>
+                  <span v-if="!$device.isMobile">{{ appData?.myShares || '我的分享' }}</span>
                 </UButton>
                 <DocumentsSaveDocumentButton
                   v-if="user && canSave"

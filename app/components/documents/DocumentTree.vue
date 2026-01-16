@@ -288,7 +288,7 @@ const handleRename = async () => {
     }
   } catch (error: any) {
     console.error('重命名失败:', error)
-    alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+    alert(error.message || documentsData.value?.renameFailedRetry || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
   } finally {
     renamingLoadingId.value = null
   }
