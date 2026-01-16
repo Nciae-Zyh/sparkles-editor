@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import { generateDocumentId } from '~/utils/documentId'
-
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
+import { useAuth } from '~/composables/useAuth'
 
 const route = useRoute()
 const safeLocalePath = useSafeLocalePath()
+const { user } = useAuth()
 
 // 使用 ref 定义内容
 const content = ref<string>('')
@@ -22,6 +23,17 @@ const checkCreateDocument = () => {
     newDocumentId.value = generateDocumentId()
     // 清除 URL 参数，但保持在同一页面
     navigateTo({ query: {} })
+  }
+}
+
+// 处理导入后的状态切换
+const handleImported = (importedContent: string) => {
+  // 如果用户已登录，切换到编辑状态
+  if (user.value) {
+    isNewDocument.value = true
+    allowSave.value = true
+    newDocumentId.value = generateDocumentId()
+    content.value = importedContent
   }
 }
 
@@ -55,5 +67,6 @@ onMounted(() => {
       // 保存后跳转到文档编辑页面
       await navigateTo(safeLocalePath(`/documents/${id}`))
     }"
+    @imported="handleImported"
   />
 </template>

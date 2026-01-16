@@ -3,18 +3,17 @@ import type { TreeItem } from '@nuxt/ui'
 import type { Document } from '~/types'
 import { useDocuments } from '~/composables/useDocuments'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
-
-interface DocumentTreeNode extends Document {
-  children?: DocumentTreeNode[]
-}
+import { useDownloadZip } from '~/composables/useDownloadZip'
 
 interface ExtendedTreeItem extends TreeItem {
   id: string
   type: 'document' | 'folder'
   children?: ExtendedTreeItem[]
+  _loaded?: boolean // 标记是否已加载子项
 }
 
-const { fetchDocumentTree, deleteDocument, createFolder, renameDocument, moveDocument } = useDocuments()
+const { fetchDocuments, deleteDocument, createFolder, renameDocument, moveDocument, getDocument, fetchFolderChildren } = useDocuments()
+const { downloadAsZip, isDownloading } = useDownloadZip()
 const router = useRouter()
 const safeLocalePath = useSafeLocalePath()
 
@@ -22,12 +21,13 @@ const actionsData = computed(() => $tm('actions') as Record<string, string> | un
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 
 const treeItems = ref<ExtendedTreeItem[]>([])
-const flatDocuments = ref<Document[]>([])
 const loading = ref(false)
 const expanded = ref<string[]>([])
+const loadingFolders = ref<Set<string>>(new Set()) // 正在加载的文件夹
 const deletingId = ref<string | null>(null)
 const renamingId = ref<string | null>(null)
 const renamingLoadingId = ref<string | null>(null)
+const downloadingId = ref<string | null>(null)
 const renameInput = ref('')
 const showCreateFolder = ref(false)
 const newFolderName = ref('')
@@ -39,82 +39,75 @@ const draggedItemId = ref<string | null>(null)
 const dragOverItemId = ref<string | null>(null)
 const dragOverPosition = ref<'before' | 'after' | 'inside' | null>(null)
 
-// 将 Document 树转换为 TreeItem 格式
-const convertToTreeItems = (nodes: DocumentTreeNode[]): ExtendedTreeItem[] => {
-  return nodes.map(node => {
-    const item: ExtendedTreeItem = {
-      id: node.id,
-      label: node.title || (documentsData.value?.untitled || '未命名'),
-      type: node.type,
-      icon: node.type === 'folder' ? 'i-lucide-folder' : 'i-lucide-file-text',
-      children: node.children && node.children.length > 0 ? convertToTreeItems(node.children) : undefined,
-      onSelect: (e: Event) => {
-        // 阻止默认选择行为，我们通过点击标签来处理
-        e.preventDefault()
-      }
+// 将 Document 转换为 TreeItem 格式
+const convertToTreeItem = (doc: Document): ExtendedTreeItem => {
+  return {
+    id: doc.id,
+    label: doc.title || (documentsData.value?.untitled || '未命名'),
+    type: doc.type,
+    icon: doc.type === 'folder' ? 'i-lucide-folder' : 'i-lucide-file-text',
+    children: undefined, // 懒加载，初始不加载子项
+    _loaded: false,
+    onSelect: (e: Event) => {
+      e.preventDefault()
     }
-    return item
-  })
+  }
 }
 
-// 加载文档树
-const loadTree = async () => {
+// 加载根目录的文档和文件夹
+const loadRootItems = async () => {
   try {
     loading.value = true
-    const data = await fetchDocumentTree()
-    flatDocuments.value = data.flat
-    const tree = data.tree as DocumentTreeNode[]
-    
-    // 默认展开所有文件夹
-    const allFolderIds: string[] = []
-    const collectFolderIds = (nodes: DocumentTreeNode[]) => {
-      for (const node of nodes) {
-        if (node.type === 'folder') {
-          allFolderIds.push(node.id)
-          if (node.children) {
-            collectFolderIds(node.children)
-          }
-        }
-      }
-    }
-    collectFolderIds(tree)
-    expanded.value = allFolderIds
-    
-    treeItems.value = convertToTreeItems(tree)
+    const docs = await fetchDocuments() // 不传 parentId，获取根目录
+    treeItems.value = docs.map(convertToTreeItem)
   } catch (error) {
-    console.error('Failed to load document tree:', error)
+    console.error('Failed to load root items:', error)
   } finally {
     loading.value = false
   }
 }
 
-// 展开/折叠所有
-const expandAll = () => {
-  const allFolderIds: string[] = []
-  const collectFolderIds = (items: ExtendedTreeItem[]) => {
-    for (const item of items) {
-      if (item.type === 'folder') {
-        allFolderIds.push(item.id)
-        if (item.children) {
-          collectFolderIds(item.children)
-        }
-      }
-    }
+// 懒加载文件夹的子项
+const loadFolderChildren = async (folderId: string, item: ExtendedTreeItem) => {
+  // 如果已加载，直接返回
+  if (item._loaded) {
+    return
   }
-  collectFolderIds(treeItems.value)
-  expanded.value = allFolderIds
+
+  try {
+    loadingFolders.value.add(folderId)
+    const children = await fetchFolderChildren(folderId)
+    
+    // 更新树项的子项
+    item.children = children.map(convertToTreeItem)
+    item._loaded = true
+  } catch (error) {
+    console.error('Failed to load folder children:', error)
+    alert('加载文件夹内容失败，请稍后重试')
+  } finally {
+    loadingFolders.value.delete(folderId)
+  }
 }
 
-const collapseAll = () => {
-  expanded.value = []
-}
+// 处理节点展开/折叠（通过 watch expanded 来处理）
+watch(expanded, async (newExpanded, oldExpanded) => {
+  // 找出新展开的文件夹
+  const newlyExpanded = newExpanded.filter(id => !oldExpanded.includes(id))
+  
+  for (const folderId of newlyExpanded) {
+    const item = findItemInTree(treeItems.value, folderId)
+    if (item && item.type === 'folder' && !item._loaded) {
+      await loadFolderChildren(folderId, item)
+    }
+  }
+}, { immediate: false })
 
 // 处理节点点击
 const handleNodeClick = (item: ExtendedTreeItem) => {
   if (renamingId.value === item.id) return
   
   if (item.type === 'folder') {
-    // 切换展开/折叠
+    // 切换展开/折叠（UTree 会自动处理 expanded）
     const index = expanded.value.indexOf(item.id)
     if (index > -1) {
       expanded.value.splice(index, 1)
@@ -127,10 +120,34 @@ const handleNodeClick = (item: ExtendedTreeItem) => {
   }
 }
 
+// 展开/折叠所有
+const expandAll = async () => {
+  const expandFolder = async (items: ExtendedTreeItem[]) => {
+    for (const item of items) {
+      if (item.type === 'folder') {
+        if (!expanded.value.includes(item.id)) {
+          expanded.value.push(item.id)
+          if (!item._loaded) {
+            await loadFolderChildren(item.id, item)
+          }
+          if (item.children) {
+            await expandFolder(item.children)
+          }
+        }
+      }
+    }
+  }
+  await expandFolder(treeItems.value)
+}
+
+const collapseAll = () => {
+  expanded.value = []
+}
+
 // 处理删除
 const handleDelete = async (id: string, event: Event) => {
   event.stopPropagation()
-  const item = flatDocuments.value.find(d => d.id === id)
+  const item = findItemInTree(treeItems.value, id)
   const itemType = item?.type === 'folder' ? (documentsData.value?.folder || '文件夹') : (documentsData.value?.document || '文档')
   const deleteConfirm = documentsData.value?.deleteConfirm?.replace('{type}', itemType) || `确定要删除这个${itemType}吗？`
   const deleteWarning = item?.type === 'folder' ? (documentsData.value?.deleteFolderWarning || '文件夹内的所有内容也会被删除。') : ''
@@ -142,7 +159,8 @@ const handleDelete = async (id: string, event: Event) => {
   try {
     deletingId.value = id
     await deleteDocument(id)
-    await loadTree()
+    // 从树中移除该项
+    removeItemFromTree(treeItems.value, id)
   } catch (error: any) {
     alert(error.message || documentsData.value?.deleteFailed || '删除失败')
   } finally {
@@ -159,11 +177,24 @@ const handleCreateFolder = async () => {
 
   try {
     creatingFolder.value = true
-    await createFolder(newFolderName.value.trim(), selectedParentId.value || undefined)
+    const folder = await createFolder(newFolderName.value.trim(), selectedParentId.value || undefined)
     newFolderName.value = ''
     selectedParentId.value = null
     showCreateFolder.value = false
-    await loadTree()
+    
+    // 如果是在根目录创建，添加到根列表
+    if (!selectedParentId.value) {
+      treeItems.value.unshift(convertToTreeItem(folder))
+    } else {
+      // 如果是在某个文件夹内创建，需要找到该文件夹并添加
+      const parentItem = findItemInTree(treeItems.value, selectedParentId.value)
+      if (parentItem && parentItem.type === 'folder') {
+        if (!parentItem.children) {
+          parentItem.children = []
+        }
+        parentItem.children.push(convertToTreeItem(folder))
+      }
+    }
   } catch (error: any) {
     alert(error.message || documentsData.value?.createFolderFailed || '创建文件夹失败')
   } finally {
@@ -193,7 +224,13 @@ const handleRename = async (id: string) => {
   try {
     renamingLoadingId.value = id
     await renameDocument(id, renameInput.value.trim())
-    await loadTree()
+    
+    // 更新树中的标签
+    const item = findItemInTree(treeItems.value, id)
+    if (item) {
+      item.label = renameInput.value.trim()
+    }
+    
     renamingId.value = null
     renameInput.value = ''
   } catch (error: any) {
@@ -201,6 +238,34 @@ const handleRename = async (id: string) => {
     alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
   } finally {
     renamingLoadingId.value = null
+  }
+}
+
+// 处理下载文档
+const handleDownload = async (id: string, event: Event) => {
+  event.stopPropagation()
+
+  try {
+    downloadingId.value = id
+    // 获取文档内容
+    const document = await getDocument(id)
+    if (!document.content) {
+      alert(actionsData.value?.documentEmpty || '文档内容为空')
+      return
+    }
+
+    // 生成文件名
+    const filename = document.title
+      ? `${document.title.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '-')}.zip`
+      : `document-${id}.zip`
+
+    // 下载为 ZIP
+    await downloadAsZip(document.content, filename)
+  } catch (error: any) {
+    console.error('Download failed:', error)
+    alert(error.message || actionsData.value?.downloadFailed || '下载失败，请稍后重试')
+  } finally {
+    downloadingId.value = null
   }
 }
 
@@ -218,23 +283,36 @@ const findItemInTree = (items: ExtendedTreeItem[], id: string): ExtendedTreeItem
   return null
 }
 
+// 从树中移除项目
+const removeItemFromTree = (items: ExtendedTreeItem[], id: string): boolean => {
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].id === id) {
+      items.splice(i, 1)
+      return true
+    }
+    if (items[i].children) {
+      if (removeItemFromTree(items[i].children!, id)) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
 // 检查是否是子项（防止循环引用）
 const isDescendant = (parentId: string, childId: string): boolean => {
-  // 如果 parentId 和 childId 相同，直接返回 true（不能移动到自己）
   if (parentId === childId) return true
   
   const parent = findItemInTree(treeItems.value, parentId)
   if (!parent || !parent.children) return false
   
   const checkChildren = (items: ExtendedTreeItem[], visited: Set<string> = new Set()): boolean => {
-    // 防止无限递归
     if (visited.has(parentId)) return false
     visited.add(parentId)
     
     for (const item of items) {
       if (item.id === childId) return true
       if (item.children) {
-        // 递归检查子项
         if (checkChildren(item.children, visited)) return true
       }
     }
@@ -264,13 +342,24 @@ const handleDragOver = (event: DragEvent, item: ExtendedTreeItem) => {
   }
 
   // 防止将文件夹移动到自己的子文件夹中
-  if (draggedItemId.value && item.type === 'folder' && isDescendant(draggedItemId.value, item.id)) {
-    dragOverItemId.value = null
-    dragOverPosition.value = null
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'none'
+  if (draggedItemId.value) {
+    if (draggedItemId.value === item.id) {
+      dragOverItemId.value = null
+      dragOverPosition.value = null
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'none'
+      }
+      return
     }
-    return
+
+    if (item.type === 'folder' && isDescendant(draggedItemId.value, item.id)) {
+      dragOverItemId.value = null
+      dragOverPosition.value = null
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'none'
+      }
+      return
+    }
   }
 
   dragOverItemId.value = item.id
@@ -279,7 +368,6 @@ const handleDragOver = (event: DragEvent, item: ExtendedTreeItem) => {
   const y = event.clientY - rect.top
   const height = rect.height
   
-  // 如果目标是文件夹，允许放入内部
   if (item.type === 'folder') {
     if (y < height * 0.25) {
       dragOverPosition.value = 'before'
@@ -298,7 +386,6 @@ const handleDragOver = (event: DragEvent, item: ExtendedTreeItem) => {
       }
     }
   } else {
-    // 如果是文件，只能放在前面或后面
     dragOverPosition.value = y < height / 2 ? 'before' : 'after'
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move'
@@ -322,9 +409,8 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
     return
   }
 
-  // 防止将文件夹移动到自己的子文件夹中（更严格的检查）
+  // 防止将文件夹移动到自己的子文件夹中
   if (draggedItemId.value) {
-    // 检查1：不能移动到自己
     if (draggedItemId.value === targetItem.id) {
       alert('不能将项目移动到自己的位置')
       dragOverItemId.value = null
@@ -333,7 +419,6 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
       return
     }
 
-    // 检查2：如果目标是文件夹，检查是否是自己的子文件夹
     if (targetItem.type === 'folder' && isDescendant(draggedItemId.value, targetItem.id)) {
       alert('不能将文件夹移动到自己的子文件夹中')
       dragOverItemId.value = null
@@ -347,10 +432,9 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
     let newParentId: string | null = null
     
     if (dragOverPosition.value === 'inside' && targetItem.type === 'folder') {
-      // 放入文件夹内部
       newParentId = targetItem.id
     } else {
-      // 放在前面或后面，需要找到目标项的父文件夹
+      // 找到目标项的父文件夹
       const findParent = (items: ExtendedTreeItem[], targetId: string, parent: ExtendedTreeItem | null = null): ExtendedTreeItem | null => {
         for (const item of items) {
           if (item.id === targetId) {
@@ -368,14 +452,33 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
       newParentId = parent?.id || null
     }
 
-    // 如果移动的是文件夹，且目标也是文件夹，且拖放位置不是明确的 inside，则放入文件夹内部
     const draggedItem = findItemInTree(treeItems.value, draggedItemId.value)
     if (draggedItem?.type === 'folder' && targetItem.type === 'folder' && dragOverPosition.value !== 'before' && dragOverPosition.value !== 'after') {
       newParentId = targetItem.id
     }
 
     await moveDocument(draggedItemId.value, newParentId)
-    await loadTree()
+    
+    // 更新树结构
+    const item = findItemInTree(treeItems.value, draggedItemId.value)
+    if (item) {
+      // 从原位置移除
+      removeItemFromTree(treeItems.value, draggedItemId.value)
+      
+      // 添加到新位置
+      if (newParentId) {
+        const parentItem = findItemInTree(treeItems.value, newParentId)
+        if (parentItem && parentItem.type === 'folder') {
+          if (!parentItem.children) {
+            parentItem.children = []
+          }
+          parentItem.children.push(item)
+        }
+      } else {
+        // 添加到根目录
+        treeItems.value.push(item)
+      }
+    }
   } catch (error: any) {
     console.error('移动失败:', error)
     alert(error.message || '移动失败，请稍后重试')
@@ -407,7 +510,7 @@ const handleFixPaths = async () => {
     
     if (result.success) {
       alert(`路径修复完成！修复了 ${result.fixed} 个项目，${result.errors} 个错误。`)
-      await loadTree()
+      await loadRootItems()
     }
   } catch (error: any) {
     console.error('修复路径失败:', error)
@@ -418,7 +521,7 @@ const handleFixPaths = async () => {
 }
 
 onMounted(() => {
-  loadTree()
+  loadRootItems()
 })
 </script>
 
@@ -562,6 +665,17 @@ onMounted(() => {
             @dragend="handleDragEnd"
             @click="handleNodeClick(item as ExtendedTreeItem)"
           >
+            <!-- 加载指示器 -->
+            <div
+              v-if="item.type === 'folder' && loadingFolders.has(item.id)"
+              class="w-4 h-4"
+            >
+              <UIcon
+                name="i-lucide-loader-2"
+                class="w-4 h-4 animate-spin"
+              />
+            </div>
+            
             <span class="flex-1 truncate">
               <span
                 v-if="renamingId !== item.id"
@@ -610,6 +724,15 @@ onMounted(() => {
                 variant="ghost"
                 color="neutral"
                 @click.stop="handleStartRename(item.id, item.label || '')"
+              />
+              <UButton
+                v-if="item.type === 'document'"
+                icon="i-lucide-download"
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                :loading="downloadingId === item.id"
+                @click.stop="handleDownload(item.id, $event)"
               />
               <UButton
                 icon="i-lucide-trash-2"
