@@ -1,5 +1,5 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import { generateI18n } from './scripts/generateI18n'
+import {generateI18n} from './scripts/generateI18n'
 
 export default defineNuxtConfig({
   modules: [
@@ -77,8 +77,7 @@ export default defineNuxtConfig({
           }
         }
       }
-    },
-    // prerender: {
+    }, // prerender: {
     //   crawlLinks: true,
     //   ignore: [
     //     '/__nuxt_content/content/sql_dump.txt'
