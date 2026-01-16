@@ -52,9 +52,6 @@ export default defineNuxtConfig({
     cloudflare: {
       deployConfig: true,
       wrangler: {
-        vars: {
-          // 正式环境环境变量
-        },
         d1_databases: [
           {
             binding: 'DB',
