@@ -42,6 +42,9 @@
     "renameDocument": "Rename Document",
     "renameFolder": "Rename Folder",
     "enterNewName": "Please enter new name",
-    "renameFailed": "Rename failed"
+    "renameFailed": "Rename failed",
+    "documentName": "Document Name",
+    "enterDocumentName": "Please enter document name",
+    "createDocumentFailed": "Failed to create document"
   }
 }

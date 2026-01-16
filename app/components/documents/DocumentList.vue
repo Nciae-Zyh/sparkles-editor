@@ -10,7 +10,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const { documents, loading, fetchDocuments, deleteDocument, createFolder, renameDocument } = useDocuments()
+const { documents, loading, fetchDocuments, deleteDocument, createFolder, createEmptyDocument, renameDocument } = useDocuments()
 const router = useRouter()
 const safeLocalePath = useSafeLocalePath()
 
@@ -22,6 +22,12 @@ const currentParentId = ref(props.parentId)
 const showCreateFolder = ref(false)
 const newFolderName = ref('')
 const creatingFolder = ref(false)
+
+// 创建文档相关状态
+const showCreateDocument = ref(false)
+const newDocumentName = ref('')
+const creatingDocument = ref(false)
+const createDocumentParentId = ref<string | null>(null)
 
 // 重命名相关状态
 const showRenameModal = ref(false)
@@ -124,10 +130,31 @@ const openRenameModal = (item: Document) => {
   showRenameModal.value = true
 }
 
-// 创建新文档
-const handleCreateDocument = (parentId?: string | null) => {
-  const folderParam = parentId ? `?folder=${parentId}` : ''
-  navigateTo(`${safeLocalePath('/')}${folderParam}`)
+// 创建新文档（空文档）
+const handleCreateDocument = async () => {
+  if (!newDocumentName.value.trim()) {
+    alert(documentsData.value?.enterDocumentName || '请输入文档名称')
+    return
+  }
+
+  try {
+    creatingDocument.value = true
+    await createEmptyDocument(newDocumentName.value.trim(), createDocumentParentId.value || undefined)
+    newDocumentName.value = ''
+    createDocumentParentId.value = null
+    showCreateDocument.value = false
+  } catch (error: any) {
+    alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
+  } finally {
+    creatingDocument.value = false
+  }
+}
+
+// 打开创建文档模态框
+const openCreateDocumentModal = (parentId?: string | null) => {
+  createDocumentParentId.value = parentId || null
+  newDocumentName.value = ''
+  showCreateDocument.value = true
 }
 
 // 使用右键菜单 composable
@@ -150,7 +177,7 @@ const {
     handleDelete(item.id, event)
   },
   onCreateDocument: (parentId?: string | null) => {
-    handleCreateDocument(parentId)
+    openCreateDocumentModal(parentId)
   },
   onCreateFolder: (parentId?: string | null) => {
     currentParentId.value = parentId || undefined
@@ -238,6 +265,48 @@ const {
         <UButton
           :loading="creatingFolder"
           @click="handleCreateFolder"
+        >
+          {{ documentsData?.create || '创建' }}
+        </UButton>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="showCreateDocument"
+      :title="documentsData?.newDocument || '新建文档'"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UFormField
+          :label="documentsData?.documentName || '文档名称'"
+          name="documentName"
+          required
+        >
+          <UInput
+            v-model="newDocumentName"
+            :placeholder="documentsData?.enterDocumentName || '请输入文档名称'"
+            @keyup.enter="handleCreateDocument"
+          />
+        </UFormField>
+        <div
+          v-if="createDocumentParentId"
+          class="mt-2 text-sm text-gray-500"
+        >
+          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+        </div>
+      </template>
+
+      <template #footer="{ close }">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          @click="close"
+        >
+          {{ actionsData?.cancel || '取消' }}
+        </UButton>
+        <UButton
+          :loading="creatingDocument"
+          @click="handleCreateDocument"
         >
           {{ documentsData?.create || '创建' }}
         </UButton>

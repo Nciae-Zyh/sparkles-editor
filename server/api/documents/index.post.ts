@@ -43,7 +43,7 @@ export default eventHandler(async (event) => {
       })
     }
 
-    const { title, content, type = 'document', id: clientDocumentId } = body
+    const { title, content, type = 'document', id: clientDocumentId, parentId: clientParentId } = body
 
     // 3. 解析文件名（类似 WebStorm，支持 folder/subfolder/file.md 格式）
     console.log(`[POST /api/documents] [${requestId}] 步骤3: 解析存储路径`)
@@ -80,16 +80,38 @@ export default eventHandler(async (event) => {
       })
     }
 
-    // 6. 自动创建文件夹路径（如果路径包含文件夹）
+    // 6. 确定父文件夹ID
     let finalParentId: string | null = null
-    const parentPath = '/'
-    if (folderPath.length > 0) {
+    
+    // 如果客户端提供了 parentId，优先使用它
+    if (clientParentId) {
+      console.log(`[POST /api/documents] [${requestId}] 使用客户端提供的 parentId: ${clientParentId}`)
+      // 验证父文件夹是否存在且属于当前用户
+      const parent = await db.prepare('SELECT id, type FROM documents WHERE id = ? AND user_id = ?')
+        .bind(clientParentId, user.id)
+        .first() as any
+
+      if (!parent) {
+        throw createError({
+          statusCode: 404,
+          message: 'Parent folder not found'
+        })
+      }
+
+      if (parent.type !== 'folder') {
+        throw createError({
+          statusCode: 400,
+          message: 'Parent must be a folder'
+        })
+      }
+
+      finalParentId = clientParentId
+    } else if (folderPath.length > 0) {
+      // 如果没有提供 parentId，但路径包含文件夹，则自动创建文件夹路径
       console.log(`[POST /api/documents] [${requestId}] 步骤6: 自动创建文件夹路径:`, folderPath)
       try {
         finalParentId = await ensureFolderPath(db, user.id, folderPath, null)
         console.log(`[POST /api/documents] [${requestId}] 文件夹路径创建成功: finalParentId=${finalParentId}`)
-
-        // 不再需要获取 parentPath，因为已移除 path 字段
       } catch (error: any) {
         console.error(`[POST /api/documents] [${requestId}] 创建文件夹路径时出错:`, {
           message: error?.message,
