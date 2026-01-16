@@ -14,6 +14,7 @@ interface Props {
   downloadingId: string | null
   renamingId: string | null
   renamingLoadingId: string | null
+  currentDocumentId?: string | null
 }
 
 const props = defineProps<Props>()
@@ -124,7 +125,10 @@ const getMenuItems = computed(() => {
   <div class="select-none">
     <UContextMenu :items="getMenuItems">
       <div
-        class="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer group"
+        :class="[
+          'flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer group',
+          props.currentDocumentId === props.node.id && props.node.type === 'document' ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-primary-500' : ''
+        ]"
         :style="{ paddingLeft: `${level * 1.5 + 0.5}rem` }"
         @click="handleClick"
       >
@@ -241,6 +245,7 @@ const getMenuItems = computed(() => {
         :downloading-id="downloadingId"
         :renaming-id="renamingId"
         :renaming-loading-id="renamingLoadingId"
+        :current-document-id="props.currentDocumentId"
         @toggle="(id: string) => emit('toggle', id)"
         @click="(n: DocumentTreeNode) => emit('click', n)"
         @delete="(id: string, e: Event) => emit('delete', id, e)"

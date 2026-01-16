@@ -11,7 +11,14 @@ interface DocumentTreeNode extends Document {
 const { fetchDocumentTree, deleteDocument, createFolder, createEmptyDocument, getDocument, renameDocument } = useDocuments()
 const { downloadAsZip, isDownloading } = useDownloadZip()
 const router = useRouter()
+const route = useRoute()
 const safeLocalePath = useSafeLocalePath()
+
+// 获取当前路由的文档ID，用于高亮显示
+const currentDocumentId = computed(() => {
+  const id = route.params.id
+  return id && typeof id === 'string' ? id : null
+})
 
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
@@ -218,6 +225,15 @@ const handleRename = async (id: string, newTitle: string) => {
     // 重新加载树
     await loadTree()
     renamingId.value = null
+    
+    // 发布重命名通知，通知编辑页面更新
+    const nuxtApp = useNuxtApp()
+    if (nuxtApp.$publishNotification) {
+      nuxtApp.$publishNotification('document:renamed', {
+        id,
+        title: newTitle
+      })
+    }
   } catch (error: any) {
     console.error('重命名失败:', error)
     alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
@@ -271,6 +287,34 @@ const getTreeNodeMenuItems = (node: DocumentTreeNode) => {
 
 onMounted(() => {
   loadTree()
+  
+  // 订阅编辑页面的重命名通知
+  const nuxtApp = useNuxtApp()
+  if (nuxtApp.$subscribeNotification) {
+    const unsubscribe = nuxtApp.$subscribeNotification<{ id: string, title: string }>('document:renamed', (payload) => {
+      // 如果重命名的是树中的某个文档，更新树中的标题
+      if (payload && payload.id) {
+        const updateNodeTitle = (nodes: DocumentTreeNode[]): boolean => {
+          for (const node of nodes) {
+            if (node.id === payload.id) {
+              node.title = payload.title
+              return true
+            }
+            if (node.children && updateNodeTitle(node.children)) {
+              return true
+            }
+          }
+          return false
+        }
+        updateNodeTitle(tree.value)
+      }
+    })
+    
+    // 组件卸载时取消订阅
+    onUnmounted(() => {
+      unsubscribe()
+    })
+  }
 })
 </script>
 
@@ -438,6 +482,7 @@ onMounted(() => {
           :downloading-id="downloadingId"
           :renaming-id="renamingId"
           :renaming-loading-id="renamingLoadingId"
+          :current-document-id="currentDocumentId"
           @toggle="(id: string) => toggleFolder(id)"
           @click="(n: DocumentTreeNode) => handleNodeClick(n)"
           @delete="(id: string, e: Event) => handleDelete(id, e)"

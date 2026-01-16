@@ -325,6 +325,15 @@ const handleRename = async (id: string) => {
 
     renamingId.value = null
     renameInput.value = ''
+
+    // 发布重命名通知，通知编辑页面更新
+    const nuxtApp = useNuxtApp()
+    if (nuxtApp.$publishNotification) {
+      nuxtApp.$publishNotification('document:renamed', {
+        id,
+        title: renameInput.value.trim()
+      })
+    }
   } catch (error: any) {
     console.error('重命名失败:', error)
     alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
@@ -813,6 +822,13 @@ const props = withDefaults(defineProps<Props>(), {
   compact: false
 })
 
+// 获取当前路由的文档ID，用于高亮显示
+const route = useRoute()
+const currentDocumentId = computed(() => {
+  const id = route.params.id
+  return id && typeof id === 'string' ? id : null
+})
+
 // 下拉菜单项
 const dropdownItems = computed(() => [
   {
@@ -850,6 +866,25 @@ const dropdownItems = computed(() => [
 
 onMounted(() => {
   loadRootItems()
+
+  // 订阅编辑页面的重命名通知
+  const nuxtApp = useNuxtApp()
+  if (nuxtApp.$subscribeNotification) {
+    const unsubscribe = nuxtApp.$subscribeNotification<{ id: string, title: string }>('document:renamed', (payload) => {
+      // 如果重命名的是树中的某个文档，更新树中的标签
+      if (payload && payload.id) {
+        const item = findItemInTree(treeItems.value, payload.id)
+        if (item) {
+          item.label = payload.title
+        }
+      }
+    })
+
+    // 组件卸载时取消订阅
+    onUnmounted(() => {
+      unsubscribe()
+    })
+  }
 })
 </script>
 
@@ -1088,7 +1123,11 @@ onMounted(() => {
         >
           <template #item="{ item, expanded }">
             <UContextMenu :items="getTreeItemMenuItems(item as ExtendedTreeItem)">
-              <div class="flex items-center w-full justify-between">
+              <div
+                :class="{
+                  'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-primary-500': currentDocumentId === item.id && item.type === 'document'
+                }"
+                class="flex items-center w-full justify-between">
                 <div class="flex items-center gap-2">
                   <UIcon :name="item.icon" />
                   <div

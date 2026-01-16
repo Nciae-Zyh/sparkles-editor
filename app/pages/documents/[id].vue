@@ -56,6 +56,25 @@ onMounted(async () => {
     console.error('Failed to load document:', error)
     await navigateTo(safeLocalePath('/documents'))
   }
+
+  // 订阅文档树的重命名通知
+  const nuxtApp = useNuxtApp()
+  if (nuxtApp.$subscribeNotification) {
+    const unsubscribe = nuxtApp.$subscribeNotification<{ id: string, title: string }>('document:renamed', (payload) => {
+      // 如果重命名的是当前文档，更新标题
+      if (payload && payload.id === documentId.value) {
+        documentTitle.value = payload.title
+        if (document.value) {
+          document.value.title = payload.title
+        }
+      }
+    })
+    
+    // 组件卸载时取消订阅
+    onUnmounted(() => {
+      unsubscribe()
+    })
+  }
 })
 
 // 开始重命名
@@ -92,6 +111,15 @@ const saveRename = async () => {
       document.value.title = renameInput.value.trim()
     }
     cancelRename()
+    
+    // 发布重命名通知，通知文档树更新
+    const nuxtApp = useNuxtApp()
+    if (nuxtApp.$publishNotification) {
+      nuxtApp.$publishNotification('document:renamed', {
+        id: documentId.value,
+        title: renameInput.value.trim()
+      })
+    }
     // 注意：重命名后，originalDocumentTitle 会在 MarkdownEditor 中通过 watch 自动更新
   } catch (error: any) {
     console.error('重命名失败:', error)
