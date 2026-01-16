@@ -4,27 +4,23 @@ import { useSafeLocalePath } from '~/utils/safeLocalePath'
 interface Props {
   documentId: string
   documentTitle: string
-  open?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  open: false
-})
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
-  'update:open': [value: boolean]
   close: []
 }>()
 
 const safeLocalePath = useSafeLocalePath()
 
-const isOpen = computed({
-  get: () => props.open,
-  set: (value) => {
-    emit('update:open', value)
-    if (!value) {
-      emit('close')
-    }
+// 使用 defineModel 实现双向绑定
+const open = defineModel<boolean>('open', { default: false })
+
+// 监听 open 变化，当关闭时触发 close 事件
+watch(open, (newVal) => {
+  if (!newVal) {
+    emit('close')
   }
 })
 
@@ -82,7 +78,7 @@ const copyShareLink = () => {
 
 // 关闭模态框
 const close = () => {
-  isOpen.value = false
+  open.value = false
 }
 
 // 重置表单
@@ -102,7 +98,7 @@ watch(() => props.documentId, () => {
 
 <template>
   <UModal
-    v-model:open="isOpen"
+    v-model:open="open"
     title="分享文档"
     :ui="{ footer: 'justify-end' }"
   >
