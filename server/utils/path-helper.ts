@@ -58,7 +58,7 @@ export async function calculatePathsBatch(
   itemIds: string[]
 ): Promise<Map<string, string>> {
   const pathMap = new Map<string, string>()
-  
+
   // 获取所有相关的文档
   const placeholders = itemIds.map(() => '?').join(',')
   const allItems = await db.prepare(`
@@ -92,7 +92,7 @@ export async function calculatePathsBatch(
         const item = await db.prepare(`
           SELECT parent_id FROM documents WHERE id = ? AND user_id = ?
         `).bind(currentId, userId).first() as { parent_id: string | null } | undefined
-        
+
         if (!item) break
         itemMap.set(currentId, item.parent_id)
         pathParts.unshift(currentId)
@@ -176,7 +176,7 @@ export async function getAllDescendants(
 
   while (queue.length > 0) {
     const { id, depth } = queue.shift()!
-    
+
     if (visited.has(id) || depth >= maxDepth) continue
     visited.add(id)
 
