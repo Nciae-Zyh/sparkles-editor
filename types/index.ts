@@ -19,7 +19,7 @@ export interface Document {
   content?: string
   r2_key: string
   parent_id?: string | null
-  path: string // 完整路径，如 "/folder1/folder2/document"
+  // path 字段已移除，路径通过 parent_id 递归计算
   type: 'document' | 'folder' // 文档或文件夹
   created_at: number
   updated_at: number

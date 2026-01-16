@@ -47,22 +47,9 @@ export async function ensureFolderPath(
   for (let i = 0; i < folderPath.length; i++) {
     const folderName = folderPath[i]
 
-    // 获取当前父文件夹的路径
-    let currentPath = '/'
-    if (currentParentId) {
-      const parent = await db.prepare('SELECT path FROM documents WHERE id = ? AND user_id = ?')
-        .bind(currentParentId, userId)
-        .first() as any
-
-      if (parent) {
-        currentPath = parent.path
-      }
-    }
-
-    // 构建新文件夹的路径（使用文件夹ID，而不是名称）
-    // 先检查是否已存在同名文件夹
+    // 先检查是否已存在同名文件夹（在同一父文件夹下）
     const existingFolder = await db.prepare(`
-      SELECT id, path FROM documents 
+      SELECT id FROM documents 
       WHERE user_id = ? AND parent_id = ? AND title = ? AND type = 'folder'
     `).bind(
       userId,
@@ -73,31 +60,28 @@ export async function ensureFolderPath(
     if (existingFolder) {
       // 文件夹已存在，使用它的 ID
       currentParentId = existingFolder.id
-      console.log(`[ensureFolderPath] Folder exists: ${folderName}, id=${existingFolder.id}, path=${existingFolder.path}`)
+      console.log(`[ensureFolderPath] Folder exists: ${folderName}, id=${existingFolder.id}`)
     } else {
-      // 创建新文件夹
+      // 创建新文件夹（不再使用 path 字段）
       const folderId = generateDocumentId()
-      // 路径格式：/parentPath/folderId 或 /folderId（如果是根目录）
-      const newPath = currentPath === '/' ? `/${folderId}` : `${currentPath}/${folderId}`
 
       try {
         await db.prepare(`
-          INSERT INTO documents (id, user_id, title, r2_key, parent_id, path, type, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO documents (id, user_id, title, r2_key, parent_id, type, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).bind(
           folderId,
           userId,
           folderName,
           '', // 文件夹不需要 R2 key
           currentParentId,
-          newPath,
           'folder',
           now,
           now
         ).run()
 
         currentParentId = folderId
-        console.log(`[ensureFolderPath] Created folder: ${folderName}, id=${folderId}, path=${newPath}`)
+        console.log(`[ensureFolderPath] Created folder: ${folderName}, id=${folderId}`)
       } catch (error: any) {
         console.error(`[ensureFolderPath] Failed to create folder: ${folderName}`, {
           message: error?.message,

@@ -50,6 +50,8 @@ export async function initDB(db: D1Database) {
     }
 
     // 创建文档表（支持目录结构）
+    // 新结构：移除 path 字段，只保留核心字段
+    // 路径通过 parent_id 递归计算，避免数据不一致
     try {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS documents (
@@ -57,9 +59,8 @@ export async function initDB(db: D1Database) {
           user_id TEXT NOT NULL,
           title TEXT NOT NULL,
           content TEXT,
-          r2_key TEXT NOT NULL,
+          r2_key TEXT NOT NULL DEFAULT '',
           parent_id TEXT,
-          path TEXT NOT NULL,
           type TEXT NOT NULL DEFAULT 'document',
           created_at INTEGER NOT NULL DEFAULT (unixepoch()),
           updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
@@ -77,12 +78,13 @@ export async function initDB(db: D1Database) {
     await migrateDB(db)
 
     // 创建索引 - 分别执行每个索引创建语句
+    // 移除 path 索引，因为不再使用 path 字段
     const indexStatements = [
       'CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at DESC)',
       'CREATE INDEX IF NOT EXISTS idx_documents_parent_id ON documents(parent_id)',
-      'CREATE INDEX IF NOT EXISTS idx_documents_path ON documents(path)',
       'CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type)',
+      'CREATE INDEX IF NOT EXISTS idx_documents_user_parent ON documents(user_id, parent_id)',
       'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
       'CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)'
     ]
@@ -141,20 +143,19 @@ export async function migrateDB(db: D1Database) {
       })
     }
 
-    // 检查并添加 path 列
-    if (!columnNames.includes('path')) {
-      migrations.push({
-        name: 'add_path',
-        sql: `ALTER TABLE documents ADD COLUMN path TEXT NOT NULL DEFAULT ''`
-      })
-    }
-
     // 检查并添加 type 列
     if (!columnNames.includes('type')) {
       migrations.push({
         name: 'add_type',
         sql: `ALTER TABLE documents ADD COLUMN type TEXT NOT NULL DEFAULT 'document'`
       })
+    }
+
+    // 检查并移除 path 列（如果存在）
+    // 注意：SQLite 不支持直接删除列，需要通过重建表的方式
+    // 这里我们标记需要迁移，实际迁移在 migrateRemovePath 中处理
+    if (columnNames.includes('path')) {
+      console.log('[migrateDB] path 列存在，将在下次迁移时移除')
     }
 
     // 执行迁移
@@ -174,15 +175,11 @@ export async function migrateDB(db: D1Database) {
       }
     }
 
-    // 迁移现有数据：为旧数据添加默认路径和类型
+    // 迁移现有数据：为旧数据添加默认类型
     try {
       const updateResult = await db.prepare(`
         UPDATE documents 
-        SET path = CASE 
-          WHEN path IS NULL OR path = '' THEN '/' || id 
-          ELSE path 
-        END,
-        type = CASE 
+        SET type = CASE 
           WHEN type IS NULL OR type = '' THEN 'document' 
           ELSE type 
         END,
@@ -190,7 +187,7 @@ export async function migrateDB(db: D1Database) {
           WHEN parent_id IS NULL OR parent_id = '' THEN NULL 
           ELSE parent_id 
         END
-        WHERE path IS NULL OR path = '' OR type IS NULL OR type = ''
+        WHERE type IS NULL OR type = ''
       `).run()
       console.log(`[migrateDB] Migrated ${updateResult.meta.changes || 0} existing documents`)
     } catch (migrateError: any) {
