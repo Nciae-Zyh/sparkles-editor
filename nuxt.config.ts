@@ -110,6 +110,7 @@ export default defineNuxtConfig({
       try {
         await generateI18n()
         console.log(`✔ generate i18n config success`)
+        console.log('prcess.env\n', JSON.stringify(process.env, null, 2))
       } catch (error) {
         console.log('update previewProducts.ts failed!', error)
       }
