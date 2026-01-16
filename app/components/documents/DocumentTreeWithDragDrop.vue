@@ -13,6 +13,10 @@ interface ExtendedTreeItem extends TreeItem {
   _loaded?: boolean // 标记是否已加载子项
 }
 
+interface Props {
+  compact?: boolean // 紧凑模式：使用下拉菜单，隐藏标题和按钮区域
+}
+
 const {
   fetchDocuments,
   deleteDocument,
@@ -800,6 +804,46 @@ const onSelect = (e, item) => {
   }
   // 文件夹的点击让 UTree 自动处理展开/折叠
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  compact: false
+})
+
+// 下拉菜单项
+const dropdownItems = computed(() => [
+  {
+    label: documentsData.value?.newDocument || '新建文档',
+    icon: 'i-lucide-file-plus',
+    onSelect: () => {
+      navigateTo(safeLocalePath('/'))
+    }
+  },
+  {
+    label: documentsData.value?.newFolder || '新建文件夹',
+    icon: 'i-lucide-folder-plus',
+    onSelect: () => {
+      selectedParentId.value = null
+      showCreateFolder.value = true
+    }
+  },
+  {
+    label: documentsData.value?.expandAll || '展开全部',
+    icon: 'i-lucide-chevrons-down-up',
+    onSelect: expandAll
+  },
+  {
+    label: documentsData.value?.collapseAll || '折叠全部',
+    icon: 'i-lucide-chevrons-up-down',
+    onSelect: collapseAll
+  },
+  {
+    label: '修复路径',
+    icon: 'i-lucide-wrench',
+    onSelect: handleFixPaths,
+    disabled: fixingPaths.value
+  }
+])
+
 onMounted(() => {
   loadRootItems()
 })
@@ -807,7 +851,28 @@ onMounted(() => {
 
 <template>
   <div class="space-y-4">
-    <div class="flex items-center justify-between gap-4">
+    <!-- 紧凑模式：下拉菜单 -->
+    <div
+      v-if="compact"
+      class="flex justify-end"
+    >
+      <UDropdownMenu
+        :items="dropdownItems"
+        :content="{ align: 'end' }"
+      >
+        <UButton
+          icon="i-lucide-more-vertical"
+          size="sm"
+          variant="ghost"
+        />
+      </UDropdownMenu>
+    </div>
+
+    <!-- 正常模式：标题和按钮区域 -->
+    <div
+      v-else
+      class="flex items-center justify-between gap-4"
+    >
       <h2 class="text-xl font-semibold">
         {{ documentsData?.documentTree || '文档树' }}
       </h2>

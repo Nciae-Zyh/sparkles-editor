@@ -10,6 +10,15 @@ withDefaults(defineProps<Props>(), {
 })
 
 const safeLocalePath = useSafeLocalePath()
+
+// 定义事件，用于触发文档树的打开/关闭
+const emit = defineEmits<{
+  toggleDocumentTree: []
+}>()
+
+const toggleDocumentTree = () => {
+  emit('toggleDocumentTree')
+}
 </script>
 
 <template>
@@ -24,12 +33,28 @@ const safeLocalePath = useSafeLocalePath()
       v-if="!hideTitle"
       #left
     >
-      <NuxtLink :to="safeLocalePath('/')">
-        <h1 class="font-bold text-lg sm:text-2xl">
-          Sparkles
-          <span class="text-primary">Editor</span>
-        </h1>
-      </NuxtLink>
+      <div class="flex items-center gap-2">
+        <UButton
+          icon="i-lucide-menu"
+          variant="ghost"
+          size="sm"
+          class="lg:hidden"
+          @click="toggleDocumentTree"
+        />
+        <NuxtLink :to="safeLocalePath('/')">
+          <h1 class="font-bold text-lg sm:text-2xl">
+            Sparkles
+            <span class="text-primary">Editor</span>
+          </h1>
+        </NuxtLink>
+        <UButton
+          icon="i-lucide-sidebar"
+          variant="ghost"
+          size="sm"
+          class="hidden lg:flex"
+          @click="toggleDocumentTree"
+        />
+      </div>
     </template>
 
     <template #right>
