@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useDocuments } from '~/composables/useDocuments'
+import { useDocumentContextMenu } from '~/composables/useDocumentContextMenu'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import type { Document } from '~/types'
 
@@ -9,11 +10,11 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const { documents, loading, fetchDocuments, deleteDocument, createFolder } = useDocuments()
+const { documents, loading, fetchDocuments, deleteDocument, createFolder, renameDocument } = useDocuments()
 const router = useRouter()
 const safeLocalePath = useSafeLocalePath()
 
-const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
+const documentsData = computed(() => $tm('documents') as Record<string, any> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
 
 const deletingId = ref<string | null>(null)
@@ -21,6 +22,13 @@ const currentParentId = ref(props.parentId)
 const showCreateFolder = ref(false)
 const newFolderName = ref('')
 const creatingFolder = ref(false)
+
+// 重命名相关状态
+const showRenameModal = ref(false)
+const renamingId = ref<string | null>(null)
+const renamingName = ref('')
+const renamingType = ref<'document' | 'folder'>('document')
+const renaming = ref(false)
 
 const folders = computed(() => documents.value.filter(d => d.type === 'folder'))
 const files = computed(() => documents.value.filter(d => d.type === 'document'))
@@ -87,6 +95,69 @@ const formatDate = (timestamp: number) => {
     minute: '2-digit'
   })
 }
+
+// 处理重命名
+const handleRename = async () => {
+  if (!renamingId.value || !renamingName.value.trim()) {
+    alert(documentsData.value?.enterNewName || '请输入新名称')
+    return
+  }
+
+  try {
+    renaming.value = true
+    await renameDocument(renamingId.value, renamingName.value.trim())
+    renamingId.value = null
+    renamingName.value = ''
+    showRenameModal.value = false
+  } catch (error: any) {
+    alert(error.message || documentsData.value?.renameFailed || '重命名失败')
+  } finally {
+    renaming.value = false
+  }
+}
+
+// 打开重命名模态框
+const openRenameModal = (item: Document) => {
+  renamingId.value = item.id
+  renamingName.value = item.title
+  renamingType.value = item.type
+  showRenameModal.value = true
+}
+
+// 创建新文档
+const handleCreateDocument = (parentId?: string | null) => {
+  const folderParam = parentId ? `?folder=${parentId}` : ''
+  navigateTo(`${safeLocalePath('/')}${folderParam}`)
+}
+
+// 使用右键菜单 composable
+const {
+  getFolderMenuItems,
+  getDocumentMenuItems,
+  getEmptyAreaMenuItems
+} = useDocumentContextMenu({
+  onOpen: (item: Document) => {
+    if (item.type === 'folder') {
+      navigateToFolder(item.id)
+    } else {
+      navigateTo(`${safeLocalePath('/documents')}/${item.id}`)
+    }
+  },
+  onRename: (item: Document) => {
+    openRenameModal(item)
+  },
+  onDelete: (item: Document, event: Event) => {
+    handleDelete(item.id, event)
+  },
+  onCreateDocument: (parentId?: string | null) => {
+    handleCreateDocument(parentId)
+  },
+  onCreateFolder: (parentId?: string | null) => {
+    currentParentId.value = parentId || undefined
+    showCreateFolder.value = true
+  },
+  currentParentId: () => currentParentId.value
+})
 </script>
 
 <template>
@@ -173,6 +244,42 @@ const formatDate = (timestamp: number) => {
       </template>
     </UModal>
 
+    <UModal
+      v-model:open="showRenameModal"
+      :title="renamingType === 'folder' ? (documentsData?.renameFolder || '重命名文件夹') : (documentsData?.renameDocument || '重命名文档')"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UFormField
+          :label="documentsData?.enterNewName || '请输入新名称'"
+          name="newName"
+          required
+        >
+          <UInput
+            v-model="renamingName"
+            :placeholder="documentsData?.enterNewName || '请输入新名称'"
+            @keyup.enter="handleRename"
+          />
+        </UFormField>
+      </template>
+
+      <template #footer="{ close }">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          @click="close"
+        >
+          {{ actionsData?.cancel || '取消' }}
+        </UButton>
+        <UButton
+          :loading="renaming"
+          @click="handleRename"
+        >
+          {{ actionsData?.save || '保存' }}
+        </UButton>
+      </template>
+    </UModal>
+
     <div
       v-if="loading && documents.length === 0"
       class="flex justify-center py-12"
@@ -183,54 +290,61 @@ const formatDate = (timestamp: number) => {
       />
     </div>
 
-    <div
+    <UContextMenu
       v-else-if="documents.length === 0"
-      class="text-center py-12 text-gray-500"
+      :items="getEmptyAreaMenuItems"
     >
-      {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
-    </div>
+      <div class="text-center py-12 text-gray-500 cursor-context-menu">
+        {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
+      </div>
+    </UContextMenu>
 
-    <div
+    <UContextMenu
       v-else
-      class="space-y-4"
+      :items="getEmptyAreaMenuItems"
     >
+      <div class="space-y-4">
       <!-- 文件夹列表 -->
       <div
         v-if="folders.length > 0"
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
       >
-        <UCard
+        <UContextMenu
           v-for="folder in folders"
           :key="folder.id"
-          class="cursor-pointer hover:shadow-lg transition-shadow border-2 border-dashed"
-          @click="navigateToFolder(folder.id)"
+          :items="getFolderMenuItems(folder)"
         >
-          <template #header>
-            <div class="flex items-start justify-between">
-              <div class="flex items-center gap-2 flex-1">
-                <UIcon
-                  name="i-lucide-folder"
-                  class="w-5 h-5 text-yellow-500"
+          <UCard
+            class="cursor-pointer hover:shadow-lg transition-shadow border-2 border-dashed"
+            @click="navigateToFolder(folder.id)"
+          >
+            <template #header>
+              <div class="flex items-start justify-between">
+                <div class="flex items-center gap-2 flex-1">
+                  <UIcon
+                    name="i-lucide-folder"
+                    class="w-5 h-5 text-yellow-500"
+                  />
+                  <h3 class="font-semibold text-lg truncate">
+                    {{ folder.title }}
+                  </h3>
+                </div>
+                <UButton
+                  color="error"
+                  variant="ghost"
+                  icon="i-lucide-trash-2"
+                  size="sm"
+                  :loading="deletingId === folder.id"
+                  @click="handleDelete(folder.id, $event)"
                 />
-                <h3 class="font-semibold text-lg truncate">
-                  {{ folder.title }}
-                </h3>
               </div>
-              <UButton
-                color="error"
-                variant="ghost"
-                icon="i-lucide-trash-2"
-                size="sm"
-                :loading="deletingId === folder.id"
-                @click="handleDelete(folder.id, $event)"
-              />
-            </div>
-          </template>
+            </template>
 
-          <div class="text-sm text-gray-500">
-            {{ documentsData?.folder || '文件夹' }}
-          </div>
-        </UCard>
+            <div class="text-sm text-gray-500">
+              {{ documentsData?.folder || '文件夹' }}
+            </div>
+          </UCard>
+        </UContextMenu>
       </div>
 
       <!-- 文档列表 -->
@@ -238,44 +352,49 @@ const formatDate = (timestamp: number) => {
         v-if="files.length > 0"
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
       >
-        <UCard
+        <UContextMenu
           v-for="doc in files"
           :key="doc.id"
-          class="cursor-pointer hover:shadow-lg transition-shadow"
-          @click="navigateTo(`${safeLocalePath('/documents')}/${doc.id}`)"
+          :items="getDocumentMenuItems(doc)"
         >
-          <template #header>
-            <div class="flex items-start justify-between">
-              <div class="flex items-center gap-2 flex-1">
-                <UIcon
-                  name="i-lucide-file-text"
-                  class="w-5 h-5 text-blue-500"
+          <UCard
+            class="cursor-pointer hover:shadow-lg transition-shadow"
+            @click="navigateTo(`${safeLocalePath('/documents')}/${doc.id}`)"
+          >
+            <template #header>
+              <div class="flex items-start justify-between">
+                <div class="flex items-center gap-2 flex-1">
+                  <UIcon
+                    name="i-lucide-file-text"
+                    class="w-5 h-5 text-blue-500"
+                  />
+                  <h3 class="font-semibold text-lg truncate">
+                    {{ doc.title || (documentsData?.untitledDocument || '未命名文档') }}
+                  </h3>
+                </div>
+                <UButton
+                  color="error"
+                  variant="ghost"
+                  icon="i-lucide-trash-2"
+                  size="sm"
+                  :loading="deletingId === doc.id"
+                  @click="handleDelete(doc.id, $event)"
                 />
-                <h3 class="font-semibold text-lg truncate">
-                  {{ doc.title || (documentsData?.untitledDocument || '未命名文档') }}
-                </h3>
               </div>
-              <UButton
-                color="error"
-                variant="ghost"
-                icon="i-lucide-trash-2"
-                size="sm"
-                :loading="deletingId === doc.id"
-                @click="handleDelete(doc.id, $event)"
-              />
-            </div>
-          </template>
+            </template>
 
-          <div class="text-sm text-gray-500 space-y-1">
-            <div>
-              {{ documentsData?.createdAt || '创建时间' }}：{{ formatDate(doc.created_at) }}
+            <div class="text-sm text-gray-500 space-y-1">
+              <div>
+                {{ documentsData?.createdAt || '创建时间' }}：{{ formatDate(doc.created_at) }}
+              </div>
+              <div>
+                {{ documentsData?.updatedAt || '更新时间' }}：{{ formatDate(doc.updated_at) }}
+              </div>
             </div>
-            <div>
-              {{ documentsData?.updatedAt || '更新时间' }}：{{ formatDate(doc.updated_at) }}
-            </div>
-          </div>
-        </UCard>
+          </UCard>
+        </UContextMenu>
       </div>
-    </div>
+      </div>
+    </UContextMenu>
   </div>
 </template>
