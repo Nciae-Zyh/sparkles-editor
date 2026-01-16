@@ -107,9 +107,7 @@ onMounted(async () => {
         </UButton>
       </div>
     </AppHeader>
-
     <slot />
-
     <AuthModal
       v-model:open="authModalOpen"
       :mode="authMode"
