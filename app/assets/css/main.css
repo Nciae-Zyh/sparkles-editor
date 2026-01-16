@@ -21,11 +21,11 @@ html.dark .tiptap .shiki span {
 
 /* 编辑器容器样式 */
 .editor-container {
-  @apply min-h-screen bg-white dark:bg-gray-900;
+  @apply bg-white dark:bg-gray-900;
 }
 
 .editor-wrapper {
-  @apply min-h-screen;
+  /* 高度由父容器控制 */
 }
 
 /* 编辑器内容区域样式优化 */
