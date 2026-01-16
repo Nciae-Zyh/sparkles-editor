@@ -69,7 +69,7 @@ export default defineNuxtConfig({
           }
         ],
         observability: {
-          enabled: false,
+          enabled: true,
           logs: {
             enabled: true,
             head_sampling_rate: 1,
@@ -110,9 +110,9 @@ export default defineNuxtConfig({
     'build:before': async () => {
       try {
         await generateI18n()
-        console.log(`✔ generate i18n config success`)
+        console.log(`✔ Generate i18n config success`)
       } catch (error) {
-        console.log('update previewProducts.ts failed!', error)
+        console.log('Generate i18n config failed!', error)
       }
     }
   },

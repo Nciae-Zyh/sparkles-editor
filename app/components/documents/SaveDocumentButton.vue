@@ -41,7 +41,7 @@ const handleSave = async () => {
 
   try {
     saving.value = true
-    console.log('[SaveDocumentButton] 开始保存文档:', {
+    console.log('[SaveDocumentButton] Starting to save document:', {
       documentId: props.documentId,
       path: pathInput.value.trim(),
       contentLength: props.content?.length || 0
@@ -53,12 +53,12 @@ const handleSave = async () => {
       props.documentId
     )
 
-    console.log('[SaveDocumentButton] 文档保存成功:', document.id)
+    console.log('[SaveDocumentButton] Document saved successfully:', document.id)
     // 传递文档ID和用户设置的标题（pathInput.value，这是用户手动输入的标题）
     emit('saved', document.id, pathInput.value.trim())
     isOpen.value = false
   } catch (error: any) {
-    console.error('[SaveDocumentButton] 保存文档失败:', {
+    console.error('[SaveDocumentButton] Failed to save document:', {
       message: error?.message,
       error: error
     })

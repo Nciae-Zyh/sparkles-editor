@@ -182,8 +182,8 @@ const handleRename = async (id: string, newTitle: string) => {
     await loadTree()
     renamingId.value = null
   } catch (error: any) {
-    console.error('重命名失败:', error)
-    alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+    console.error('Failed to rename:', error)
+    alert(error.message || documentsData.value?.renameFailed || 'Failed to rename, please try again later')
   } finally {
     renamingLoadingId.value = null
   }

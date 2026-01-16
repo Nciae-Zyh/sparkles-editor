@@ -169,7 +169,7 @@ export default defineI18nConfig(() => ({
 `
 
   fs.writeFileSync(path.join(i18nDir, 'i18n.config.ts'), i18nFileContent)
-  console.log(`✅ 成功生成 i18n 配置到 ${path.join(i18nDir, 'i18n.config.ts')}`)
+  console.log(`✅ Successfully generated i18n config to ${path.join(i18nDir, 'i18n.config.ts')}`)
 }
 
 // 如果直接运行此脚本

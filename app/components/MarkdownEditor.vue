@@ -373,7 +373,7 @@ async function handleFileImport(event: Event) {
     const text = await file.text()
     importMarkdown(text)
   } catch (error) {
-    console.error(editorData.value?.importFileFailed || '导入文件失败:', error)
+    console.error(editorData.value?.importFileFailed || 'Failed to import file:', error)
     alert(actionsData.value?.importFailed)
   } finally {
     isImporting.value = false

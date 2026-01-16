@@ -2,8 +2,8 @@ import { generateDocumentId } from './auth'
 import type { CloudflareEnv } from '../../types'
 
 /**
- * 解析类似 WebStorm 的文件名，提取文件夹路径和文件名
- * 例如: "folder/subfolder/file.md" -> { folderPath: ["folder", "subfolder"], fileName: "file.md" }
+ * Parse WebStorm-like file name, extract folder path and file name
+ * Example: "folder/subfolder/file.md" -> { folderPath: ["folder", "subfolder"], fileName: "file.md" }
  */
 export function parseFilePath(filePath: string): { folderPath: string[], fileName: string } {
   // 移除开头的斜杠
@@ -28,8 +28,8 @@ export function parseFilePath(filePath: string): { folderPath: string[], fileNam
 }
 
 /**
- * 确保文件夹路径存在，如果不存在则创建
- * 返回最终的父文件夹 ID
+ * Ensure folder path exists, create if it doesn't exist
+ * Returns the final parent folder ID
  */
 export async function ensureFolderPath(
   db: D1Database,
@@ -47,7 +47,7 @@ export async function ensureFolderPath(
   for (let i = 0; i < folderPath.length; i++) {
     const folderName = folderPath[i]
 
-    // 获取当前父文件夹的路径
+    // Get current parent folder path
     let currentPath = '/'
     if (currentParentId) {
       const parent = await db.prepare('SELECT path FROM documents WHERE id = ? AND user_id = ?')
@@ -59,8 +59,8 @@ export async function ensureFolderPath(
       }
     }
 
-    // 构建新文件夹的路径（使用文件夹ID，而不是名称）
-    // 先检查是否已存在同名文件夹
+    // Build new folder path (using folder ID, not name)
+    // First check if folder with same name already exists
     const existingFolder = await db.prepare(`
       SELECT id, path FROM documents 
       WHERE user_id = ? AND parent_id = ? AND title = ? AND type = 'folder'
@@ -71,13 +71,13 @@ export async function ensureFolderPath(
     ).first() as any
 
     if (existingFolder) {
-      // 文件夹已存在，使用它的 ID
+      // Folder already exists, use its ID
       currentParentId = existingFolder.id
       console.log(`[ensureFolderPath] Folder exists: ${folderName}, id=${existingFolder.id}, path=${existingFolder.path}`)
     } else {
-      // 创建新文件夹
+      // Create new folder
       const folderId = generateDocumentId()
-      // 路径格式：/parentPath/folderId 或 /folderId（如果是根目录）
+      // Path format: /parentPath/folderId or /folderId (if root directory)
       const newPath = currentPath === '/' ? `/${folderId}` : `${currentPath}/${folderId}`
 
       try {
@@ -88,7 +88,7 @@ export async function ensureFolderPath(
           folderId,
           userId,
           folderName,
-          '', // 文件夹不需要 R2 key
+          '', // Folders don't need R2 key
           currentParentId,
           newPath,
           'folder',

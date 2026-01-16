@@ -75,24 +75,24 @@ export const useDocuments = () => {
   const saveDocument = async (title: string, content: string, documentId?: string) => {
     try {
       loading.value = true
-      console.log('[useDocuments] 开始保存文档:', {
+      console.log('[useDocuments] Starting to save document:', {
         documentId,
         title,
         contentLength: content?.length || 0
       })
 
       if (documentId) {
-        // 检查文档是否已存在于服务器（通过尝试获取来判断）
-        // 如果获取成功，说明已存在，使用PUT更新
-        // 如果获取失败（404），说明是新文档，使用POST创建但传递ID
+        // Check if document already exists on server (by attempting to fetch)
+        // If fetch succeeds, document exists, use PUT to update
+        // If fetch fails (404), it's a new document, use POST to create but pass ID
         try {
           const existingDoc = await $fetch<{ document: Document }>(`/api/documents/${documentId}`)
-          console.log('[useDocuments] 文档已存在，更新现有文档:', documentId)
+          console.log('[useDocuments] Document exists, updating existing document:', documentId)
           const data = await $fetch<{ success: boolean, document: Document }>(`/api/documents/${documentId}`, {
             method: 'PUT',
             body: { title, content }
           })
-          console.log('[useDocuments] 文档更新成功:', data.document.id)
+          console.log('[useDocuments] Document updated successfully:', data.document.id)
           // 更新本地列表
           const index = documents.value.findIndex(d => d.id === documentId)
           if (index !== -1) {
@@ -100,14 +100,14 @@ export const useDocuments = () => {
           }
           return data.document
         } catch (error: any) {
-          // 如果获取失败（404），说明是新文档，使用POST创建但传递ID
+          // If fetch fails (404), it's a new document, use POST to create but pass ID
           if (error?.statusCode === 404 || error?.status === 404) {
-            console.log('[useDocuments] 文档不存在，使用提供的ID创建新文档:', documentId)
+            console.log('[useDocuments] Document does not exist, creating new document with provided ID:', documentId)
             const data = await $fetch<{ success: boolean, document: Document }>('/api/documents', {
               method: 'POST',
               body: { title, content, type: 'document', id: documentId }
             })
-            console.log('[useDocuments] 文档创建成功（使用提供的ID）:', data.document.id)
+            console.log('[useDocuments] Document created successfully (using provided ID):', data.document.id)
             documents.value.unshift(data.document)
             return data.document
           } else {
@@ -116,17 +116,17 @@ export const useDocuments = () => {
           }
         }
       } else {
-        console.log('[useDocuments] 创建新文档（服务器生成ID）')
+        console.log('[useDocuments] Creating new document (server generates ID)')
         const data = await $fetch<{ success: boolean, document: Document }>('/api/documents', {
           method: 'POST',
           body: { title, content, type: 'document' }
         })
-        console.log('[useDocuments] 文档创建成功:', data.document.id)
+        console.log('[useDocuments] Document created successfully:', data.document.id)
         documents.value.unshift(data.document)
         return data.document
       }
     } catch (error: any) {
-      console.error('[useDocuments] 保存文档失败:', {
+      console.error('[useDocuments] Failed to save document:', {
         message: error?.message,
         statusCode: error?.statusCode,
         data: error?.data,
@@ -185,12 +185,12 @@ export const useDocuments = () => {
       }
       return data.document
     } catch (error: any) {
-      console.error('[useDocuments] 重命名文档失败:', {
+      console.error('[useDocuments] Failed to rename document:', {
         message: error?.message,
         statusCode: error?.statusCode,
         data: error?.data
       })
-      throw new Error(error.data?.message || error.message || '重命名文档失败')
+      throw new Error(error.data?.message || error.message || 'Failed to rename document')
     } finally {
       loading.value = false
     }

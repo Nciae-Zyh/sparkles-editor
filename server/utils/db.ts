@@ -6,7 +6,7 @@ export function getDB(event: any) {
 }
 
 /**
- * 获取数据库并确保迁移已完成
+ * Get database and ensure migration is completed
  */
 export async function getDBWithMigration(event: any): Promise<D1Database> {
   const db = getDB(event)
@@ -14,12 +14,12 @@ export async function getDBWithMigration(event: any): Promise<D1Database> {
     throw new Error('Database not available')
   }
 
-  // 执行迁移检查（非阻塞，失败不影响主流程）
+  // Perform migration check (non-blocking, failure doesn't affect main flow)
   try {
     await migrateDB(db)
   } catch (error: any) {
     console.warn('[getDBWithMigration] Migration check failed:', error?.message)
-    // 迁移失败不应该阻止 API 调用，只记录警告
+    // Migration failure should not block API calls, only log warning
   }
 
   return db
@@ -29,7 +29,7 @@ export async function initDB(db: D1Database) {
   try {
     console.log('[initDB] Starting database initialization')
 
-    // 创建用户表 - 使用 prepare().run() 而不是 exec()
+    // Create users table - use prepare().run() instead of exec()
     try {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS users (
@@ -49,7 +49,7 @@ export async function initDB(db: D1Database) {
       throw new Error(`Failed to create users table: ${error?.message || 'Unknown error'}`)
     }
 
-    // 创建文档表（支持目录结构）
+    // Create documents table (supports directory structure)
     try {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS documents (
@@ -73,10 +73,10 @@ export async function initDB(db: D1Database) {
       throw new Error(`Failed to create documents table: ${error?.message || 'Unknown error'}`)
     }
 
-    // 数据库迁移：检查并添加缺失的列
+    // Database migration: check and add missing columns
     await migrateDB(db)
 
-    // 创建索引 - 分别执行每个索引创建语句
+    // Create indexes - execute each index creation statement separately
     const indexStatements = [
       'CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id)',
       'CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at DESC)',
@@ -92,7 +92,7 @@ export async function initDB(db: D1Database) {
         await db.prepare(statement).run()
         console.log(`[initDB] Index created: ${statement}`)
       } catch (error: any) {
-        // 索引创建失败不应该阻止初始化，只记录错误
+        // Index creation failure should not block initialization, only log error
         console.warn(`[initDB] Failed to create index: ${statement}`, error?.message)
       }
     }
@@ -109,13 +109,13 @@ export async function initDB(db: D1Database) {
 }
 
 /**
- * 数据库迁移：检查并添加缺失的列
+ * Database migration: check and add missing columns
  */
 export async function migrateDB(db: D1Database) {
   try {
     console.log('[migrateDB] Starting database migration')
 
-    // 检查表是否存在
+    // Check if table exists
     const tableInfo = await db.prepare(`
       SELECT name FROM sqlite_master 
       WHERE type='table' AND name='documents'
@@ -126,14 +126,14 @@ export async function migrateDB(db: D1Database) {
       return
     }
 
-    // 获取现有列信息
+    // Get existing column information
     const columns = await db.prepare(`PRAGMA table_info(documents)`).all()
     const columnNames = (columns.results as any[]).map((col: any) => col.name)
     console.log('[migrateDB] Existing columns:', columnNames)
 
     const migrations: Array<{ name: string, sql: string }> = []
 
-    // 检查并添加 parent_id 列
+    // Check and add parent_id column
     if (!columnNames.includes('parent_id')) {
       migrations.push({
         name: 'add_parent_id',
@@ -141,7 +141,7 @@ export async function migrateDB(db: D1Database) {
       })
     }
 
-    // 检查并添加 path 列
+    // Check and add path column
     if (!columnNames.includes('path')) {
       migrations.push({
         name: 'add_path',
@@ -149,7 +149,7 @@ export async function migrateDB(db: D1Database) {
       })
     }
 
-    // 检查并添加 type 列
+    // Check and add type column
     if (!columnNames.includes('type')) {
       migrations.push({
         name: 'add_type',
@@ -157,14 +157,14 @@ export async function migrateDB(db: D1Database) {
       })
     }
 
-    // 执行迁移
+    // Execute migrations
     for (const migration of migrations) {
       try {
         console.log(`[migrateDB] Executing migration: ${migration.name}`)
         await db.prepare(migration.sql).run()
         console.log(`[migrateDB] Migration ${migration.name} completed successfully`)
       } catch (error: any) {
-        // 如果列已存在（可能由其他迁移添加），忽略错误
+        // If column already exists (may have been added by another migration), ignore error
         if (error?.message?.includes('duplicate column') || error?.message?.includes('already exists')) {
           console.log(`[migrateDB] Migration ${migration.name} skipped (column may already exist)`)
         } else {
@@ -174,7 +174,7 @@ export async function migrateDB(db: D1Database) {
       }
     }
 
-    // 迁移现有数据：为旧数据添加默认路径和类型
+    // Migrate existing data: add default path and type for old data
     try {
       const updateResult = await db.prepare(`
         UPDATE documents 
@@ -194,7 +194,7 @@ export async function migrateDB(db: D1Database) {
       `).run()
       console.log(`[migrateDB] Migrated ${updateResult.meta.changes || 0} existing documents`)
     } catch (migrateError: any) {
-      // 迁移失败不影响初始化，可能是新数据库或已迁移
+      // Migration failure doesn't affect initialization, may be new database or already migrated
       console.log('[migrateDB] Data migration skipped or failed:', migrateError?.message)
     }
 
@@ -205,7 +205,7 @@ export async function migrateDB(db: D1Database) {
       stack: error?.stack,
       error: error
     })
-    // 迁移失败不应该阻止应用启动，只记录错误
+    // Migration failure should not block application startup, only log error
     console.warn('[migrateDB] Continuing despite migration errors')
   }
 }

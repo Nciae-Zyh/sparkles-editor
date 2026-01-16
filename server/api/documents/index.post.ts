@@ -7,33 +7,33 @@ export default eventHandler(async (event) => {
   const startTime = Date.now()
   const requestId = crypto.randomUUID()
 
-  console.log(`[POST /api/documents] [${requestId}] 开始处理保存文档请求`)
+  console.log(`[POST /api/documents] [${requestId}] Starting document save request`)
 
   try {
-    // 1. 验证用户身份
-    console.log(`[POST /api/documents] [${requestId}] 步骤1: 验证用户身份`)
+    // 1. Verify user authentication
+    console.log(`[POST /api/documents] [${requestId}] Step 1: Verifying user authentication`)
     const user = await getCurrentUser(event)
     if (!user) {
-      console.error(`[POST /api/documents] [${requestId}] 用户未认证`)
+      console.error(`[POST /api/documents] [${requestId}] User not authenticated`)
       throw createError({
         statusCode: 401,
         message: 'Unauthorized'
       })
     }
-    console.log(`[POST /api/documents] [${requestId}] 用户认证成功: userId=${user.id}, email=${user.email}`)
+    console.log(`[POST /api/documents] [${requestId}] User authenticated successfully: userId=${user.id}, email=${user.email}`)
 
-    // 2. 读取请求体
-    console.log(`[POST /api/documents] [${requestId}] 步骤2: 读取请求体`)
+    // 2. Read request body
+    console.log(`[POST /api/documents] [${requestId}] Step 2: Reading request body`)
     let body: any
     try {
       body = await readBody(event)
-      console.log(`[POST /api/documents] [${requestId}] 请求体读取成功:`, {
+      console.log(`[POST /api/documents] [${requestId}] Request body read successfully:`, {
         title: body?.title,
         contentLength: body?.content?.length || 0,
         type: body?.type
       })
     } catch (error: any) {
-      console.error(`[POST /api/documents] [${requestId}] 读取请求体失败:`, {
+      console.error(`[POST /api/documents] [${requestId}] Failed to read request body:`, {
         message: error?.message,
         stack: error?.stack
       })
@@ -45,49 +45,49 @@ export default eventHandler(async (event) => {
 
     const { title, content, type = 'document', id: clientDocumentId } = body
 
-    // 3. 解析文件名（类似 WebStorm，支持 folder/subfolder/file.md 格式）
-    console.log(`[POST /api/documents] [${requestId}] 步骤3: 解析存储路径`)
+    // 3. Parse file path (similar to WebStorm, supports folder/subfolder/file.md format)
+    console.log(`[POST /api/documents] [${requestId}] Step 3: Parsing storage path`)
     const { folderPath, fileName } = parseFilePath(title.trim())
     const finalTitle = fileName || title.trim()
-    console.log(`[POST /api/documents] [${requestId}] 路径解析结果:`, {
+    console.log(`[POST /api/documents] [${requestId}] Path parsing result:`, {
       originalPath: title,
       folderPath,
       fileName: finalTitle
     })
 
-    // 4. 验证必填字段
-    console.log(`[POST /api/documents] [${requestId}] 步骤4: 验证必填字段`)
+    // 4. Validate required fields
+    console.log(`[POST /api/documents] [${requestId}] Step 4: Validating required fields`)
     if (!finalTitle || !finalTitle.trim()) {
-      console.error(`[POST /api/documents] [${requestId}] 标题验证失败: finalTitle=${finalTitle}`)
+      console.error(`[POST /api/documents] [${requestId}] Title validation failed: finalTitle=${finalTitle}`)
       throw createError({
         statusCode: 400,
         message: 'Title is required'
       })
     }
-    console.log(`[POST /api/documents] [${requestId}] 字段验证通过`)
+    console.log(`[POST /api/documents] [${requestId}] Field validation passed`)
 
-    // 5. 获取数据库连接并执行迁移检查
-    console.log(`[POST /api/documents] [${requestId}] 步骤5: 获取数据库连接`)
+    // 5. Get database connection and perform migration check
+    console.log(`[POST /api/documents] [${requestId}] Step 5: Getting database connection`)
     let db: D1Database
     try {
       db = await getDBWithMigration(event)
-      console.log(`[POST /api/documents] [${requestId}] 数据库连接成功`)
+      console.log(`[POST /api/documents] [${requestId}] Database connection successful`)
     } catch (error: any) {
-      console.error(`[POST /api/documents] [${requestId}] 数据库不可用:`, error?.message)
+      console.error(`[POST /api/documents] [${requestId}] Database not available:`, error?.message)
       throw createError({
         statusCode: 500,
         message: 'Database not available'
       })
     }
 
-    // 6. 自动创建文件夹路径（如果路径包含文件夹）
+    // 6. Automatically create folder path (if path contains folders)
     let finalParentId: string | null = null
     let parentPath = '/'
     if (folderPath.length > 0) {
-      console.log(`[POST /api/documents] [${requestId}] 步骤6: 自动创建文件夹路径:`, folderPath)
+      console.log(`[POST /api/documents] [${requestId}] Step 6: Automatically creating folder path:`, folderPath)
       try {
         finalParentId = await ensureFolderPath(db, user.id, folderPath, null)
-        console.log(`[POST /api/documents] [${requestId}] 文件夹路径创建成功: finalParentId=${finalParentId}`)
+        console.log(`[POST /api/documents] [${requestId}] Folder path created successfully: finalParentId=${finalParentId}`)
 
         // 更新 parentPath 用于后续路径计算
         if (finalParentId) {
@@ -99,7 +99,7 @@ export default eventHandler(async (event) => {
           }
         }
       } catch (error: any) {
-        console.error(`[POST /api/documents] [${requestId}] 创建文件夹路径时出错:`, {
+        console.error(`[POST /api/documents] [${requestId}] Error creating folder path:`, {
           message: error?.message,
           stack: error?.stack,
           folderPath
@@ -110,34 +110,34 @@ export default eventHandler(async (event) => {
         })
       }
     } else {
-      console.log(`[POST /api/documents] [${requestId}] 步骤6: 无需创建文件夹路径，保存到根目录`)
+      console.log(`[POST /api/documents] [${requestId}] Step 6: No folder path needed, saving to root directory`)
     }
 
-    // 6. 生成或使用客户端提供的文档ID和路径
-    console.log(`[POST /api/documents] [${requestId}] 步骤6: 生成或使用文档ID和路径`)
+    // 6. Generate or use client-provided document ID and path
+    console.log(`[POST /api/documents] [${requestId}] Step 6: Generating or using document ID and path`)
     let documentId: string
 
-    // 如果客户端提供了ID，验证它是否已存在
+    // If client provided an ID, verify if it already exists
     if (clientDocumentId) {
-      console.log(`[POST /api/documents] [${requestId}] 客户端提供了文档ID: ${clientDocumentId}`)
+      console.log(`[POST /api/documents] [${requestId}] Client provided document ID: ${clientDocumentId}`)
       // 检查该ID是否已存在且属于当前用户
       const existing = await db.prepare('SELECT id FROM documents WHERE id = ? AND user_id = ?')
         .bind(clientDocumentId, user.id)
         .first()
 
       if (existing) {
-        console.log(`[POST /api/documents] [${requestId}] 文档ID已存在，将使用PUT更新而不是创建`)
-        // 如果已存在，应该使用PUT更新，但这里为了兼容性，我们生成新ID
-        // 或者可以抛出错误提示使用PUT
+        console.log(`[POST /api/documents] [${requestId}] Document ID already exists, should use PUT to update instead`)
+        // If it exists, should use PUT to update, but for compatibility, we generate a new ID
+        // Or throw an error to prompt using PUT
         throw createError({
           statusCode: 409,
           message: 'Document with this ID already exists. Use PUT to update instead.'
         })
       }
 
-      // 验证ID格式（32位十六进制字符串）
+      // Validate ID format (32-character hexadecimal string)
       if (!/^[0-9a-f]{32}$/.test(clientDocumentId)) {
-        console.error(`[POST /api/documents] [${requestId}] 客户端提供的ID格式无效: ${clientDocumentId}`)
+        console.error(`[POST /api/documents] [${requestId}] Invalid client-provided ID format: ${clientDocumentId}`)
         throw createError({
           statusCode: 400,
           message: 'Invalid document ID format'
@@ -145,36 +145,36 @@ export default eventHandler(async (event) => {
       }
 
       documentId = clientDocumentId
-      console.log(`[POST /api/documents] [${requestId}] 使用客户端提供的文档ID: ${documentId}`)
+      console.log(`[POST /api/documents] [${requestId}] Using client-provided document ID: ${documentId}`)
     } else {
       documentId = generateDocumentId()
-      console.log(`[POST /api/documents] [${requestId}] 生成新的文档ID: ${documentId}`)
+      console.log(`[POST /api/documents] [${requestId}] Generated new document ID: ${documentId}`)
     }
 
     const now = Math.floor(Date.now() / 1000)
     const path = parentPath === '/' ? `/${documentId}` : `${parentPath}/${documentId}`
-    console.log(`[POST /api/documents] [${requestId}] 文档ID确定: documentId=${documentId}, path=${path}`)
+    console.log(`[POST /api/documents] [${requestId}] Document ID determined: documentId=${documentId}, path=${path}`)
 
-    // 8. 检查路径是否已存在
-    console.log(`[POST /api/documents] [${requestId}] 步骤8: 检查路径冲突`)
+    // 8. Check if path already exists
+    console.log(`[POST /api/documents] [${requestId}] Step 8: Checking path conflicts`)
     try {
       const existing = await db.prepare('SELECT id FROM documents WHERE path = ? AND user_id = ?')
         .bind(path, user.id)
         .first()
 
       if (existing) {
-        console.error(`[POST /api/documents] [${requestId}] 路径已存在: path=${path}`)
+        console.error(`[POST /api/documents] [${requestId}] Path already exists: path=${path}`)
         throw createError({
           statusCode: 409,
           message: 'A document or folder with this name already exists in this location'
         })
       }
-      console.log(`[POST /api/documents] [${requestId}] 路径检查通过`)
+      console.log(`[POST /api/documents] [${requestId}] Path check passed`)
     } catch (error: any) {
       if (error.statusCode) {
         throw error
       }
-      console.error(`[POST /api/documents] [${requestId}] 检查路径时出错:`, {
+      console.error(`[POST /api/documents] [${requestId}] Error checking path:`, {
         message: error?.message,
         stack: error?.stack
       })
@@ -184,14 +184,14 @@ export default eventHandler(async (event) => {
       })
     }
 
-    // 9. 保存到 R2（如果是文档）
+    // 9. Save to R2 (if document type)
     let r2Key = ''
     if (type === 'document') {
-      console.log(`[POST /api/documents] [${requestId}] 步骤9: 保存到R2存储`)
+      console.log(`[POST /api/documents] [${requestId}] Step 9: Saving to R2 storage`)
       try {
         const r2 = getR2Bucket(event)
         if (!r2) {
-          console.error(`[POST /api/documents] [${requestId}] R2存储不可用`)
+          console.error(`[POST /api/documents] [${requestId}] R2 storage not available`)
           throw createError({
             statusCode: 500,
             message: 'R2 storage not available'
@@ -199,14 +199,14 @@ export default eventHandler(async (event) => {
         }
 
         const contentToSave = content || ''
-        console.log(`[POST /api/documents] [${requestId}] 准备保存内容到R2: contentLength=${contentToSave.length}`)
+        console.log(`[POST /api/documents] [${requestId}] Preparing to save content to R2: contentLength=${contentToSave.length}`)
         r2Key = await saveDocumentToR2(r2, user.id, documentId, contentToSave)
-        console.log(`[POST /api/documents] [${requestId}] R2保存成功: r2Key=${r2Key}`)
+        console.log(`[POST /api/documents] [${requestId}] R2 save successful: r2Key=${r2Key}`)
       } catch (error: any) {
         if (error.statusCode) {
           throw error
         }
-        console.error(`[POST /api/documents] [${requestId}] 保存到R2时出错:`, {
+        console.error(`[POST /api/documents] [${requestId}] Error saving to R2:`, {
           message: error?.message,
           stack: error?.stack,
           userId: user.id,
@@ -218,12 +218,12 @@ export default eventHandler(async (event) => {
         })
       }
     } else {
-      console.log(`[POST /api/documents] [${requestId}] 步骤8: 跳过R2存储（文件夹类型）`)
+      console.log(`[POST /api/documents] [${requestId}] Step 8: Skipping R2 storage (folder type)`)
       r2Key = ''
     }
 
-    // 10. 保存到数据库
-    console.log(`[POST /api/documents] [${requestId}] 步骤10: 保存到数据库`)
+    // 10. Save to database
+    console.log(`[POST /api/documents] [${requestId}] Step 10: Saving to database`)
     try {
       const result = await db.prepare(`
         INSERT INTO documents (id, user_id, title, r2_key, parent_id, path, type, created_at, updated_at)
@@ -240,30 +240,30 @@ export default eventHandler(async (event) => {
         now
       ).run()
 
-      console.log(`[POST /api/documents] [${requestId}] 数据库保存成功:`, {
+      console.log(`[POST /api/documents] [${requestId}] Database save successful:`, {
         documentId,
         success: result.success,
         meta: result.meta
       })
     } catch (error: any) {
-      console.error(`[POST /api/documents] [${requestId}] 保存到数据库时出错:`, {
+      console.error(`[POST /api/documents] [${requestId}] Error saving to database:`, {
         message: error?.message,
         stack: error?.stack,
         documentId,
         userId: user.id
       })
 
-      // 如果R2已保存但数据库保存失败，尝试清理R2
+      // If R2 was saved but database save failed, try to clean up R2
       if (r2Key && type === 'document') {
         try {
-          console.log(`[POST /api/documents] [${requestId}] 尝试清理R2中的文件: r2Key=${r2Key}`)
+          console.log(`[POST /api/documents] [${requestId}] Attempting to clean up R2 file: r2Key=${r2Key}`)
           const r2 = getR2Bucket(event)
           if (r2) {
             await r2.delete(r2Key)
-            console.log(`[POST /api/documents] [${requestId}] R2清理成功`)
+            console.log(`[POST /api/documents] [${requestId}] R2 cleanup successful`)
           }
         } catch (cleanupError: any) {
-          console.error(`[POST /api/documents] [${requestId}] R2清理失败:`, cleanupError?.message)
+          console.error(`[POST /api/documents] [${requestId}] R2 cleanup failed:`, cleanupError?.message)
         }
       }
 
@@ -274,7 +274,7 @@ export default eventHandler(async (event) => {
     }
 
     const duration = Date.now() - startTime
-    console.log(`[POST /api/documents] [${requestId}] 请求处理成功，耗时: ${duration}ms`)
+    console.log(`[POST /api/documents] [${requestId}] Request processed successfully, duration: ${duration}ms`)
 
     return {
       success: true,
@@ -290,7 +290,7 @@ export default eventHandler(async (event) => {
     }
   } catch (error: any) {
     const duration = Date.now() - startTime
-    console.error(`[POST /api/documents] [${requestId}] 请求处理失败，耗时: ${duration}ms`, {
+    console.error(`[POST /api/documents] [${requestId}] Request processing failed, duration: ${duration}ms`, {
       message: error?.message,
       statusCode: error?.statusCode,
       stack: error?.stack,
