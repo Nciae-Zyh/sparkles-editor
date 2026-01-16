@@ -31,7 +31,7 @@ watch(() => route.query.function, () => {
 })
 const defaultContent = computed(() => $tm('editor.defaultContent'))
 onMounted(() => {
-  if (route.query && 'create' === route.query.function) {
+  if (route.query && 'create' !== route.query.function) {
     try {
       content.value = defaultContent.value
     } catch (e) {
