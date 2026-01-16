@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useDocuments } from '~/composables/useDocuments'
+import { useDocumentContextMenu } from '~/composables/useDocumentContextMenu'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import type { Document } from '~/types'
 
@@ -189,6 +190,18 @@ const handleRename = async (id: string, newTitle: string) => {
   }
 }
 
+// 使用右键菜单 composable
+const { getEmptyAreaMenuItems } = useDocumentContextMenu({
+  onCreateDocument: () => {
+    navigateTo(safeLocalePath('/'))
+  },
+  onCreateFolder: (parentId?: string | null) => {
+    selectedParentId.value = parentId || null
+    showCreateFolder.value = true
+  },
+  currentParentId: () => null
+})
+
 onMounted(() => {
   loadTree()
 })
@@ -290,18 +303,21 @@ onMounted(() => {
     </div>
 
     <!-- 空状态 -->
-    <div
+    <UContextMenu
       v-else-if="tree.length === 0"
-      class="text-center py-12 text-gray-500"
+      :items="getEmptyAreaMenuItems"
     >
-      {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
-    </div>
+      <div class="text-center py-12 text-gray-500 cursor-context-menu">
+        {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
+      </div>
+    </UContextMenu>
 
     <!-- 树形视图 -->
-    <div
+    <UContextMenu
       v-else
-      class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-900"
+      :items="getEmptyAreaMenuItems"
     >
+      <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-900">
       <DocumentsDocumentTreeNode
         v-for="node in tree"
         :key="node.id"
@@ -321,6 +337,7 @@ onMounted(() => {
         @start-rename="(id: string) => handleStartRename(id)"
         @cancel-rename="() => handleCancelRename()"
       />
-    </div>
+      </div>
+    </UContextMenu>
   </div>
 </template>

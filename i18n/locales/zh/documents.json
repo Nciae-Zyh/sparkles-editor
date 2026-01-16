@@ -29,6 +29,19 @@
     "moveFailed": "移动失败，请稍后重试",
     "cannotMoveIntoSubfolder": "不能将文件夹移动到自己的子文件夹中",
     "saveLocation": "保存位置",
-    "create": "创建"
+    "create": "创建",
+    "contextMenu": {
+      "newDocument": "新建文档",
+      "newFolder": "新建文件夹",
+      "rename": "重命名",
+      "delete": "删除",
+      "open": "打开",
+      "download": "下载"
+    },
+    "rename": "重命名",
+    "renameDocument": "重命名文档",
+    "renameFolder": "重命名文件夹",
+    "enterNewName": "请输入新名称",
+    "renameFailed": "重命名失败"
   }
 }

@@ -29,6 +29,19 @@
     "moveFailed": "Move failed, please try again later",
     "cannotMoveIntoSubfolder": "Cannot move folder into its own subfolder",
     "saveLocation": "Save Location",
-    "create": "Create"
+    "create": "Create",
+    "contextMenu": {
+      "newDocument": "New Document",
+      "newFolder": "New Folder",
+      "rename": "Rename",
+      "delete": "Delete",
+      "open": "Open",
+      "download": "Download"
+    },
+    "rename": "Rename",
+    "renameDocument": "Rename Document",
+    "renameFolder": "Rename Folder",
+    "enterNewName": "Please enter new name",
+    "renameFailed": "Rename failed"
   }
 }

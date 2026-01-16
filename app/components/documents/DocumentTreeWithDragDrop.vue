@@ -2,6 +2,7 @@
 import type { TreeItem } from '@nuxt/ui'
 import type { Document } from '~/types'
 import { useDocuments } from '~/composables/useDocuments'
+import { useDocumentContextMenu } from '~/composables/useDocumentContextMenu'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import { useDownloadZip } from '~/composables/useDownloadZip'
 
@@ -526,6 +527,65 @@ const handleFixPaths = async () => {
     fixingPaths.value = false
   }
 }
+// 将 ExtendedTreeItem 转换为 Document
+const treeItemToDocument = (item: ExtendedTreeItem): Document => {
+  return {
+    id: item.id,
+    user_id: '', // UTree 中没有这个字段，但不影响右键菜单使用
+    title: item.label || '',
+    r2_key: '',
+    parent_id: null,
+    type: item.type,
+    created_at: 0,
+    updated_at: 0
+  }
+}
+
+// 使用右键菜单 composable
+const { getFolderMenuItems, getDocumentMenuItems, getEmptyAreaMenuItems } = useDocumentContextMenu({
+  onOpen: (item: Document) => {
+    if (item.type === 'folder') {
+      // 文件夹的展开/折叠由 UTree 自动处理
+      const folderId = item.id
+      if (!expanded.value.includes(folderId)) {
+        expanded.value.push(folderId)
+      } else {
+        expanded.value = expanded.value.filter(id => id !== folderId)
+      }
+    } else {
+      // 文档点击打开编辑页面
+      if (renamingId.value !== item.id) {
+        navigateTo(`${safeLocalePath('/documents')}/${item.id}`)
+      }
+    }
+  },
+  onRename: (item: Document) => {
+    const treeItem = findItemInTree(treeItems.value, item.id)
+    if (treeItem) {
+      handleStartRename(item.id, treeItem.label || '')
+    }
+  },
+  onDelete: (item: Document, event: Event) => {
+    handleDelete(item.id, event)
+  },
+  onCreateFolder: (parentId?: string | null) => {
+    selectedParentId.value = parentId || null
+    showCreateFolder.value = true
+  },
+  onDownload: (item: Document, event: Event) => {
+    if (item.type === 'document') {
+      handleDownload(item.id, event)
+    }
+  },
+  currentParentId: () => null
+})
+
+// 获取树节点的菜单项
+const getTreeItemMenuItems = (item: ExtendedTreeItem) => {
+  const doc = treeItemToDocument(item)
+  return item.type === 'folder' ? getFolderMenuItems(doc) : getDocumentMenuItems(doc)
+}
+
 const onSelect = (e, item) => {
   // 处理文档点击，打开编辑页面
   const treeItem = item as ExtendedTreeItem
@@ -646,44 +706,48 @@ onMounted(() => {
     </div>
 
     <!-- 空状态 -->
-    <div
+    <UContextMenu
       v-else-if="treeItems.length === 0"
-      class="text-center py-12 text-gray-500"
+      :items="getEmptyAreaMenuItems"
     >
-      {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
-    </div>
+      <div class="text-center py-12 text-gray-500 cursor-context-menu">
+        {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
+      </div>
+    </UContextMenu>
 
     <!-- 树形视图 -->
-    <div
+    <UContextMenu
       v-else
-      class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-900"
+      :items="getEmptyAreaMenuItems"
     >
-      <UTree
-        v-model:expanded="expanded"
-        :get-key="(item) => item.id"
-        :items="treeItems"
-        color="neutral"
-        nested
-        @select="onSelect"
-      >
-        <template #item-label="{ item }">
-          <div
-            :class="[
-              'flex items-center gap-2 w-full group',
-              draggedItemId === item.id ? 'opacity-50' : '',
-              dragOverItemId === item.id && dragOverPosition === 'inside' ? 'bg-blue-100 dark:bg-blue-900 rounded' : ''
-            ]"
-            :draggable="true"
-            @click="(e) => {
-              // 文档的点击在 UTree 的 @select 事件中处理
-              // 这里只处理拖放相关的事件，不阻止点击事件传播
-            }"
-            @dragend="handleDragEnd"
-            @dragleave="handleDragLeave"
-            @dragover="handleDragOver($event, item as ExtendedTreeItem)"
-            @dragstart="handleDragStart($event, item as ExtendedTreeItem)"
-            @drop="handleDrop($event, item as ExtendedTreeItem)"
-          >
+      <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-900">
+        <UTree
+          v-model:expanded="expanded"
+          :get-key="(item) => item.id"
+          :items="treeItems"
+          color="neutral"
+          nested
+          @select="onSelect"
+        >
+          <template #item-label="{ item }">
+            <UContextMenu :items="getTreeItemMenuItems(item as ExtendedTreeItem)">
+              <div
+                :class="[
+                  'flex items-center gap-2 w-full group',
+                  draggedItemId === item.id ? 'opacity-50' : '',
+                  dragOverItemId === item.id && dragOverPosition === 'inside' ? 'bg-blue-100 dark:bg-blue-900 rounded' : ''
+                ]"
+                :draggable="true"
+                @click="(e) => {
+                  // 文档的点击在 UTree 的 @select 事件中处理
+                  // 这里只处理拖放相关的事件，不阻止点击事件传播
+                }"
+                @dragend="handleDragEnd"
+                @dragleave="handleDragLeave"
+                @dragover="handleDragOver($event, item as ExtendedTreeItem)"
+                @dragstart="handleDragStart($event, item as ExtendedTreeItem)"
+                @drop="handleDrop($event, item as ExtendedTreeItem)"
+              >
             <!-- 加载指示器 -->
             <div
               v-if="item.type === 'folder' && loadingFolders.has(item.id)"
@@ -762,9 +826,11 @@ onMounted(() => {
                 @click.stop="handleDelete(item.id, $event)"
               />
             </div>
-          </div>
-        </template>
-      </UTree>
-    </div>
+              </div>
+            </UContextMenu>
+          </template>
+        </UTree>
+      </div>
+    </UContextMenu>
   </div>
 </template>
