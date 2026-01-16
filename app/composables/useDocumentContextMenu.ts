@@ -80,15 +80,24 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
       ])
     }
 
-    // 在文件夹内创建子文件夹
+    // 在文件夹内创建文档和文件夹
+    const createItems: ContextMenuItem[] = []
+    if (onCreateDocument) {
+      createItems.push({
+        label: contextMenuData.value.newDocument || '新建文档',
+        icon: 'i-lucide-file-plus',
+        onSelect: () => onCreateDocument(folder.id)
+      })
+    }
     if (onCreateFolder) {
-      items.push([
-        {
-          label: contextMenuData.value.newFolder || '新建文件夹',
-          icon: 'i-lucide-folder-plus',
-          onSelect: () => onCreateFolder(folder.id)
-        }
-      ])
+      createItems.push({
+        label: contextMenuData.value.newFolder || '新建文件夹',
+        icon: 'i-lucide-folder-plus',
+        onSelect: () => onCreateFolder(folder.id)
+      })
+    }
+    if (createItems.length > 0) {
+      items.push(createItems)
     }
 
     // 删除

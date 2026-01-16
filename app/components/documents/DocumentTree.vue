@@ -164,6 +164,12 @@ const handleCreateSubFolder = (folderId: string, event: Event) => {
   showCreateFolder.value = true
 }
 
+// 处理在文件夹内创建文档
+const handleCreateDocument = (parentId?: string | null) => {
+  const folderParam = parentId ? `?folder=${parentId}` : ''
+  navigateTo(`${safeLocalePath('/')}${folderParam}`)
+}
+
 // 处理开始重命名
 const handleStartRename = (id: string) => {
   renamingId.value = id
@@ -190,10 +196,35 @@ const handleRename = async (id: string, newTitle: string) => {
   }
 }
 
-// 使用右键菜单 composable
+// 使用右键菜单 composable（用于文件夹和文档节点）
+const { getFolderMenuItems, getDocumentMenuItems } = useDocumentContextMenu({
+  onOpen: (item: Document) => {
+    handleNodeClick(item as DocumentTreeNode)
+  },
+  onRename: (item: Document) => {
+    handleStartRename(item.id)
+  },
+  onDelete: (item: Document, event: Event) => {
+    handleDelete(item.id, event)
+  },
+  onCreateDocument: (parentId?: string | null) => {
+    handleCreateDocument(parentId)
+  },
+  onCreateFolder: (parentId?: string | null) => {
+    selectedParentId.value = parentId || null
+    showCreateFolder.value = true
+  },
+  onDownload: (item: Document, event: Event) => {
+    if (item.type === 'document') {
+      handleDownload(item.id, event)
+    }
+  }
+})
+
+// 使用右键菜单 composable（用于空白区域）
 const { getEmptyAreaMenuItems } = useDocumentContextMenu({
   onCreateDocument: () => {
-    navigateTo(safeLocalePath('/'))
+    handleCreateDocument(null)
   },
   onCreateFolder: (parentId?: string | null) => {
     selectedParentId.value = parentId || null
@@ -201,6 +232,11 @@ const { getEmptyAreaMenuItems } = useDocumentContextMenu({
   },
   currentParentId: () => null
 })
+
+// 获取树节点的菜单项
+const getTreeNodeMenuItems = (node: DocumentTreeNode) => {
+  return node.type === 'folder' ? getFolderMenuItems(node) : getDocumentMenuItems(node)
+}
 
 onMounted(() => {
   loadTree()
@@ -332,6 +368,7 @@ onMounted(() => {
         @click="(n: DocumentTreeNode) => handleNodeClick(n)"
         @delete="(id: string, e: Event) => handleDelete(id, e)"
         @create-sub-folder="(id: string, e: Event) => handleCreateSubFolder(id, e)"
+        @create-document="(folderId: string | null) => handleCreateDocument(folderId)"
         @download="(id: string, e: Event) => handleDownload(id, e)"
         @rename="(id: string, title: string) => handleRename(id, title)"
         @start-rename="(id: string) => handleStartRename(id)"
