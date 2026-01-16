@@ -82,7 +82,7 @@ export default eventHandler(async (event) => {
 
     // 6. 确定父文件夹ID
     let finalParentId: string | null = null
-    
+
     // 如果客户端提供了 parentId，优先使用它
     if (clientParentId) {
       console.log(`[POST /api/documents] [${requestId}] 使用客户端提供的 parentId: ${clientParentId}`)

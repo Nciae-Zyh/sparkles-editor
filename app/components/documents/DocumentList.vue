@@ -382,96 +382,96 @@ const {
       :items="getEmptyAreaMenuItems"
     >
       <div class="space-y-4">
-      <!-- 文件夹列表 -->
-      <div
-        v-if="folders.length > 0"
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-      >
-        <UContextMenu
-          v-for="folder in folders"
-          :key="folder.id"
-          :items="getFolderMenuItems(folder)"
+        <!-- 文件夹列表 -->
+        <div
+          v-if="folders.length > 0"
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
         >
-          <UCard
-            class="cursor-pointer hover:shadow-lg transition-shadow border-2 border-dashed"
-            @click="navigateToFolder(folder.id)"
+          <UContextMenu
+            v-for="folder in folders"
+            :key="folder.id"
+            :items="getFolderMenuItems(folder)"
           >
-            <template #header>
-              <div class="flex items-start justify-between">
-                <div class="flex items-center gap-2 flex-1">
-                  <UIcon
-                    name="i-lucide-folder"
-                    class="w-5 h-5 text-yellow-500"
+            <UCard
+              class="cursor-pointer hover:shadow-lg transition-shadow border-2 border-dashed"
+              @click="navigateToFolder(folder.id)"
+            >
+              <template #header>
+                <div class="flex items-start justify-between">
+                  <div class="flex items-center gap-2 flex-1">
+                    <UIcon
+                      name="i-lucide-folder"
+                      class="w-5 h-5 text-yellow-500"
+                    />
+                    <h3 class="font-semibold text-lg truncate">
+                      {{ folder.title }}
+                    </h3>
+                  </div>
+                  <UButton
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-trash-2"
+                    size="sm"
+                    :loading="deletingId === folder.id"
+                    @click="handleDelete(folder.id, $event)"
                   />
-                  <h3 class="font-semibold text-lg truncate">
-                    {{ folder.title }}
-                  </h3>
                 </div>
-                <UButton
-                  color="error"
-                  variant="ghost"
-                  icon="i-lucide-trash-2"
-                  size="sm"
-                  :loading="deletingId === folder.id"
-                  @click="handleDelete(folder.id, $event)"
-                />
+              </template>
+
+              <div class="text-sm text-gray-500">
+                {{ documentsData?.folder || '文件夹' }}
               </div>
-            </template>
+            </UCard>
+          </UContextMenu>
+        </div>
 
-            <div class="text-sm text-gray-500">
-              {{ documentsData?.folder || '文件夹' }}
-            </div>
-          </UCard>
-        </UContextMenu>
-      </div>
-
-      <!-- 文档列表 -->
-      <div
-        v-if="files.length > 0"
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-      >
-        <UContextMenu
-          v-for="doc in files"
-          :key="doc.id"
-          :items="getDocumentMenuItems(doc)"
+        <!-- 文档列表 -->
+        <div
+          v-if="files.length > 0"
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
         >
-          <UCard
-            class="cursor-pointer hover:shadow-lg transition-shadow"
-            @click="navigateTo(`${safeLocalePath('/documents')}/${doc.id}`)"
+          <UContextMenu
+            v-for="doc in files"
+            :key="doc.id"
+            :items="getDocumentMenuItems(doc)"
           >
-            <template #header>
-              <div class="flex items-start justify-between">
-                <div class="flex items-center gap-2 flex-1">
-                  <UIcon
-                    name="i-lucide-file-text"
-                    class="w-5 h-5 text-blue-500"
+            <UCard
+              class="cursor-pointer hover:shadow-lg transition-shadow"
+              @click="navigateTo(`${safeLocalePath('/documents')}/${doc.id}`)"
+            >
+              <template #header>
+                <div class="flex items-start justify-between">
+                  <div class="flex items-center gap-2 flex-1">
+                    <UIcon
+                      name="i-lucide-file-text"
+                      class="w-5 h-5 text-blue-500"
+                    />
+                    <h3 class="font-semibold text-lg truncate">
+                      {{ doc.title || (documentsData?.untitledDocument || '未命名文档') }}
+                    </h3>
+                  </div>
+                  <UButton
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-trash-2"
+                    size="sm"
+                    :loading="deletingId === doc.id"
+                    @click="handleDelete(doc.id, $event)"
                   />
-                  <h3 class="font-semibold text-lg truncate">
-                    {{ doc.title || (documentsData?.untitledDocument || '未命名文档') }}
-                  </h3>
                 </div>
-                <UButton
-                  color="error"
-                  variant="ghost"
-                  icon="i-lucide-trash-2"
-                  size="sm"
-                  :loading="deletingId === doc.id"
-                  @click="handleDelete(doc.id, $event)"
-                />
-              </div>
-            </template>
+              </template>
 
-            <div class="text-sm text-gray-500 space-y-1">
-              <div>
-                {{ documentsData?.createdAt || '创建时间' }}：{{ formatDate(doc.created_at) }}
+              <div class="text-sm text-gray-500 space-y-1">
+                <div>
+                  {{ documentsData?.createdAt || '创建时间' }}：{{ formatDate(doc.created_at) }}
+                </div>
+                <div>
+                  {{ documentsData?.updatedAt || '更新时间' }}：{{ formatDate(doc.updated_at) }}
+                </div>
               </div>
-              <div>
-                {{ documentsData?.updatedAt || '更新时间' }}：{{ formatDate(doc.updated_at) }}
-              </div>
-            </div>
-          </UCard>
-        </UContextMenu>
-      </div>
+            </UCard>
+          </UContextMenu>
+        </div>
       </div>
     </UContextMenu>
   </div>

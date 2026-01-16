@@ -128,104 +128,104 @@ const getMenuItems = computed(() => {
         :style="{ paddingLeft: `${level * 1.5 + 0.5}rem` }"
         @click="handleClick"
       >
-      <!-- 展开/折叠图标 -->
-      <div
-        v-if="node.type === 'folder'"
-        class="w-4 h-4 flex-shrink-0 flex items-center justify-center"
-        @click="handleToggle"
-      >
-        <UIcon
-          :name="isExpanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-          class="w-4 h-4 text-gray-400"
-        />
-      </div>
-      <div
-        v-else
-        class="w-4 h-4 flex-shrink-0"
-      />
-
-      <!-- 文件夹/文档图标 -->
-      <UIcon
-        :name="node.type === 'folder' ? 'i-lucide-folder' : 'i-lucide-file-text'"
-        :class="[
-          'w-5 h-5 flex-shrink-0',
-          node.type === 'folder' ? 'text-yellow-500' : 'text-blue-500'
-        ]"
-      />
-
-      <!-- 标题 -->
-      <span
-        v-if="!isRenaming"
-        class="flex-1 truncate text-sm"
-      >
-        {{ node.title || (documentsData?.untitled || '未命名') }}
-      </span>
-      <div
-        v-else
-        class="flex-1 flex items-center gap-1"
-        @click.stop
-      >
-        <UInput
-          v-model="renameInput"
-          size="xs"
-          class="flex-1"
-          autofocus
-          @keyup.enter="handleSaveRename"
-          @keyup.esc="handleCancelRename"
-          @click.stop
-        />
-        <UButton
-          icon="i-lucide-check"
-          size="xs"
-          color="primary"
-          @click.stop="handleSaveRename"
-        />
-        <UButton
-          icon="i-lucide-x"
-          size="xs"
-          variant="ghost"
-          @click.stop="handleCancelRename"
-        />
-      </div>
-
-      <!-- 操作按钮 -->
-      <div
-        v-if="!isRenaming"
-        class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <UButton
-          icon="i-lucide-pencil"
-          size="xs"
-          variant="ghost"
-          color="neutral"
-          @click="handleStartRename"
-        />
-        <UButton
+        <!-- 展开/折叠图标 -->
+        <div
           v-if="node.type === 'folder'"
-          icon="i-lucide-folder-plus"
-          size="xs"
-          variant="ghost"
-          color="neutral"
-          @click="handleCreateSubFolder"
+          class="w-4 h-4 flex-shrink-0 flex items-center justify-center"
+          @click="handleToggle"
+        >
+          <UIcon
+            :name="isExpanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+            class="w-4 h-4 text-gray-400"
+          />
+        </div>
+        <div
+          v-else
+          class="w-4 h-4 flex-shrink-0"
         />
-        <UButton
-          v-if="node.type === 'document'"
-          icon="i-lucide-download"
-          size="xs"
-          variant="ghost"
-          color="neutral"
-          :loading="downloadingId === node.id"
-          @click="handleDownload"
+
+        <!-- 文件夹/文档图标 -->
+        <UIcon
+          :name="node.type === 'folder' ? 'i-lucide-folder' : 'i-lucide-file-text'"
+          :class="[
+            'w-5 h-5 flex-shrink-0',
+            node.type === 'folder' ? 'text-yellow-500' : 'text-blue-500'
+          ]"
         />
-        <UButton
-          icon="i-lucide-trash-2"
-          size="xs"
-          variant="ghost"
-          color="error"
-          :loading="deletingId === node.id"
-          @click="handleDelete"
-        />
-      </div>
+
+        <!-- 标题 -->
+        <span
+          v-if="!isRenaming"
+          class="flex-1 truncate text-sm"
+        >
+          {{ node.title || (documentsData?.untitled || '未命名') }}
+        </span>
+        <div
+          v-else
+          class="flex-1 flex items-center gap-1"
+          @click.stop
+        >
+          <UInput
+            v-model="renameInput"
+            size="xs"
+            class="flex-1"
+            autofocus
+            @keyup.enter="handleSaveRename"
+            @keyup.esc="handleCancelRename"
+            @click.stop
+          />
+          <UButton
+            icon="i-lucide-check"
+            size="xs"
+            color="primary"
+            @click.stop="handleSaveRename"
+          />
+          <UButton
+            icon="i-lucide-x"
+            size="xs"
+            variant="ghost"
+            @click.stop="handleCancelRename"
+          />
+        </div>
+
+        <!-- 操作按钮 -->
+        <div
+          v-if="!isRenaming"
+          class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <UButton
+            icon="i-lucide-pencil"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            @click="handleStartRename"
+          />
+          <UButton
+            v-if="node.type === 'folder'"
+            icon="i-lucide-folder-plus"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            @click="handleCreateSubFolder"
+          />
+          <UButton
+            v-if="node.type === 'document'"
+            icon="i-lucide-download"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            :loading="downloadingId === node.id"
+            @click="handleDownload"
+          />
+          <UButton
+            icon="i-lucide-trash-2"
+            size="xs"
+            variant="ghost"
+            color="error"
+            :loading="deletingId === node.id"
+            @click="handleDelete"
+          />
+        </div>
       </div>
     </UContextMenu>
 

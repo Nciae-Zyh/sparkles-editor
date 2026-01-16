@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import {generateDocumentId} from '~/utils/documentId'
-import {useSafeLocalePath} from '~/utils/safeLocalePath'
-import {useAuth} from '~/composables/useAuth'
+import { generateDocumentId } from '~/utils/documentId'
+import { useSafeLocalePath } from '~/utils/safeLocalePath'
+import { useAuth } from '~/composables/useAuth'
 
 const route = useRoute()
 const safeLocalePath = useSafeLocalePath()
-const {user} = useAuth()
+const { user } = useAuth()
 
 // 使用 ref 定义内容
 const content = ref<string>('')
@@ -22,7 +22,7 @@ const checkCreateDocument = () => {
     allowSave.value = true
     newDocumentId.value = generateDocumentId()
     // 清除 URL 参数，但保持在同一页面
-    navigateTo({query: {}})
+    navigateTo({ query: {} })
   }
 }
 

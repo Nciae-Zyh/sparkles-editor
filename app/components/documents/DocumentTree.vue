@@ -333,12 +333,12 @@ onMounted(() => {
             @keyup.enter="handleCreateDocument"
           />
         </UFormField>
-      <div
-        v-if="createDocumentParentId"
-        class="mt-2 text-sm text-gray-500"
-      >
-        {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
-      </div>
+        <div
+          v-if="createDocumentParentId"
+          class="mt-2 text-sm text-gray-500"
+        >
+          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+        </div>
       </template>
 
       <template #footer="{ close }">
@@ -376,12 +376,12 @@ onMounted(() => {
             @keyup.enter="handleCreateFolder"
           />
         </UFormField>
-      <div
-        v-if="selectedParentId"
-        class="mt-2 text-sm text-gray-500"
-      >
-        {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
-      </div>
+        <div
+          v-if="selectedParentId"
+          class="mt-2 text-sm text-gray-500"
+        >
+          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+        </div>
       </template>
 
       <template #footer="{ close }">
@@ -428,26 +428,26 @@ onMounted(() => {
       :items="getEmptyAreaMenuItems"
     >
       <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-900">
-      <DocumentsDocumentTreeNode
-        v-for="node in tree"
-        :key="node.id"
-        :node="node"
-        :level="0"
-        :expanded-folders="expandedFolders"
-        :deleting-id="deletingId"
-        :downloading-id="downloadingId"
-        :renaming-id="renamingId"
-        :renaming-loading-id="renamingLoadingId"
-        @toggle="(id: string) => toggleFolder(id)"
-        @click="(n: DocumentTreeNode) => handleNodeClick(n)"
-        @delete="(id: string, e: Event) => handleDelete(id, e)"
-        @create-sub-folder="(id: string, e: Event) => handleCreateSubFolder(id, e)"
-        @create-document="(folderId: string | null) => handleCreateDocument(folderId)"
-        @download="(id: string, e: Event) => handleDownload(id, e)"
-        @rename="(id: string, title: string) => handleRename(id, title)"
-        @start-rename="(id: string) => handleStartRename(id)"
-        @cancel-rename="() => handleCancelRename()"
-      />
+        <DocumentsDocumentTreeNode
+          v-for="node in tree"
+          :key="node.id"
+          :node="node"
+          :level="0"
+          :expanded-folders="expandedFolders"
+          :deleting-id="deletingId"
+          :downloading-id="downloadingId"
+          :renaming-id="renamingId"
+          :renaming-loading-id="renamingLoadingId"
+          @toggle="(id: string) => toggleFolder(id)"
+          @click="(n: DocumentTreeNode) => handleNodeClick(n)"
+          @delete="(id: string, e: Event) => handleDelete(id, e)"
+          @create-sub-folder="(id: string, e: Event) => handleCreateSubFolder(id, e)"
+          @create-document="(folderId: string | null) => handleCreateDocument(folderId)"
+          @download="(id: string, e: Event) => handleDownload(id, e)"
+          @rename="(id: string, title: string) => handleRename(id, title)"
+          @start-rename="(id: string) => handleStartRename(id)"
+          @cancel-rename="() => handleCancelRename()"
+        />
       </div>
     </UContextMenu>
   </div>
