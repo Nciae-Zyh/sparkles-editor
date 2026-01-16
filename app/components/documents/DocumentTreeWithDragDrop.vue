@@ -46,7 +46,9 @@ const convertToTreeItem = (doc: Document): ExtendedTreeItem => {
     label: doc.title || (documentsData.value?.untitled || '未命名'),
     type: doc.type,
     icon: doc.type === 'folder' ? 'i-lucide-folder' : 'i-lucide-file-text',
-    children: undefined, // 懒加载，初始不加载子项
+    // 文件夹默认设置为空数组，这样 UTree 会显示展开图标
+    // 文档不设置 children
+    children: doc.type === 'folder' ? [] : undefined,
     _loaded: false,
     onSelect: (e: Event) => {
       e.preventDefault()
@@ -79,11 +81,15 @@ const loadFolderChildren = async (folderId: string, item: ExtendedTreeItem) => {
     const children = await fetchFolderChildren(folderId)
     
     // 更新树项的子项
-    item.children = children.map(convertToTreeItem)
+    // 即使子项为空，也设置为空数组，这样会显示为空文件夹
+    item.children = children.length > 0 ? children.map(convertToTreeItem) : []
     item._loaded = true
   } catch (error) {
     console.error('Failed to load folder children:', error)
     alert('加载文件夹内容失败，请稍后重试')
+    // 加载失败时，保持为空数组，这样用户仍然可以看到文件夹是可展开的
+    item.children = []
+    item._loaded = true
   } finally {
     loadingFolders.value.delete(folderId)
   }
@@ -97,28 +103,15 @@ watch(expanded, async (newExpanded, oldExpanded) => {
   for (const folderId of newlyExpanded) {
     const item = findItemInTree(treeItems.value, folderId)
     if (item && item.type === 'folder' && !item._loaded) {
+      // 展开时加载子项
       await loadFolderChildren(folderId, item)
     }
   }
 }, { immediate: false })
 
-// 处理节点点击
-const handleNodeClick = (item: ExtendedTreeItem) => {
-  if (renamingId.value === item.id) return
-  
-  if (item.type === 'folder') {
-    // 切换展开/折叠（UTree 会自动处理 expanded）
-    const index = expanded.value.indexOf(item.id)
-    if (index > -1) {
-      expanded.value.splice(index, 1)
-    } else {
-      expanded.value.push(item.id)
-    }
-  } else {
-    // 打开文档
-    navigateTo(`${safeLocalePath('/documents')}/${item.id}`)
-  }
-}
+// 注意：节点点击现在在模板中直接处理
+// 文件夹的展开/折叠由 UTree 自动处理
+// 文档的点击在 item-label slot 中处理
 
 // 展开/折叠所有
 const expandAll = async () => {
@@ -189,6 +182,11 @@ const handleCreateFolder = async () => {
       // 如果是在某个文件夹内创建，需要找到该文件夹并添加
       const parentItem = findItemInTree(treeItems.value, selectedParentId.value)
       if (parentItem && parentItem.type === 'folder') {
+        // 确保父文件夹已加载，如果没有加载则先加载
+        if (!parentItem._loaded) {
+          await loadFolderChildren(selectedParentId.value, parentItem)
+        }
+        // 确保 children 数组存在
         if (!parentItem.children) {
           parentItem.children = []
         }
@@ -653,7 +651,7 @@ onMounted(() => {
         <template #item-label="{ item }">
           <div
             :class="[
-              'flex items-center gap-2 w-full group cursor-pointer',
+              'flex items-center gap-2 w-full group',
               draggedItemId === item.id ? 'opacity-50' : '',
               dragOverItemId === item.id && dragOverPosition === 'inside' ? 'bg-blue-100 dark:bg-blue-900 rounded' : ''
             ]"
@@ -663,7 +661,15 @@ onMounted(() => {
             @dragleave="handleDragLeave"
             @drop="handleDrop($event, item as ExtendedTreeItem)"
             @dragend="handleDragEnd"
-            @click="handleNodeClick(item as ExtendedTreeItem)"
+            @click="(e) => {
+              // 如果是文档，点击标签打开文档
+              // 如果是文件夹，不处理点击，让 UTree 的展开图标处理展开/折叠
+              if (item.type === 'document' && renamingId.value !== item.id) {
+                e.stopPropagation()
+                navigateTo(`${safeLocalePath('/documents')}/${item.id}`)
+              }
+              // 文件夹的点击不处理，让 UTree 的展开图标处理
+            }"
           >
             <!-- 加载指示器 -->
             <div
