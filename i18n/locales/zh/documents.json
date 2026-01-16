@@ -42,6 +42,9 @@
     "renameDocument": "重命名文档",
     "renameFolder": "重命名文件夹",
     "enterNewName": "请输入新名称",
-    "renameFailed": "重命名失败"
+    "renameFailed": "重命名失败",
+    "documentName": "文档名称",
+    "enterDocumentName": "请输入文档名称",
+    "createDocumentFailed": "创建文档失败"
   }
 }

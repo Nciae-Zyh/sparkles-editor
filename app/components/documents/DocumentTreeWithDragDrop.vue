@@ -17,6 +17,7 @@ const {
   fetchDocuments,
   deleteDocument,
   createFolder,
+  createEmptyDocument,
   renameDocument,
   moveDocument,
   getDocument,
@@ -45,6 +46,12 @@ const showCreateFolder = ref(false)
 const newFolderName = ref('')
 const creatingFolder = ref(false)
 const selectedParentId = ref<string | null>(null)
+
+// 创建文档相关状态
+const showCreateDocument = ref(false)
+const newDocumentName = ref('')
+const creatingDocument = ref(false)
+const createDocumentParentId = ref<string | null>(null)
 
 // 拖放相关状态
 const draggedItemId = ref<string | null>(null)
@@ -171,6 +178,52 @@ const handleDelete = async (id: string, event: Event) => {
   }
 }
 
+// 处理创建文档（空文档）
+const handleCreateDocument = async () => {
+  if (!newDocumentName.value.trim()) {
+    alert(documentsData.value?.enterDocumentName || '请输入文档名称')
+    return
+  }
+
+  try {
+    creatingDocument.value = true
+    const document = await createEmptyDocument(newDocumentName.value.trim(), createDocumentParentId.value || undefined)
+    newDocumentName.value = ''
+    createDocumentParentId.value = null
+    showCreateDocument.value = false
+
+    // 如果是在根目录创建，添加到根列表
+    if (!createDocumentParentId.value) {
+      treeItems.value.unshift(convertToTreeItem(document))
+    } else {
+      // 如果是在某个文件夹内创建，需要找到该文件夹并添加
+      const parentItem = findItemInTree(treeItems.value, createDocumentParentId.value)
+      if (parentItem && parentItem.type === 'folder') {
+        // 确保父文件夹已加载，如果没有加载则先加载
+        if (!parentItem._loaded) {
+          await loadFolderChildren(createDocumentParentId.value, parentItem)
+        }
+        // 确保 children 数组存在
+        if (!parentItem.children) {
+          parentItem.children = []
+        }
+        parentItem.children.push(convertToTreeItem(document))
+      }
+    }
+  } catch (error: any) {
+    alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
+  } finally {
+    creatingDocument.value = false
+  }
+}
+
+// 打开创建文档模态框
+const openCreateDocumentModal = (parentId?: string | null) => {
+  createDocumentParentId.value = parentId || null
+  newDocumentName.value = ''
+  showCreateDocument.value = true
+}
+
 // 处理创建文件夹
 const handleCreateFolder = async () => {
   if (!newFolderName.value.trim()) {
@@ -182,19 +235,20 @@ const handleCreateFolder = async () => {
     creatingFolder.value = true
     const folder = await createFolder(newFolderName.value.trim(), selectedParentId.value || undefined)
     newFolderName.value = ''
+    const savedParentId = selectedParentId.value
     selectedParentId.value = null
     showCreateFolder.value = false
 
     // 如果是在根目录创建，添加到根列表
-    if (!selectedParentId.value) {
+    if (!savedParentId) {
       treeItems.value.unshift(convertToTreeItem(folder))
     } else {
       // 如果是在某个文件夹内创建，需要找到该文件夹并添加
-      const parentItem = findItemInTree(treeItems.value, selectedParentId.value)
+      const parentItem = findItemInTree(treeItems.value, savedParentId)
       if (parentItem && parentItem.type === 'folder') {
         // 确保父文件夹已加载，如果没有加载则先加载
         if (!parentItem._loaded) {
-          await loadFolderChildren(selectedParentId.value, parentItem)
+          await loadFolderChildren(savedParentId, parentItem)
         }
         // 确保 children 数组存在
         if (!parentItem.children) {
@@ -569,8 +623,7 @@ const { getFolderMenuItems, getDocumentMenuItems, getEmptyAreaMenuItems } = useD
     handleDelete(item.id, event)
   },
   onCreateDocument: (parentId?: string | null) => {
-    const folderParam = parentId ? `?folder=${parentId}` : ''
-    navigateTo(`${safeLocalePath('/')}${folderParam}`)
+    openCreateDocumentModal(parentId)
   },
   onCreateFolder: (parentId?: string | null) => {
     selectedParentId.value = parentId || null
@@ -654,6 +707,49 @@ onMounted(() => {
         </UButton>
       </div>
     </div>
+
+    <!-- 创建文档模态框 -->
+    <UModal
+      v-model:open="showCreateDocument"
+      :title="documentsData?.newDocument || '新建文档'"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UFormField
+          :label="documentsData?.documentName || '文档名称'"
+          name="documentName"
+          required
+        >
+          <UInput
+            v-model="newDocumentName"
+            :placeholder="documentsData?.enterDocumentName || '请输入文档名称'"
+            @keyup.enter="handleCreateDocument"
+          />
+        </UFormField>
+      <div
+        v-if="createDocumentParentId"
+        class="mt-2 text-sm text-gray-500"
+      >
+        {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+      </div>
+      </template>
+
+      <template #footer="{ close }">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          @click="close"
+        >
+          {{ actionsData?.cancel || '取消' }}
+        </UButton>
+        <UButton
+          :loading="creatingDocument"
+          @click="handleCreateDocument"
+        >
+          {{ documentsData?.create || '创建' }}
+        </UButton>
+      </template>
+    </UModal>
 
     <!-- 创建文件夹模态框 -->
     <UModal
