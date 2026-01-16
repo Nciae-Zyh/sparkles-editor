@@ -375,8 +375,7 @@ onMounted(() => {
             :placeholder="documentsData?.enterFolderName || '请输入文件夹名称'"
             @keyup.enter="handleCreateFolder"
           />
-        </UInput>
-      </UFormField>
+        </UFormField>
       <div
         v-if="selectedParentId"
         class="mt-2 text-sm text-gray-500"
