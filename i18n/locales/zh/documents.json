@@ -45,6 +45,9 @@
     "renameFailed": "重命名失败",
     "documentName": "文档名称",
     "enterDocumentName": "请输入文档名称",
-    "createDocumentFailed": "创建文档失败"
+    "createDocumentFailed": "创建文档失败",
+    "rootDirectory": "根目录",
+    "dropToRoot": "拖动到此处移动到根目录",
+    "moving": "正在移动..."
   }
 }
