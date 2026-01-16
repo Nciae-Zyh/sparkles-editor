@@ -7,36 +7,36 @@ export default eventHandler(async (event) => {
   const startTime = Date.now()
   const requestId = crypto.randomUUID()
 
-  console.log(`[PUT /api/documents/[id]] [${requestId}] Starting document update request`)
+  console.log(`[PUT /api/documents/[id]] [${requestId}] 开始处理更新文档请求`)
 
   try {
-    // 1. Verify user authentication
-    console.log(`[PUT /api/documents/[id]] [${requestId}] Step 1: Verifying user authentication`)
+    // 1. 验证用户身份
+    console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤1: 验证用户身份`)
     const user = await getCurrentUser(event)
     if (!user) {
-      console.error(`[PUT /api/documents/[id]] [${requestId}] User not authenticated`)
+      console.error(`[PUT /api/documents/[id]] [${requestId}] 用户未认证`)
       throw createError({
         statusCode: 401,
         message: 'Unauthorized'
       })
     }
-    console.log(`[PUT /api/documents/[id]] [${requestId}] User authenticated successfully: userId=${user.id}`)
+    console.log(`[PUT /api/documents/[id]] [${requestId}] 用户认证成功: userId=${user.id}`)
 
-    // 2. Get document ID
+    // 2. 获取文档ID
     const { id } = getRouterParams(event)
-    console.log(`[PUT /api/documents/[id]] [${requestId}] Step 2: Getting document ID: id=${id}`)
+    console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤2: 获取文档ID: id=${id}`)
 
-    // 3. Read request body
-    console.log(`[PUT /api/documents/[id]] [${requestId}] Step 3: Reading request body`)
+    // 3. 读取请求体
+    console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤3: 读取请求体`)
     let body: any
     try {
       body = await readBody(event)
-      console.log(`[PUT /api/documents/[id]] [${requestId}] Request body read successfully:`, {
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 请求体读取成功:`, {
         title: body?.title,
         contentLength: body?.content?.length || 0
       })
     } catch (error: any) {
-      console.error(`[PUT /api/documents/[id]] [${requestId}] Failed to read request body:`, {
+      console.error(`[PUT /api/documents/[id]] [${requestId}] 读取请求体失败:`, {
         message: error?.message,
         stack: error?.stack
       })
@@ -48,22 +48,22 @@ export default eventHandler(async (event) => {
 
     const { title, content } = body
 
-    // 4. Get database connection and perform migration check
-    console.log(`[PUT /api/documents/[id]] [${requestId}] Step 4: Getting database connection`)
+    // 4. 获取数据库连接并执行迁移检查
+    console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤4: 获取数据库连接`)
     let db: D1Database
     try {
       db = await getDBWithMigration(event)
-      console.log(`[PUT /api/documents/[id]] [${requestId}] Database connection successful`)
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 数据库连接成功`)
     } catch (error: any) {
-      console.error(`[PUT /api/documents/[id]] [${requestId}] Database not available:`, error?.message)
+      console.error(`[PUT /api/documents/[id]] [${requestId}] 数据库不可用:`, error?.message)
       throw createError({
         statusCode: 500,
         message: 'Database not available'
       })
     }
 
-    // 5. Check if document exists and belongs to current user
-    console.log(`[PUT /api/documents/[id]] [${requestId}] Step 5: Checking if document exists`)
+    // 5. 检查文档是否存在且属于当前用户
+    console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤5: 检查文档是否存在`)
     let existing: any
     try {
       existing = await db.prepare(`
@@ -71,18 +71,18 @@ export default eventHandler(async (event) => {
       `).bind(id, user.id).first() as any
 
       if (!existing) {
-        console.error(`[PUT /api/documents/[id]] [${requestId}] Document not found or no permission: id=${id}`)
+        console.error(`[PUT /api/documents/[id]] [${requestId}] 文档不存在或无权限: id=${id}`)
         throw createError({
           statusCode: 404,
           message: 'Document not found'
         })
       }
-      console.log(`[PUT /api/documents/[id]] [${requestId}] Document exists: type=${existing.type}, path=${existing.path}`)
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 文档存在: type=${existing.type}, path=${existing.path}`)
     } catch (error: any) {
       if (error.statusCode) {
         throw error
       }
-      console.error(`[PUT /api/documents/[id]] [${requestId}] Error checking document:`, {
+      console.error(`[PUT /api/documents/[id]] [${requestId}] 检查文档时出错:`, {
         message: error?.message,
         stack: error?.stack
       })
@@ -97,25 +97,25 @@ export default eventHandler(async (event) => {
     let newPath = existing.path
     let newParentId = existing.parent_id
 
-    // 6. If title changed, parse new path and update
+    // 6. 如果标题改变，解析新路径并更新
     if (title !== undefined && title.trim() !== existing.title) {
-      console.log(`[PUT /api/documents/[id]] [${requestId}] Step 6: Parsing new storage path`)
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤6: 解析新存储路径`)
       const { folderPath, fileName } = parseFilePath(title.trim())
       const finalTitle = fileName || title.trim()
 
-      console.log(`[PUT /api/documents/[id]] [${requestId}] Path parsing result:`, {
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 路径解析结果:`, {
         originalPath: title,
         folderPath,
         fileName: finalTitle
       })
 
-      // Automatically create folder path (if path contains folders)
+      // 自动创建文件夹路径（如果路径包含文件夹）
       let finalParentId: string | null = null
       let parentPath = '/'
       if (folderPath.length > 0) {
         try {
           finalParentId = await ensureFolderPath(db, user.id, folderPath, null)
-          console.log(`[PUT /api/documents/[id]] [${requestId}] Folder path created successfully: finalParentId=${finalParentId}`)
+          console.log(`[PUT /api/documents/[id]] [${requestId}] 文件夹路径创建成功: finalParentId=${finalParentId}`)
 
           if (finalParentId) {
             const finalParent = await db.prepare('SELECT path FROM documents WHERE id = ? AND user_id = ?')
@@ -126,7 +126,7 @@ export default eventHandler(async (event) => {
             }
           }
         } catch (error: any) {
-          console.error(`[PUT /api/documents/[id]] [${requestId}] Error creating folder path:`, {
+          console.error(`[PUT /api/documents/[id]] [${requestId}] 创建文件夹路径时出错:`, {
             message: error?.message,
             stack: error?.stack,
             folderPath
@@ -141,25 +141,25 @@ export default eventHandler(async (event) => {
       newPath = parentPath === '/' ? `/${id}` : `${parentPath}/${id}`
       newParentId = finalParentId
 
-      // Check if new path already exists
+      // 检查新路径是否已存在
       try {
         const pathConflict = await db.prepare('SELECT id FROM documents WHERE path = ? AND user_id = ? AND id != ?')
           .bind(newPath, user.id, id)
           .first()
 
         if (pathConflict) {
-          console.error(`[PUT /api/documents/[id]] [${requestId}] Path conflict: path=${newPath}`)
+          console.error(`[PUT /api/documents/[id]] [${requestId}] 路径冲突: path=${newPath}`)
           throw createError({
             statusCode: 409,
             message: 'A document or folder with this name already exists in this location'
           })
         }
-        console.log(`[PUT /api/documents/[id]] [${requestId}] Path check passed: newPath=${newPath}`)
+        console.log(`[PUT /api/documents/[id]] [${requestId}] 路径检查通过: newPath=${newPath}`)
       } catch (error: any) {
         if (error.statusCode) {
           throw error
         }
-        console.error(`[PUT /api/documents/[id]] [${requestId}] Error checking path conflict:`, {
+        console.error(`[PUT /api/documents/[id]] [${requestId}] 检查路径冲突时出错:`, {
           message: error?.message,
           stack: error?.stack
         })
@@ -169,16 +169,16 @@ export default eventHandler(async (event) => {
         })
       }
     } else {
-      console.log(`[PUT /api/documents/[id]] [${requestId}] Step 6: Path unchanged, skipping path update`)
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤6: 路径未改变，跳过路径更新`)
     }
 
-    // 7. If document type, update R2 content
+    // 7. 如果是文档类型，更新 R2 内容
     if (existing.type === 'document') {
-      console.log(`[PUT /api/documents/[id]] [${requestId}] Step 7: Updating R2 storage content`)
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤7: 更新R2存储内容`)
       try {
         const r2 = getR2Bucket(event)
         if (!r2) {
-          console.error(`[PUT /api/documents/[id]] [${requestId}] R2 storage not available`)
+          console.error(`[PUT /api/documents/[id]] [${requestId}] R2存储不可用`)
           throw createError({
             statusCode: 500,
             message: 'R2 storage not available'
@@ -186,14 +186,14 @@ export default eventHandler(async (event) => {
         }
 
         const contentToSave = content !== undefined ? content : ''
-        console.log(`[PUT /api/documents/[id]] [${requestId}] Preparing to update R2 content: contentLength=${contentToSave.length}`)
+        console.log(`[PUT /api/documents/[id]] [${requestId}] 准备更新R2内容: contentLength=${contentToSave.length}`)
         r2Key = await saveDocumentToR2(r2, user.id, id, contentToSave)
-        console.log(`[PUT /api/documents/[id]] [${requestId}] R2 update successful: r2Key=${r2Key}`)
+        console.log(`[PUT /api/documents/[id]] [${requestId}] R2更新成功: r2Key=${r2Key}`)
       } catch (error: any) {
         if (error.statusCode) {
           throw error
         }
-        console.error(`[PUT /api/documents/[id]] [${requestId}] Error updating R2:`, {
+        console.error(`[PUT /api/documents/[id]] [${requestId}] 更新R2时出错:`, {
           message: error?.message,
           stack: error?.stack,
           userId: user.id,
@@ -205,11 +205,11 @@ export default eventHandler(async (event) => {
         })
       }
     } else {
-      console.log(`[PUT /api/documents/[id]] [${requestId}] Step 7: Skipping R2 update (folder type)`)
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤7: 跳过R2更新（文件夹类型）`)
     }
 
-    // 8. Update database
-    console.log(`[PUT /api/documents/[id]] [${requestId}] Step 8: Updating database`)
+    // 8. 更新数据库
+    console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤8: 更新数据库`)
     try {
       const finalTitle = title !== undefined ? title.trim() : existing.title
       const result = await db.prepare(`
@@ -226,13 +226,13 @@ export default eventHandler(async (event) => {
         user.id
       ).run()
 
-      console.log(`[PUT /api/documents/[id]] [${requestId}] Database update successful:`, {
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 数据库更新成功:`, {
         documentId: id,
         success: result.success,
         meta: result.meta
       })
     } catch (error: any) {
-      console.error(`[PUT /api/documents/[id]] [${requestId}] Error updating database:`, {
+      console.error(`[PUT /api/documents/[id]] [${requestId}] 更新数据库时出错:`, {
         message: error?.message,
         stack: error?.stack,
         documentId: id,
@@ -245,7 +245,7 @@ export default eventHandler(async (event) => {
     }
 
     const duration = Date.now() - startTime
-    console.log(`[PUT /api/documents/[id]] [${requestId}] Request processed successfully, duration: ${duration}ms`)
+    console.log(`[PUT /api/documents/[id]] [${requestId}] 请求处理成功，耗时: ${duration}ms`)
 
     // 如果标题更新了，使用解析后的文件名；否则保持原标题
     const finalTitle = title !== undefined
@@ -267,7 +267,7 @@ export default eventHandler(async (event) => {
     }
   } catch (error: any) {
     const duration = Date.now() - startTime
-    console.error(`[PUT /api/documents/[id]] [${requestId}] Request processing failed, duration: ${duration}ms`, {
+    console.error(`[PUT /api/documents/[id]] [${requestId}] 请求处理失败，耗时: ${duration}ms`, {
       message: error?.message,
       statusCode: error?.statusCode,
       stack: error?.stack,

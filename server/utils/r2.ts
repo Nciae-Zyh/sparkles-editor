@@ -14,7 +14,7 @@ export async function saveDocumentToR2(
   const key = `documents/${userId}/${documentId}.md`
 
   try {
-    console.log(`[saveDocumentToR2] Starting to save document to R2: key=${key}, contentLength=${content.length}`)
+    console.log(`[saveDocumentToR2] 开始保存文档到R2: key=${key}, contentLength=${content.length}`)
 
     await r2.put(key, content, {
       httpMetadata: {
@@ -22,10 +22,10 @@ export async function saveDocumentToR2(
       }
     })
 
-    console.log(`[saveDocumentToR2] R2 save successful: key=${key}`)
+    console.log(`[saveDocumentToR2] R2保存成功: key=${key}`)
     return key
   } catch (error: any) {
-    console.error(`[saveDocumentToR2] R2 save failed:`, {
+    console.error(`[saveDocumentToR2] R2保存失败:`, {
       key,
       userId,
       documentId,
