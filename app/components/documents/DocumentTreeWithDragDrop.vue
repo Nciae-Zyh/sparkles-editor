@@ -12,8 +12,19 @@ interface ExtendedTreeItem extends TreeItem {
   _loaded?: boolean // 标记是否已加载子项
 }
 
-const { fetchDocuments, deleteDocument, createFolder, renameDocument, moveDocument, getDocument, fetchFolderChildren } = useDocuments()
-const { downloadAsZip, isDownloading } = useDownloadZip()
+const {
+  fetchDocuments,
+  deleteDocument,
+  createFolder,
+  renameDocument,
+  moveDocument,
+  getDocument,
+  fetchFolderChildren
+} = useDocuments()
+const {
+  downloadAsZip,
+  isDownloading
+} = useDownloadZip()
 const router = useRouter()
 const safeLocalePath = useSafeLocalePath()
 
@@ -41,7 +52,7 @@ const dragOverPosition = ref<'before' | 'after' | 'inside' | null>(null)
 
 // 将 Document 转换为 TreeItem 格式
 const convertToTreeItem = (doc: Document): ExtendedTreeItem => {
-  return {
+  const item: ExtendedTreeItem = {
     id: doc.id,
     label: doc.title || (documentsData.value?.untitled || '未命名'),
     type: doc.type,
@@ -49,11 +60,9 @@ const convertToTreeItem = (doc: Document): ExtendedTreeItem => {
     // 文件夹默认设置为空数组，这样 UTree 会显示展开图标
     // 文档不设置 children
     children: doc.type === 'folder' ? [] : undefined,
-    _loaded: false,
-    onSelect: (e: Event) => {
-      e.preventDefault()
-    }
+    _loaded: false
   }
+  return item
 }
 
 // 加载根目录的文档和文件夹
@@ -79,7 +88,7 @@ const loadFolderChildren = async (folderId: string, item: ExtendedTreeItem) => {
   try {
     loadingFolders.value.add(folderId)
     const children = await fetchFolderChildren(folderId)
-    
+
     // 更新树项的子项
     // 即使子项为空，也设置为空数组，这样会显示为空文件夹
     item.children = children.length > 0 ? children.map(convertToTreeItem) : []
@@ -99,7 +108,7 @@ const loadFolderChildren = async (folderId: string, item: ExtendedTreeItem) => {
 watch(expanded, async (newExpanded, oldExpanded) => {
   // 找出新展开的文件夹
   const newlyExpanded = newExpanded.filter(id => !oldExpanded.includes(id))
-  
+
   for (const folderId of newlyExpanded) {
     const item = findItemInTree(treeItems.value, folderId)
     if (item && item.type === 'folder' && !item._loaded) {
@@ -174,7 +183,7 @@ const handleCreateFolder = async () => {
     newFolderName.value = ''
     selectedParentId.value = null
     showCreateFolder.value = false
-    
+
     // 如果是在根目录创建，添加到根列表
     if (!selectedParentId.value) {
       treeItems.value.unshift(convertToTreeItem(folder))
@@ -222,13 +231,13 @@ const handleRename = async (id: string) => {
   try {
     renamingLoadingId.value = id
     await renameDocument(id, renameInput.value.trim())
-    
+
     // 更新树中的标签
     const item = findItemInTree(treeItems.value, id)
     if (item) {
       item.label = renameInput.value.trim()
     }
-    
+
     renamingId.value = null
     renameInput.value = ''
   } catch (error: any) {
@@ -300,14 +309,14 @@ const removeItemFromTree = (items: ExtendedTreeItem[], id: string): boolean => {
 // 检查是否是子项（防止循环引用）
 const isDescendant = (parentId: string, childId: string): boolean => {
   if (parentId === childId) return true
-  
+
   const parent = findItemInTree(treeItems.value, parentId)
   if (!parent || !parent.children) return false
-  
+
   const checkChildren = (items: ExtendedTreeItem[], visited: Set<string> = new Set()): boolean => {
     if (visited.has(parentId)) return false
     visited.add(parentId)
-    
+
     for (const item of items) {
       if (item.id === childId) return true
       if (item.children) {
@@ -316,7 +325,7 @@ const isDescendant = (parentId: string, childId: string): boolean => {
     }
     return false
   }
-  
+
   return checkChildren(parent.children)
 }
 
@@ -332,7 +341,7 @@ const handleDragStart = (event: DragEvent, item: ExtendedTreeItem) => {
 const handleDragOver = (event: DragEvent, item: ExtendedTreeItem) => {
   event.preventDefault()
   event.stopPropagation()
-  
+
   if (!draggedItemId.value || draggedItemId.value === item.id) {
     dragOverItemId.value = null
     dragOverPosition.value = null
@@ -361,11 +370,11 @@ const handleDragOver = (event: DragEvent, item: ExtendedTreeItem) => {
   }
 
   dragOverItemId.value = item.id
-  
+
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
   const y = event.clientY - rect.top
   const height = rect.height
-  
+
   if (item.type === 'folder') {
     if (y < height * 0.25) {
       dragOverPosition.value = 'before'
@@ -399,7 +408,7 @@ const handleDragLeave = () => {
 const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
   event.preventDefault()
   event.stopPropagation()
-  
+
   if (!draggedItemId.value || !targetItem || draggedItemId.value === targetItem.id) {
     dragOverItemId.value = null
     dragOverPosition.value = null
@@ -428,7 +437,7 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
 
   try {
     let newParentId: string | null = null
-    
+
     if (dragOverPosition.value === 'inside' && targetItem.type === 'folder') {
       newParentId = targetItem.id
     } else {
@@ -445,7 +454,7 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
         }
         return null
       }
-      
+
       const parent = findParent(treeItems.value, targetItem.id)
       newParentId = parent?.id || null
     }
@@ -456,13 +465,13 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
     }
 
     await moveDocument(draggedItemId.value, newParentId)
-    
+
     // 更新树结构
     const item = findItemInTree(treeItems.value, draggedItemId.value)
     if (item) {
       // 从原位置移除
       removeItemFromTree(treeItems.value, draggedItemId.value)
-      
+
       // 添加到新位置
       if (newParentId) {
         const parentItem = findItemInTree(treeItems.value, newParentId)
@@ -505,7 +514,7 @@ const handleFixPaths = async () => {
     const result = await $fetch<{ success: boolean, fixed: number, errors: number }>('/api/documents/fix-paths', {
       method: 'POST'
     })
-    
+
     if (result.success) {
       alert(`路径修复完成！修复了 ${result.fixed} 个项目，${result.errors} 个错误。`)
       await loadRootItems()
@@ -517,7 +526,15 @@ const handleFixPaths = async () => {
     fixingPaths.value = false
   }
 }
-
+const onSelect = (e, item) => {
+  // 处理文档点击，打开编辑页面
+  const treeItem = item as ExtendedTreeItem
+  if (treeItem.type === 'document' && renamingId.value !== treeItem.id) {
+    e.preventDefault()
+    navigateTo(`${safeLocalePath('/documents')}/${treeItem.id}`)
+  }
+  // 文件夹的点击让 UTree 自动处理展开/折叠
+}
 onMounted(() => {
   loadRootItems()
 })
@@ -562,11 +579,11 @@ onMounted(() => {
           {{ documentsData?.collapseAll || '折叠全部' }}
         </UButton>
         <UButton
+          :loading="fixingPaths"
+          color="warning"
           icon="i-lucide-wrench"
           size="sm"
           variant="ghost"
-          color="warning"
-          :loading="fixingPaths"
           @click="handleFixPaths"
         >
           修复路径
@@ -623,8 +640,8 @@ onMounted(() => {
       class="flex justify-center py-12"
     >
       <UIcon
-        name="i-lucide-loader-2"
         class="w-6 h-6 animate-spin"
+        name="i-lucide-loader-2"
       />
     </div>
 
@@ -643,10 +660,11 @@ onMounted(() => {
     >
       <UTree
         v-model:expanded="expanded"
-        :items="treeItems"
         :get-key="(item) => item.id"
-        nested
+        :items="treeItems"
         color="neutral"
+        nested
+        @select="onSelect"
       >
         <template #item-label="{ item }">
           <div
@@ -656,20 +674,15 @@ onMounted(() => {
               dragOverItemId === item.id && dragOverPosition === 'inside' ? 'bg-blue-100 dark:bg-blue-900 rounded' : ''
             ]"
             :draggable="true"
-            @dragstart="handleDragStart($event, item as ExtendedTreeItem)"
-            @dragover="handleDragOver($event, item as ExtendedTreeItem)"
-            @dragleave="handleDragLeave"
-            @drop="handleDrop($event, item as ExtendedTreeItem)"
-            @dragend="handleDragEnd"
             @click="(e) => {
-              // 如果是文档，点击标签打开文档
-              // 如果是文件夹，不处理点击，让 UTree 的展开图标处理展开/折叠
-              if (item.type === 'document' && renamingId.value !== item.id) {
-                e.stopPropagation()
-                navigateTo(`${safeLocalePath('/documents')}/${item.id}`)
-              }
-              // 文件夹的点击不处理，让 UTree 的展开图标处理
+              // 文档的点击在 UTree 的 @select 事件中处理
+              // 这里只处理拖放相关的事件，不阻止点击事件传播
             }"
+            @dragend="handleDragEnd"
+            @dragleave="handleDragLeave"
+            @dragover="handleDragOver($event, item as ExtendedTreeItem)"
+            @dragstart="handleDragStart($event, item as ExtendedTreeItem)"
+            @drop="handleDrop($event, item as ExtendedTreeItem)"
           >
             <!-- 加载指示器 -->
             <div
@@ -677,11 +690,11 @@ onMounted(() => {
               class="w-4 h-4"
             >
               <UIcon
-                name="i-lucide-loader-2"
                 class="w-4 h-4 animate-spin"
+                name="i-lucide-loader-2"
               />
             </div>
-            
+
             <span class="flex-1 truncate">
               <span
                 v-if="renamingId !== item.id"
@@ -695,18 +708,18 @@ onMounted(() => {
               >
                 <UInput
                   v-model="renameInput"
-                  size="xs"
-                  class="flex-1"
                   autofocus
+                  class="flex-1"
+                  size="xs"
                   @keyup.enter="handleRename(item.id)"
                   @keyup.esc="handleCancelRename"
                   @click.stop
                 />
                 <UButton
+                  :loading="renamingLoadingId === item.id"
+                  color="primary"
                   icon="i-lucide-check"
                   size="xs"
-                  color="primary"
-                  :loading="renamingLoadingId === item.id"
                   @click.stop="handleRename(item.id)"
                 />
                 <UButton
@@ -717,7 +730,7 @@ onMounted(() => {
                 />
               </div>
             </span>
-            
+
             <!-- 操作按钮 -->
             <div
               v-if="renamingId !== item.id"
@@ -725,27 +738,27 @@ onMounted(() => {
               @click.stop
             >
               <UButton
+                color="neutral"
                 icon="i-lucide-pencil"
                 size="xs"
                 variant="ghost"
-                color="neutral"
                 @click.stop="handleStartRename(item.id, item.label || '')"
               />
               <UButton
                 v-if="item.type === 'document'"
+                :loading="downloadingId === item.id"
+                color="neutral"
                 icon="i-lucide-download"
                 size="xs"
                 variant="ghost"
-                color="neutral"
-                :loading="downloadingId === item.id"
                 @click.stop="handleDownload(item.id, $event)"
               />
               <UButton
+                :loading="deletingId === item.id"
+                color="error"
                 icon="i-lucide-trash-2"
                 size="xs"
                 variant="ghost"
-                color="error"
-                :loading="deletingId === item.id"
                 @click.stop="handleDelete(item.id, $event)"
               />
             </div>

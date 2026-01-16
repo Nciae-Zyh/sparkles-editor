@@ -373,7 +373,7 @@ async function handleFileImport(event: Event) {
   try {
     const text = await file.text()
     importMarkdown(text)
-    
+
     // 如果用户已登录，切换到编辑状态
     if (user.value) {
       // 触发事件通知父组件切换到编辑状态
@@ -417,21 +417,21 @@ const handleSave = async () => {
 
 // 定义快捷键
 defineShortcuts({
-  'meta_s': {
+  meta_s: {
     handler: (e) => {
       e.preventDefault()
       handleSave()
     },
     usingInput: false // 不在输入框中时触发
   },
-  'ctrl_s': {
+  ctrl_s: {
     handler: (e) => {
       e.preventDefault()
       handleSave()
     },
     usingInput: false
   },
-  'meta_k': {
+  meta_k: {
     handler: () => {
       // 可以添加命令面板等功能
     }

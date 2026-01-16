@@ -82,7 +82,7 @@ export default eventHandler(async (event) => {
 
     // 6. 自动创建文件夹路径（如果路径包含文件夹）
     let finalParentId: string | null = null
-    let parentPath = '/'
+    const parentPath = '/'
     if (folderPath.length > 0) {
       console.log(`[POST /api/documents] [${requestId}] 步骤6: 自动创建文件夹路径:`, folderPath)
       try {
