@@ -48,6 +48,10 @@
     "createDocumentFailed": "创建文档失败",
     "rootDirectory": "根目录",
     "dropToRoot": "拖动到此处移动到根目录",
-    "moving": "正在移动..."
+    "moving": "正在移动...",
+    "titleCannotContainPath": "标题不能包含路径分隔符（/ 或 \\）",
+    "pleaseEnterTitle": "请输入名称",
+    "name": "名称",
+    "save": "保存"
   }
 }

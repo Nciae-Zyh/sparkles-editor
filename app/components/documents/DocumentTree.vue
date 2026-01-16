@@ -51,8 +51,13 @@ const loadTree = async () => {
     const data = await fetchDocumentTree()
     tree.value = data.tree as DocumentTreeNode[]
     flat.value = data.flat
-    // 默认展开所有文件夹
-    expandAll()
+    
+    // 如果有当前文档ID，展开到该文档；否则展开所有文件夹
+    if (currentDocumentId.value) {
+      expandToDocument(currentDocumentId.value)
+    } else {
+      expandAll()
+    }
   } catch (error) {
     console.error('Failed to load document tree:', error)
   } finally {
@@ -82,6 +87,29 @@ const expandAll = () => {
     }
   }
   expand(tree.value)
+}
+
+// 展开到指定文档的路径
+const expandToDocument = (documentId: string) => {
+  // 在 flat 数组中找到文档
+  const document = flat.value.find(d => d.id === documentId)
+  if (!document) return
+
+  // 递归获取所有父文件夹ID
+  const parentIds: string[] = []
+  let currentParentId: string | null = document.parent_id || null
+
+  while (currentParentId) {
+    parentIds.push(currentParentId)
+    const parentDoc = flat.value.find(d => d.id === currentParentId)
+    if (!parentDoc) break
+    currentParentId = parentDoc.parent_id || null
+  }
+
+  // 展开所有父文件夹
+  for (const folderId of parentIds) {
+    expandedFolders.value.add(folderId)
+  }
 }
 
 // 折叠所有文件夹
@@ -338,6 +366,13 @@ onMounted(() => {
     onUnmounted(() => {
       unsubscribe()
     })
+  }
+})
+
+// 监听路由变化，当切换到新文档时展开到该文档
+watch(currentDocumentId, async (newId) => {
+  if (newId && flat.value.length > 0) {
+    expandToDocument(newId)
   }
 })
 </script>

@@ -843,6 +843,42 @@ const currentDocumentId = computed(() => {
   return id && typeof id === 'string' ? id : null
 })
 
+// 展开到指定文档的路径
+const expandToDocument = async (documentId: string) => {
+  try {
+    // 获取文档信息以获取 parent_id
+    const document = await getDocument(documentId)
+    if (!document) return
+
+    // 递归获取所有父文件夹ID
+    const parentIds: string[] = []
+    let currentParentId: string | null = document.parent_id || null
+
+    while (currentParentId) {
+      parentIds.push(currentParentId)
+      // 获取父文件夹信息
+      const parentDoc = await getDocument(currentParentId)
+      if (!parentDoc) break
+      currentParentId = parentDoc.parent_id || null
+    }
+
+    // 从根到文档，依次展开并加载文件夹
+    for (let i = parentIds.length - 1; i >= 0; i--) {
+      const folderId = parentIds[i]
+      if (!expanded.value.includes(folderId)) {
+        expanded.value.push(folderId)
+        // 找到文件夹项并加载
+        const folderItem = findItemInTree(treeItems.value, folderId)
+        if (folderItem && folderItem.type === 'folder' && !folderItem._loaded) {
+          await loadFolderChildren(folderId, folderItem)
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to expand to document:', error)
+  }
+}
+
 // 下拉菜单项
 const dropdownItems = computed(() => [
   {
@@ -878,9 +914,14 @@ const dropdownItems = computed(() => [
   }
 ])
 
-onMounted(() => {
-  loadRootItems()
-
+onMounted(async () => {
+  await loadRootItems()
+  
+  // 如果有当前文档ID，展开到该文档
+  if (currentDocumentId.value) {
+    await expandToDocument(currentDocumentId.value)
+  }
+  
   // 订阅编辑页面的重命名通知
   const nuxtApp = useNuxtApp()
   if (nuxtApp.$subscribeNotification) {
@@ -893,11 +934,18 @@ onMounted(() => {
         }
       }
     })
-
+    
     // 组件卸载时取消订阅
     onUnmounted(() => {
       unsubscribe()
     })
+  }
+})
+
+// 监听路由变化，当切换到新文档时展开到该文档
+watch(currentDocumentId, async (newId) => {
+  if (newId) {
+    await expandToDocument(newId)
   }
 })
 </script>
