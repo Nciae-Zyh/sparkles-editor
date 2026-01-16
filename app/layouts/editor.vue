@@ -7,7 +7,7 @@ import { useDocuments } from '~/composables/useDocuments'
 const appData = computed(() => $tm('app') as Record<string, string> | undefined)
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
-const { user, fetchUser } = useAuth()
+const { user, fetchUser, logout } = useAuth()
 const router = useRouter()
 const safeLocalePath = useSafeLocalePath()
 const { createEmptyDocument } = useDocuments()
@@ -96,6 +96,25 @@ onMounted(async () => {
             @click="createNewDocument"
           >
             {{ documentsData?.newDocument || '新建文档' }}
+          </UButton>
+          <UButton
+            v-if="user"
+            :to="safeLocalePath('/documents')"
+            icon="i-lucide-user"
+            variant="soft"
+            size="sm"
+          >
+            {{ user?.name || user?.email }}
+          </UButton>
+          <UButton
+            v-if="user"
+            icon="i-lucide-log-out"
+            variant="soft"
+            color="error"
+            size="sm"
+            @click="async () => { await logout(); await navigateTo(safeLocalePath('/')) }"
+          >
+            {{ appData?.logout || '退出' }}
           </UButton>
         </slot>
       </template>
