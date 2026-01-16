@@ -221,12 +221,26 @@ export const useDocuments = () => {
     }
   }
 
+  const fetchFolderChildren = async (folderId: string) => {
+    try {
+      loading.value = true
+      const data = await $fetch<{ children: Document[] }>(`/api/documents/folder/${folderId}/children`)
+      return data.children
+    } catch (error) {
+      console.error('Failed to fetch folder children:', error)
+      return []
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     documents: readonly(documents),
     loading: readonly(loading),
     fetchDocuments,
     fetchFolders,
     fetchDocumentTree,
+    fetchFolderChildren,
     getDocument,
     saveDocument,
     deleteDocument,

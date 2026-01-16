@@ -29,6 +29,7 @@ const emit = defineEmits<{
   'save-rename': []
   'cancel-rename': []
   'update:renameInput': [value: string]
+  'imported': [content: string]
 }>()
 
 const props = withDefaults(defineProps<Props>(), {
@@ -372,6 +373,12 @@ async function handleFileImport(event: Event) {
   try {
     const text = await file.text()
     importMarkdown(text)
+    
+    // 如果用户已登录，切换到编辑状态
+    if (user.value) {
+      // 触发事件通知父组件切换到编辑状态
+      emit('imported', text)
+    }
   } catch (error) {
     console.error(editorData.value?.importFileFailed || '导入文件失败:', error)
     alert(actionsData.value?.importFailed)
@@ -382,10 +389,60 @@ async function handleFileImport(event: Event) {
   }
 }
 
+// 保存文档的函数（供快捷键使用）
+const handleSave = async () => {
+  if (!user.value || !canSave.value) {
+    return
+  }
+
+  // 如果有 documentId，直接保存
+  if (documentId.value) {
+    try {
+      const titleToSave = originalDocumentTitle.value || documentTitle.value
+      await saveDocument(titleToSave, content.value || '', documentId.value)
+      hasBeenSaved.value = true
+      lastSavedAt.value = new Date()
+    } catch (error) {
+      console.error('Save failed:', error)
+      alert(actionsData.value?.saveFailed || '保存失败，请稍后重试')
+    }
+  } else {
+    // 如果没有 documentId，触发保存按钮的点击（打开保存对话框）
+    // 这里需要触发 SaveDocumentButton 的保存流程
+    // 由于 SaveDocumentButton 是独立的组件，我们需要通过事件来触发
+    // 暂时先提示用户
+    alert(actionsData.value?.pleaseSaveFirst || '请先保存文档')
+  }
+}
+
+// 定义快捷键
+defineShortcuts({
+  'meta_s': {
+    handler: (e) => {
+      e.preventDefault()
+      handleSave()
+    },
+    usingInput: false // 不在输入框中时触发
+  },
+  'ctrl_s': {
+    handler: (e) => {
+      e.preventDefault()
+      handleSave()
+    },
+    usingInput: false
+  },
+  'meta_k': {
+    handler: () => {
+      // 可以添加命令面板等功能
+    }
+  }
+})
+
 // 暴露方法给父组件
 defineExpose({
   importMarkdown,
-  exportMarkdown
+  exportMarkdown,
+  handleSave
 })
 </script>
 
