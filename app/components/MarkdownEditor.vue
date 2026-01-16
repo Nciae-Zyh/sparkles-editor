@@ -447,27 +447,28 @@ defineExpose({
 </script>
 
 <template>
-  <div class="editor-container">
-    <UEditor
-      ref="editorRef"
-      v-slot="{ editor, handlers }"
-      :extensions="extensions"
-      :handlers="customHandlers"
-      :model-value="content"
-      :placeholder="placeholder"
-      :ui="{
-        base: 'p-4 sm:p-6 lg:p-12',
-        content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'
-      }"
-      :autofocus="!readonly"
-      class="editor-wrapper"
-      content-type="markdown"
-      @create="onCreate"
-      @update:model-value="onUpdate"
-    >
-      <div
-        class="sticky top-(--ui-header-height) z-50 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm"
+  <div class="editor-container h-full flex flex-col overflow-hidden">
+    <div class="flex-1 min-h-0 overflow-y-auto">
+      <UEditor
+        ref="editorRef"
+        v-slot="{ editor, handlers }"
+        :extensions="extensions"
+        :handlers="customHandlers"
+        :model-value="content"
+        :placeholder="placeholder"
+        :ui="{
+          base: 'p-4 sm:p-6 lg:p-12',
+          content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'
+        }"
+        :autofocus="!readonly"
+        class="editor-wrapper"
+        content-type="markdown"
+        @create="onCreate"
+        @update:model-value="onUpdate"
       >
+        <div
+          class="sticky top-0 z-50 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm"
+        >
         <div class="container mx-auto px-4 sm:px-6 lg:px-14">
           <div class="flex items-center justify-between gap-4 py-3">
             <div class="flex items-center gap-4 flex-1 min-w-0">
@@ -719,6 +720,7 @@ defineExpose({
         :editor="editor"
         :items="suggestionItems"
       />
-    </UEditor>
+      </UEditor>
+    </div>
   </div>
 </template>
