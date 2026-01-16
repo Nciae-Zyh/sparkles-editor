@@ -34,7 +34,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
+  <div class="flex flex-col h-screen overflow-hidden">
     <AppHeader>
       <div class="flex items-center gap-2">
         <UTooltip
@@ -107,9 +107,7 @@ onMounted(async () => {
         </UButton>
       </div>
     </AppHeader>
-
     <slot />
-
     <AuthModal
       v-model:open="authModalOpen"
       :mode="authMode"

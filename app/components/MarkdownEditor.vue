@@ -29,6 +29,7 @@ const emit = defineEmits<{
   'save-rename': []
   'cancel-rename': []
   'update:renameInput': [value: string]
+  'imported': [content: string]
 }>()
 
 const props = withDefaults(defineProps<Props>(), {
@@ -372,6 +373,12 @@ async function handleFileImport(event: Event) {
   try {
     const text = await file.text()
     importMarkdown(text)
+
+    // 如果用户已登录，切换到编辑状态
+    if (user.value) {
+      // 触发事件通知父组件切换到编辑状态
+      emit('imported', text)
+    }
   } catch (error) {
     console.error(editorData.value?.importFileFailed || '导入文件失败:', error)
     alert(actionsData.value?.importFailed)
@@ -382,35 +389,86 @@ async function handleFileImport(event: Event) {
   }
 }
 
+// 保存文档的函数（供快捷键使用）
+const handleSave = async () => {
+  if (!user.value || !canSave.value) {
+    return
+  }
+
+  // 如果有 documentId，直接保存
+  if (documentId.value) {
+    try {
+      const titleToSave = originalDocumentTitle.value || documentTitle.value
+      await saveDocument(titleToSave, content.value || '', documentId.value)
+      hasBeenSaved.value = true
+      lastSavedAt.value = new Date()
+    } catch (error) {
+      console.error('Save failed:', error)
+      alert(actionsData.value?.saveFailed || '保存失败，请稍后重试')
+    }
+  } else {
+    // 如果没有 documentId，触发保存按钮的点击（打开保存对话框）
+    // 这里需要触发 SaveDocumentButton 的保存流程
+    // 由于 SaveDocumentButton 是独立的组件，我们需要通过事件来触发
+    // 暂时先提示用户
+    alert(actionsData.value?.pleaseSaveFirst || '请先保存文档')
+  }
+}
+
+// 定义快捷键
+defineShortcuts({
+  meta_s: {
+    handler: (e) => {
+      e.preventDefault()
+      handleSave()
+    },
+    usingInput: false // 不在输入框中时触发
+  },
+  ctrl_s: {
+    handler: (e) => {
+      e.preventDefault()
+      handleSave()
+    },
+    usingInput: false
+  },
+  meta_k: {
+    handler: () => {
+      // 可以添加命令面板等功能
+    }
+  }
+})
+
 // 暴露方法给父组件
 defineExpose({
   importMarkdown,
-  exportMarkdown
+  exportMarkdown,
+  handleSave
 })
 </script>
 
 <template>
-  <div class="editor-container">
-    <UEditor
-      ref="editorRef"
-      v-slot="{ editor, handlers }"
-      :extensions="extensions"
-      :handlers="customHandlers"
-      :model-value="content"
-      :placeholder="placeholder"
-      :ui="{
-        base: 'p-4 sm:p-6 lg:p-12',
-        content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'
-      }"
-      :autofocus="!readonly"
-      class="editor-wrapper"
-      content-type="markdown"
-      @create="onCreate"
-      @update:model-value="onUpdate"
-    >
-      <div
-        class="sticky top-(--ui-header-height) z-50 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm"
+  <div class="editor-container h-full flex flex-col overflow-hidden">
+    <div class="flex-1 min-h-0 overflow-y-auto">
+      <UEditor
+        ref="editorRef"
+        v-slot="{ editor, handlers }"
+        :extensions="extensions"
+        :handlers="customHandlers"
+        :model-value="content"
+        :placeholder="placeholder"
+        :ui="{
+          base: 'p-4 sm:p-6 lg:p-12',
+          content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'
+        }"
+        :autofocus="!readonly"
+        class="editor-wrapper"
+        content-type="markdown"
+        @create="onCreate"
+        @update:model-value="onUpdate"
       >
+        <div
+          class="sticky top-0 z-50 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm"
+        >
         <div class="container mx-auto px-4 sm:px-6 lg:px-14">
           <div class="flex items-center justify-between gap-4 py-3">
             <div class="flex items-center gap-4 flex-1 min-w-0">
@@ -662,6 +720,7 @@ defineExpose({
         :editor="editor"
         :items="suggestionItems"
       />
-    </UEditor>
+      </UEditor>
+    </div>
   </div>
 </template>

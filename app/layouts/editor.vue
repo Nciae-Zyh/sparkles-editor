@@ -17,7 +17,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
+  <div class="flex flex-col h-screen overflow-hidden">
     <AppHeader>
       <template #default>
         <slot name="header-actions">
@@ -40,7 +40,6 @@ onMounted(async () => {
         </slot>
       </template>
     </AppHeader>
-
     <slot />
   </div>
 </template>

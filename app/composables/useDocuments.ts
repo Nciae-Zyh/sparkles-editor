@@ -59,6 +59,22 @@ export const useDocuments = () => {
     }
   }
 
+  const createEmptyDocument = async (title: string, parentId?: string) => {
+    try {
+      loading.value = true
+      const data = await $fetch<{ success: boolean, document: Document }>('/api/documents', {
+        method: 'POST',
+        body: { title, content: '', type: 'document', parentId }
+      })
+      documents.value.unshift(data.document)
+      return data.document
+    } catch (error: any) {
+      throw new Error(error.data?.message || 'Failed to create document')
+    } finally {
+      loading.value = false
+    }
+  }
+
   const getDocument = async (id: string) => {
     try {
       loading.value = true
@@ -221,16 +237,31 @@ export const useDocuments = () => {
     }
   }
 
+  const fetchFolderChildren = async (folderId: string) => {
+    try {
+      loading.value = true
+      const data = await $fetch<{ children: Document[] }>(`/api/documents/folder/${folderId}/children`)
+      return data.children
+    } catch (error) {
+      console.error('Failed to fetch folder children:', error)
+      return []
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     documents: readonly(documents),
     loading: readonly(loading),
     fetchDocuments,
     fetchFolders,
     fetchDocumentTree,
+    fetchFolderChildren,
     getDocument,
     saveDocument,
     deleteDocument,
     createFolder,
+    createEmptyDocument,
     renameDocument,
     moveDocument
   }

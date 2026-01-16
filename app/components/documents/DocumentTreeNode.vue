@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { Document } from '~/types'
+import { useDocumentContextMenu } from '~/composables/useDocumentContextMenu'
 
 interface DocumentTreeNode extends Document {
   children?: DocumentTreeNode[]
@@ -22,6 +23,7 @@ const emit = defineEmits<{
   'click': [node: DocumentTreeNode]
   'delete': [id: string, event: Event]
   'create-sub-folder': [folderId: string, event: Event]
+  'create-document': [folderId: string | null]
   'download': [id: string, event: Event]
   'rename': [id: string, newTitle: string]
   'start-rename': [id: string]
@@ -85,15 +87,47 @@ const handleSaveRename = () => {
 const handleCancelRename = () => {
   emit('cancel-rename')
 }
+
+// 使用右键菜单 composable
+const { getFolderMenuItems, getDocumentMenuItems } = useDocumentContextMenu({
+  onOpen: (item: Document) => {
+    emit('click', item as DocumentTreeNode)
+  },
+  onRename: (item: Document) => {
+    emit('start-rename', item.id)
+  },
+  onDelete: (item: Document, event: Event) => {
+    emit('delete', item.id, event)
+  },
+  onCreateDocument: (parentId?: string | null) => {
+    emit('create-document', parentId || (props.node.type === 'folder' ? props.node.id : null))
+  },
+  onCreateFolder: (parentId?: string | null) => {
+    emit('create-sub-folder', parentId || props.node.id, new Event('contextmenu'))
+  },
+  onDownload: (item: Document, event: Event) => {
+    if (item.type === 'document') {
+      emit('download', item.id, event)
+    }
+  }
+})
+
+// 根据节点类型获取菜单项
+const getMenuItems = computed(() => {
+  return props.node.type === 'folder'
+    ? getFolderMenuItems(props.node)
+    : getDocumentMenuItems(props.node)
+})
 </script>
 
 <template>
   <div class="select-none">
-    <div
-      class="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer group"
-      :style="{ paddingLeft: `${level * 1.5 + 0.5}rem` }"
-      @click="handleClick"
-    >
+    <UContextMenu :items="getMenuItems">
+      <div
+        class="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer group"
+        :style="{ paddingLeft: `${level * 1.5 + 0.5}rem` }"
+        @click="handleClick"
+      >
       <!-- 展开/折叠图标 -->
       <div
         v-if="node.type === 'folder'"
@@ -192,7 +226,8 @@ const handleCancelRename = () => {
           @click="handleDelete"
         />
       </div>
-    </div>
+      </div>
+    </UContextMenu>
 
     <!-- 子节点 -->
     <div v-if="node.type === 'folder' && isExpanded && hasChildren">

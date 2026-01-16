@@ -1,10 +1,11 @@
 <script lang="ts" setup>
-import { generateDocumentId } from '~/utils/documentId'
-
-import { useSafeLocalePath } from '~/utils/safeLocalePath'
+import {generateDocumentId} from '~/utils/documentId'
+import {useSafeLocalePath} from '~/utils/safeLocalePath'
+import {useAuth} from '~/composables/useAuth'
 
 const route = useRoute()
 const safeLocalePath = useSafeLocalePath()
+const {user} = useAuth()
 
 // 使用 ref 定义内容
 const content = ref<string>('')
@@ -21,7 +22,18 @@ const checkCreateDocument = () => {
     allowSave.value = true
     newDocumentId.value = generateDocumentId()
     // 清除 URL 参数，但保持在同一页面
-    navigateTo({ query: {} })
+    navigateTo({query: {}})
+  }
+}
+
+// 处理导入后的状态切换
+const handleImported = (importedContent: string) => {
+  // 如果用户已登录，切换到编辑状态
+  if (user.value) {
+    isNewDocument.value = true
+    allowSave.value = true
+    newDocumentId.value = generateDocumentId()
+    content.value = importedContent
   }
 }
 
@@ -43,17 +55,20 @@ onMounted(() => {
 </script>
 
 <template>
-  <MarkdownEditor
-    v-model="content"
-    :allow-save="allowSave"
-    :document-id="newDocumentId"
-    :enable-before-unload="false"
-    @document-saved="async (id) => {
-      isNewDocument = false
-      allowSave.value = false // 保存后恢复预览模式
-      newDocumentId.value = undefined // 清除临时ID
-      // 保存后跳转到文档编辑页面
-      await navigateTo(safeLocalePath(`/documents/${id}`))
-    }"
-  />
+  <div class="flex-1 overflow-hidden">
+    <MarkdownEditor
+      v-model="content"
+      :allow-save="allowSave"
+      :document-id="newDocumentId"
+      :enable-before-unload="false"
+      @imported="handleImported"
+      @document-saved="async (id) => {
+        isNewDocument = false
+        allowSave.value = false // 保存后恢复预览模式
+        newDocumentId.value = undefined // 清除临时ID
+        // 保存后跳转到文档编辑页面
+        await navigateTo(safeLocalePath(`/documents/${id}`))
+      }"
+    />
+  </div>
 </template>
