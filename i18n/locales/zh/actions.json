@@ -18,6 +18,7 @@
     "invalidRequest": "请求参数错误",
     "downloadDocument": "下载文档",
     "downloadFailed": "下载失败，请稍后重试",
-    "documentEmpty": "文档内容为空"
+    "documentEmpty": "文档内容为空",
+    "pleaseSaveFirst": "请先保存文档"
   }
 }

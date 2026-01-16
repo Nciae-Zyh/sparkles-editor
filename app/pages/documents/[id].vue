@@ -23,6 +23,7 @@ const isReadOnly = ref(false) // 是否只读模式（文档不属于当前用�
 const isRenaming = ref(false) // 是否正在重命名
 const renameInput = ref('')
 const isRenamingLoading = ref(false) // 重命名加载状态
+const showShareModal = ref(false) // 是否显示分享模态框
 
 onMounted(async () => {
   // 等待用户认证加载完成
@@ -56,6 +57,25 @@ onMounted(async () => {
     console.error('Failed to load document:', error)
     await navigateTo(safeLocalePath('/documents'))
   }
+
+  // 订阅文档树的重命名通知
+  const nuxtApp = useNuxtApp()
+  if (nuxtApp.$subscribeNotification) {
+    const unsubscribe = nuxtApp.$subscribeNotification<{ id: string, title: string }>('document:renamed', (payload) => {
+      // 如果重命名的是当前文档，更新标题
+      if (payload && payload.id === documentId.value) {
+        documentTitle.value = payload.title
+        if (document.value) {
+          document.value.title = payload.title
+        }
+      }
+    })
+    
+    // 组件卸载时取消订阅
+    onUnmounted(() => {
+      unsubscribe()
+    })
+  }
 })
 
 // 开始重命名
@@ -83,19 +103,36 @@ const saveRename = async () => {
     return
   }
 
+  const newTitle = renameInput.value.trim()
+  
+  // 验证标题不能包含路径分隔符
+  if (newTitle.includes('/') || newTitle.includes('\\')) {
+    alert(documentsData.value?.titleCannotContainPath || '标题不能包含路径分隔符（/ 或 \\）')
+    return
+  }
+
   try {
     isRenamingLoading.value = true
-    await renameDocument(documentId.value, renameInput.value.trim())
-    documentTitle.value = renameInput.value.trim()
+    await renameDocument(documentId.value, newTitle)
+    documentTitle.value = newTitle
     // 更新文档对象
     if (document.value) {
-      document.value.title = renameInput.value.trim()
+      document.value.title = newTitle
     }
     cancelRename()
+    
+    // 发布重命名通知，通知文档树更新
+    const nuxtApp = useNuxtApp()
+    if (nuxtApp.$publishNotification) {
+      nuxtApp.$publishNotification('document:renamed', {
+        id: documentId.value,
+        title: newTitle
+      })
+    }
     // 注意：重命名后，originalDocumentTitle 会在 MarkdownEditor 中通过 watch 自动更新
   } catch (error: any) {
     console.error('重命名失败:', error)
-    alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+    alert(error.message || documentsData.value?.renameFailedRetry || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
   } finally {
     isRenamingLoading.value = false
   }
@@ -126,6 +163,14 @@ const saveRename = async () => {
       @save-rename="saveRename"
       @cancel-rename="cancelRename"
       @update:rename-input="(val) => { renameInput = val }"
+    />
+
+    <!-- 分享模态框 -->
+    <DocumentsShareDocumentModal
+      v-if="document"
+      v-model:open="showShareModal"
+      :document-id="documentId"
+      :document-title="documentTitle"
     />
   </div>
 </template>

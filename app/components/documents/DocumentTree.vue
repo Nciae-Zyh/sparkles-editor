@@ -11,7 +11,14 @@ interface DocumentTreeNode extends Document {
 const { fetchDocumentTree, deleteDocument, createFolder, createEmptyDocument, getDocument, renameDocument } = useDocuments()
 const { downloadAsZip, isDownloading } = useDownloadZip()
 const router = useRouter()
+const route = useRoute()
 const safeLocalePath = useSafeLocalePath()
+
+// 获取当前路由的文档ID，用于高亮显示
+const currentDocumentId = computed(() => {
+  const id = route.params.id
+  return id && typeof id === 'string' ? id : null
+})
 
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
@@ -24,6 +31,8 @@ const deletingId = ref<string | null>(null)
 const downloadingId = ref<string | null>(null)
 const renamingId = ref<string | null>(null)
 const renamingLoadingId = ref<string | null>(null)
+const showRenameModal = ref(false)
+const renameInput = ref('')
 const showCreateFolder = ref(false)
 const newFolderName = ref('')
 const creatingFolder = ref(false)
@@ -42,8 +51,13 @@ const loadTree = async () => {
     const data = await fetchDocumentTree()
     tree.value = data.tree as DocumentTreeNode[]
     flat.value = data.flat
-    // 默认展开所有文件夹
-    expandAll()
+    
+    // 如果有当前文档ID，展开到该文档；否则展开所有文件夹
+    if (currentDocumentId.value) {
+      expandToDocument(currentDocumentId.value)
+    } else {
+      expandAll()
+    }
   } catch (error) {
     console.error('Failed to load document tree:', error)
   } finally {
@@ -73,6 +87,29 @@ const expandAll = () => {
     }
   }
   expand(tree.value)
+}
+
+// 展开到指定文档的路径
+const expandToDocument = (documentId: string) => {
+  // 在 flat 数组中找到文档
+  const document = flat.value.find(d => d.id === documentId)
+  if (!document) return
+
+  // 递归获取所有父文件夹ID
+  const parentIds: string[] = []
+  let currentParentId: string | null = document.parent_id || null
+
+  while (currentParentId) {
+    parentIds.push(currentParentId)
+    const parentDoc = flat.value.find(d => d.id === currentParentId)
+    if (!parentDoc) break
+    currentParentId = parentDoc.parent_id || null
+  }
+
+  // 展开所有父文件夹
+  for (const folderId of parentIds) {
+    expandedFolders.value.add(folderId)
+  }
 }
 
 // 折叠所有文件夹
@@ -180,12 +217,15 @@ const handleCreateDocument = async () => {
 
   try {
     creatingDocument.value = true
-    await createEmptyDocument(newDocumentName.value.trim(), createDocumentParentId.value || undefined)
+    const document = await createEmptyDocument(newDocumentName.value.trim(), createDocumentParentId.value || undefined)
     newDocumentName.value = ''
     createDocumentParentId.value = null
     showCreateDocument.value = false
     // 重新加载树
     await loadTree()
+    
+    // 跳转到新创建的文档编辑页面
+    await navigateTo(`${safeLocalePath('/documents')}/${document.id}`)
   } catch (error: any) {
     alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
   } finally {
@@ -202,25 +242,53 @@ const openCreateDocumentModal = (parentId?: string | null) => {
 
 // 处理开始重命名
 const handleStartRename = (id: string) => {
+  const node = flat.value.find(d => d.id === id)
   renamingId.value = id
+  renameInput.value = node?.title || ''
+  showRenameModal.value = true
 }
 
 // 处理取消重命名
 const handleCancelRename = () => {
   renamingId.value = null
+  renameInput.value = ''
+  showRenameModal.value = false
 }
 
 // 处理重命名
-const handleRename = async (id: string, newTitle: string) => {
+const handleRename = async () => {
+  if (!renamingId.value || !renameInput.value.trim()) {
+    alert(documentsData.value?.pleaseEnterTitle || '请输入名称')
+    return
+  }
+
+  const id = renamingId.value
+  const newTitle = renameInput.value.trim()
+  
+  // 验证标题不能包含路径分隔符
+  if (newTitle.includes('/') || newTitle.includes('\\')) {
+    alert(documentsData.value?.titleCannotContainPath || '标题不能包含路径分隔符（/ 或 \\）')
+    return
+  }
+
   try {
     renamingLoadingId.value = id
     await renameDocument(id, newTitle)
     // 重新加载树
     await loadTree()
-    renamingId.value = null
+    handleCancelRename()
+    
+    // 发布重命名通知，通知编辑页面更新
+    const nuxtApp = useNuxtApp()
+    if (nuxtApp.$publishNotification) {
+      nuxtApp.$publishNotification('document:renamed', {
+        id,
+        title: newTitle
+      })
+    }
   } catch (error: any) {
     console.error('重命名失败:', error)
-    alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+    alert(error.message || documentsData.value?.renameFailedRetry || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
   } finally {
     renamingLoadingId.value = null
   }
@@ -271,6 +339,41 @@ const getTreeNodeMenuItems = (node: DocumentTreeNode) => {
 
 onMounted(() => {
   loadTree()
+  
+  // 订阅编辑页面的重命名通知
+  const nuxtApp = useNuxtApp()
+  if (nuxtApp.$subscribeNotification) {
+    const unsubscribe = nuxtApp.$subscribeNotification<{ id: string, title: string }>('document:renamed', (payload) => {
+      // 如果重命名的是树中的某个文档，更新树中的标题
+      if (payload && payload.id) {
+        const updateNodeTitle = (nodes: DocumentTreeNode[]): boolean => {
+          for (const node of nodes) {
+            if (node.id === payload.id) {
+              node.title = payload.title
+              return true
+            }
+            if (node.children && updateNodeTitle(node.children)) {
+              return true
+            }
+          }
+          return false
+        }
+        updateNodeTitle(tree.value)
+      }
+    })
+    
+    // 组件卸载时取消订阅
+    onUnmounted(() => {
+      unsubscribe()
+    })
+  }
+})
+
+// 监听路由变化，当切换到新文档时展开到该文档
+watch(currentDocumentId, async (newId) => {
+  if (newId && flat.value.length > 0) {
+    expandToDocument(newId)
+  }
 })
 </script>
 
@@ -333,12 +436,12 @@ onMounted(() => {
             @keyup.enter="handleCreateDocument"
           />
         </UFormField>
-      <div
-        v-if="createDocumentParentId"
-        class="mt-2 text-sm text-gray-500"
-      >
-        {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
-      </div>
+        <div
+          v-if="createDocumentParentId"
+          class="mt-2 text-sm text-gray-500"
+        >
+          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+        </div>
       </template>
 
       <template #footer="{ close }">
@@ -375,14 +478,13 @@ onMounted(() => {
             :placeholder="documentsData?.enterFolderName || '请输入文件夹名称'"
             @keyup.enter="handleCreateFolder"
           />
-        </UInput>
-      </UFormField>
-      <div
-        v-if="selectedParentId"
-        class="mt-2 text-sm text-gray-500"
-      >
-        {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
-      </div>
+        </UFormField>
+        <div
+          v-if="selectedParentId"
+          class="mt-2 text-sm text-gray-500"
+        >
+          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+        </div>
       </template>
 
       <template #footer="{ close }">
@@ -398,6 +500,44 @@ onMounted(() => {
           @click="handleCreateFolder"
         >
           {{ documentsData?.create || '创建' }}
+        </UButton>
+      </template>
+    </UModal>
+
+    <!-- 重命名模态框 -->
+    <UModal
+      v-model:open="showRenameModal"
+      :title="documentsData?.rename || '重命名'"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UFormField
+          :label="documentsData?.name || '名称'"
+          name="renameInput"
+          required
+        >
+          <UInput
+            v-model="renameInput"
+            :placeholder="documentsData?.pleaseEnterTitle || '请输入名称'"
+            autofocus
+            @keyup.enter="handleRename"
+          />
+        </UFormField>
+      </template>
+
+      <template #footer="{ close }">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          @click="handleCancelRename"
+        >
+          {{ actionsData?.cancel || '取消' }}
+        </UButton>
+        <UButton
+          :loading="renamingLoadingId !== null"
+          @click="handleRename"
+        >
+          {{ documentsData?.save || '保存' }}
         </UButton>
       </template>
     </UModal>
@@ -429,26 +569,25 @@ onMounted(() => {
       :items="getEmptyAreaMenuItems"
     >
       <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-900">
-      <DocumentsDocumentTreeNode
-        v-for="node in tree"
-        :key="node.id"
-        :node="node"
-        :level="0"
-        :expanded-folders="expandedFolders"
-        :deleting-id="deletingId"
-        :downloading-id="downloadingId"
-        :renaming-id="renamingId"
-        :renaming-loading-id="renamingLoadingId"
-        @toggle="(id: string) => toggleFolder(id)"
-        @click="(n: DocumentTreeNode) => handleNodeClick(n)"
-        @delete="(id: string, e: Event) => handleDelete(id, e)"
-        @create-sub-folder="(id: string, e: Event) => handleCreateSubFolder(id, e)"
-        @create-document="(folderId: string | null) => handleCreateDocument(folderId)"
-        @download="(id: string, e: Event) => handleDownload(id, e)"
-        @rename="(id: string, title: string) => handleRename(id, title)"
-        @start-rename="(id: string) => handleStartRename(id)"
-        @cancel-rename="() => handleCancelRename()"
-      />
+        <DocumentsDocumentTreeNode
+          v-for="node in tree"
+          :key="node.id"
+          :node="node"
+          :level="0"
+          :expanded-folders="expandedFolders"
+          :deleting-id="deletingId"
+          :downloading-id="downloadingId"
+          :renaming-id="renamingId"
+          :renaming-loading-id="renamingLoadingId"
+          :current-document-id="currentDocumentId"
+          @toggle="(id: string) => toggleFolder(id)"
+          @click="(n: DocumentTreeNode) => handleNodeClick(n)"
+          @delete="(id: string, e: Event) => handleDelete(id, e)"
+          @create-sub-folder="(id: string, e: Event) => handleCreateSubFolder(id, e)"
+          @create-document="(folderId: string | null) => handleCreateDocument(folderId)"
+          @download="(id: string, e: Event) => handleDownload(id, e)"
+          @start-rename="(id: string) => handleStartRename(id)"
+        />
       </div>
     </UContextMenu>
   </div>

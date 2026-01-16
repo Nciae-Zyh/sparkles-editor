@@ -9,6 +9,7 @@ import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
 import { ImageUpload } from '~/components/editor/ImageUploadExtension'
 import { useAuth } from '~/composables/useAuth'
 import { useDocuments } from '~/composables/useDocuments'
+import { useSafeLocalePath } from '~/utils/safeLocalePath'
 
 interface Props {
   placeholder?: string
@@ -50,7 +51,11 @@ const content = defineModel<string>()
 const { user } = useAuth()
 const { saveDocument, getDocument } = useDocuments()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
+const appData = computed(() => $tm('app') as Record<string, string> | undefined)
+const sharesData = computed(() => $tm('shares') as Record<string, string> | undefined)
 const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
+const showShareModal = ref(false)
+const safeLocalePath = useSafeLocalePath()
 // 保存原始文档标题，用于自动保存（沿用用户设置的标题，不从内容提取）
 const originalDocumentTitle = ref<string | null>(null)
 
@@ -469,258 +474,286 @@ defineExpose({
         <div
           class="sticky top-0 z-50 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm"
         >
-        <div class="container mx-auto px-4 sm:px-6 lg:px-14">
-          <div class="flex items-center justify-between gap-4 py-3">
-            <div class="flex items-center gap-4 flex-1 min-w-0">
-              <!-- 文档标题显示和重命名（在工具栏左侧） -->
-              <div
-                v-if="documentId && documentTitle"
-                class="flex items-center gap-2 min-w-0 flex-shrink-0"
-              >
+          <div class="container mx-auto px-4 sm:px-6 lg:px-14">
+            <div class="flex items-center justify-between gap-4 py-3">
+              <div class="flex items-center gap-4 flex-1 min-w-0">
+                <!-- 文档标题显示和重命名（在工具栏左侧） -->
                 <div
-                  v-if="!props.isRenaming"
-                  class="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/20 bg-primary/5 dark:bg-primary/10"
+                  v-if="documentId && documentTitle"
+                  class="flex items-center gap-2 min-w-0 flex-shrink-0"
                 >
-                  <span class="text-sm font-medium truncate max-w-[200px]">
-                    {{ documentTitle }}
-                  </span>
-                  <UButton
-                    v-if="!readonly"
-                    icon="i-lucide-pencil"
-                    size="xs"
-                    variant="ghost"
-                    @click="$emit('start-rename')"
-                  />
+                  <div
+                    v-if="!props.isRenaming"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/20 bg-primary/5 dark:bg-primary/10"
+                  >
+                    <span class="text-sm font-medium truncate max-w-[200px]">
+                      {{ documentTitle }}
+                    </span>
+                    <UButton
+                      v-if="!readonly"
+                      icon="i-lucide-pencil"
+                      size="xs"
+                      variant="ghost"
+                      @click="$emit('start-rename')"
+                    />
+                  </div>
+                  <div
+                    v-else
+                    class="flex items-center gap-1 px-3 py-1.5 rounded-md border border-primary/20 bg-primary/5 dark:bg-primary/10"
+                  >
+                    <UInput
+                      :model-value="props.renameInput"
+                      size="xs"
+                      class="w-48"
+                      autofocus
+                      @update:model-value="(val) => emit('update:renameInput', val)"
+                      @keyup.enter="$emit('save-rename')"
+                      @keyup.esc="$emit('cancel-rename')"
+                    />
+                    <UButton
+                      icon="i-lucide-check"
+                      size="xs"
+                      color="primary"
+                      :loading="props.renameLoading"
+                      @click="$emit('save-rename')"
+                    />
+                    <UButton
+                      icon="i-lucide-x"
+                      size="xs"
+                      variant="ghost"
+                      @click="$emit('cancel-rename')"
+                    />
+                  </div>
                 </div>
-                <div
-                  v-else
-                  class="flex items-center gap-1 px-3 py-1.5 rounded-md border border-primary/20 bg-primary/5 dark:bg-primary/10"
-                >
-                  <UInput
-                    :model-value="props.renameInput"
-                    size="xs"
-                    class="w-48"
-                    autofocus
-                    @update:model-value="(val) => emit('update:renameInput', val)"
-                    @keyup.enter="$emit('save-rename')"
-                    @keyup.esc="$emit('cancel-rename')"
-                  />
-                  <UButton
-                    icon="i-lucide-check"
-                    size="xs"
-                    color="primary"
-                    :loading="props.renameLoading"
-                    @click="$emit('save-rename')"
-                  />
-                  <UButton
-                    icon="i-lucide-x"
-                    size="xs"
-                    variant="ghost"
-                    @click="$emit('cancel-rename')"
-                  />
-                </div>
-              </div>
 
-              <!-- 工具栏 -->
-              <div
-                v-if="!readonly"
-                class="flex-1 overflow-x-auto"
-              >
-                <UEditorToolbar
-                  :editor="editor"
-                  :items="toolbarItems"
-                />
+                <!-- 工具栏 -->
+                <div
+                  v-if="!readonly"
+                  class="flex-1 overflow-x-auto"
+                >
+                  <UEditorToolbar
+                    :editor="editor"
+                    :items="toolbarItems"
+                  />
+                </div>
               </div>
-            </div>
-            <div
-              v-if="showImportExport"
-              class="flex gap-2 flex-wrap shrink-0 items-center"
-            >
-              <input
-                ref="fileInputRef"
-                accept=".md,.markdown"
-                class="hidden"
-                type="file"
-                @change="handleFileImport"
+              <div
+                v-if="showImportExport"
+                class="flex gap-2 flex-wrap shrink-0 items-center"
               >
-              <UTooltip
-                v-if="actionsData?.importMarkdown && actionsData.importMarkdown.length > 10"
-                :text="actionsData.importMarkdown"
-              >
+                <input
+                  ref="fileInputRef"
+                  accept=".md,.markdown"
+                  class="hidden"
+                  type="file"
+                  @change="handleFileImport"
+                >
+                <UTooltip
+                  v-if="actionsData?.importMarkdown && actionsData.importMarkdown.length > 10"
+                  :text="actionsData.importMarkdown"
+                >
+                  <UButton
+                    :loading="isImporting"
+                    color="primary"
+                    icon="i-lucide-upload"
+                    size="sm"
+                    variant="soft"
+                    @click="handleImportClick"
+                  />
+                </UTooltip>
                 <UButton
+                  v-else
                   :loading="isImporting"
                   color="primary"
                   icon="i-lucide-upload"
                   size="sm"
                   variant="soft"
                   @click="handleImportClick"
-                />
-              </UTooltip>
-              <UButton
-                v-else
-                :loading="isImporting"
-                color="primary"
-                icon="i-lucide-upload"
-                size="sm"
-                variant="soft"
-                @click="handleImportClick"
-              >
-                <span v-if="!$device.isMobile">
-                  {{ actionsData?.importMarkdown }}
-                </span>
-              </UButton>
-              <UTooltip
-                v-if="actionsData?.downloadMarkdown && actionsData.downloadMarkdown.length > 10"
-                :text="actionsData.downloadMarkdown"
-              >
+                >
+                  <span v-if="!$device.isMobile">
+                    {{ actionsData?.importMarkdown }}
+                  </span>
+                </UButton>
+                <UTooltip
+                  v-if="actionsData?.downloadMarkdown && actionsData.downloadMarkdown.length > 10"
+                  :text="actionsData.downloadMarkdown"
+                >
+                  <UButton
+                    :loading="isDownloading"
+                    color="primary"
+                    icon="i-lucide-download"
+                    size="sm"
+                    variant="soft"
+                    @click="handleDownload"
+                  />
+                </UTooltip>
                 <UButton
+                  v-else
                   :loading="isDownloading"
                   color="primary"
                   icon="i-lucide-download"
                   size="sm"
                   variant="soft"
                   @click="handleDownload"
+                >
+                  <span v-if="!$device.isMobile">
+                    {{ actionsData?.downloadMarkdown }}
+                  </span>
+                </UButton>
+                <UButton
+                  v-if="user && documentId && !readonly"
+                  icon="i-lucide-share-2"
+                  size="sm"
+                  variant="soft"
+                  color="primary"
+                  @click="showShareModal = true"
+                >
+                  <span v-if="!$device.isMobile">{{ sharesData?.shareDocument || '分享' }}</span>
+                </UButton>
+                <UButton
+                  v-if="user"
+                  :to="safeLocalePath('/shares')"
+                  icon="i-lucide-link"
+                  size="sm"
+                  variant="soft"
+                  color="primary"
+                >
+                  <span v-if="!$device.isMobile">{{ appData?.myShares || '我的分享' }}</span>
+                </UButton>
+                <DocumentsSaveDocumentButton
+                  v-if="user && canSave"
+                  :content="content || ''"
+                  :document-id="documentId"
+                  :title="documentTitle"
+                  @saved="(id, savedTitle) => {
+                    documentId = id
+                    hasBeenSaved = true // 标记文档已保存，允许自动保存
+                    // 保存用户设置的标题作为原始标题，用于后续自动保存（沿用用户设置的标题，不从内容提取）
+                    // savedTitle 是用户在 SaveDocumentButton 中手动输入的 pathInput.value
+                    originalDocumentTitle.value = savedTitle
+                    documentTitle.value = savedTitle
+                    $emit('document-saved', id)
+                  }"
                 />
-              </UTooltip>
-              <UButton
-                v-else
-                :loading="isDownloading"
-                color="primary"
-                icon="i-lucide-download"
-                size="sm"
-                variant="soft"
-                @click="handleDownload"
-              >
-                <span v-if="!$device.isMobile">
-                  {{ actionsData?.downloadMarkdown }}
-                </span>
-              </UButton>
-              <DocumentsSaveDocumentButton
-                v-if="user && canSave"
-                :content="content || ''"
-                :document-id="documentId"
-                :title="documentTitle"
-                @saved="(id, savedTitle) => {
-                  documentId = id
-                  hasBeenSaved = true // 标记文档已保存，允许自动保存
-                  // 保存用户设置的标题作为原始标题，用于后续自动保存（沿用用户设置的标题，不从内容提取）
-                  // savedTitle 是用户在 SaveDocumentButton 中手动输入的 pathInput.value
-                  originalDocumentTitle.value = savedTitle
-                  documentTitle.value = savedTitle
-                  $emit('document-saved', id)
-                }"
-              />
-              <div
-                v-if="user && canSave && isAutoSaving"
-                class="flex items-center gap-1 text-xs text-gray-500"
-              >
-                <UIcon
-                  class="w-3 h-3 animate-spin"
-                  name="i-lucide-loader-2"
-                />
-                <span>{{ editorData?.autoSaving || '自动保存中...' }}</span>
-              </div>
-              <div
-                v-if="user && canSave && lastSavedAt && !isAutoSaving"
-                class="text-xs text-gray-400"
-              >
-                {{ editorData?.saved || '已保存' }}
+                <div
+                  v-if="user && canSave && isAutoSaving"
+                  class="flex items-center gap-1 text-xs text-gray-500"
+                >
+                  <UIcon
+                    class="w-3 h-3 animate-spin"
+                    name="i-lucide-loader-2"
+                  />
+                  <span>{{ editorData?.autoSaving || '自动保存中...' }}</span>
+                </div>
+                <div
+                  v-if="user && canSave && lastSavedAt && !isAutoSaving"
+                  class="text-xs text-gray-400"
+                >
+                  {{ editorData?.saved || '已保存' }}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      <UEditorToolbar
-        v-if="!readonly"
-        :editor="editor"
-        :items="bubbleToolbarItems"
-        :should-show="({ editor, view, state }: any) => {
-          if (editor.isActive('imageUpload') || editor.isActive('image') || state.selection instanceof CellSelection) {
-            return false
-          }
-          const { selection } = state
-          return view.hasFocus() && !selection.empty
-        }"
-        layout="bubble"
-      >
-        <template #link>
-          <EditorLinkPopover :editor="editor" />
-        </template>
-      </UEditorToolbar>
-
-      <UEditorToolbar
-        v-if="!readonly"
-        :editor="editor"
-        :items="getImageToolbarItems(editor)"
-        :should-show="({ editor, view }: any) => {
-          return editor.isActive('image') && view.hasFocus()
-        }"
-        layout="bubble"
-      >
-        <template #imageAlt>
-          <EditorImageAltPopover :editor="editor" />
-        </template>
-      </UEditorToolbar>
-
-      <UEditorToolbar
-        v-if="!readonly"
-        :editor="editor"
-        :items="getTableToolbarItems(editor)"
-        :should-show="({ editor, view }: any) => {
-          return editor.state.selection instanceof CellSelection && view.hasFocus()
-        }"
-        layout="bubble"
-      />
-
-      <UEditorDragHandle
-        v-if="!readonly"
-        v-slot="{ ui, onClick }"
-        :editor="editor"
-        @node-change="onNodeChange"
-      >
-        <UButton
-          :class="ui.handle()"
-          color="neutral"
-          icon="i-lucide-plus"
-          size="sm"
-          variant="ghost"
-          @click="(e: MouseEvent) => {
-            e.stopPropagation()
-            const node = onClick()
-
-            handlers.suggestion?.execute(editor, { pos: node?.pos }).run()
+        <UEditorToolbar
+          v-if="!readonly"
+          :editor="editor"
+          :items="bubbleToolbarItems"
+          :should-show="({ editor, view, state }: any) => {
+            if (editor.isActive('imageUpload') || editor.isActive('image') || state.selection instanceof CellSelection) {
+              return false
+            }
+            const { selection } = state
+            return view.hasFocus() && !selection.empty
           }"
+          layout="bubble"
+        >
+          <template #link>
+            <EditorLinkPopover :editor="editor" />
+          </template>
+        </UEditorToolbar>
+
+        <UEditorToolbar
+          v-if="!readonly"
+          :editor="editor"
+          :items="getImageToolbarItems(editor)"
+          :should-show="({ editor, view }: any) => {
+            return editor.isActive('image') && view.hasFocus()
+          }"
+          layout="bubble"
+        >
+          <template #imageAlt>
+            <EditorImageAltPopover :editor="editor" />
+          </template>
+        </UEditorToolbar>
+
+        <UEditorToolbar
+          v-if="!readonly"
+          :editor="editor"
+          :items="getTableToolbarItems(editor)"
+          :should-show="({ editor, view }: any) => {
+            return editor.state.selection instanceof CellSelection && view.hasFocus()
+          }"
+          layout="bubble"
         />
 
-        <UDropdownMenu
-          v-slot="{ open }"
-          :content="{ side: 'left' }"
-          :items="getDragHandleItems(editor)"
-          :modal="false"
-          :ui="{ content: 'w-48', label: 'text-xs' }"
-          @update:open="editor.chain().setMeta('lockDragHandle', $event).run()"
+        <UEditorDragHandle
+          v-if="!readonly"
+          v-slot="{ ui, onClick }"
+          :editor="editor"
+          @node-change="onNodeChange"
         >
           <UButton
-            :active="open"
             :class="ui.handle()"
-            active-variant="soft"
             color="neutral"
-            icon="i-lucide-grip-vertical"
+            icon="i-lucide-plus"
             size="sm"
             variant="ghost"
-          />
-        </UDropdownMenu>
-      </UEditorDragHandle>
+            @click="(e: MouseEvent) => {
+              e.stopPropagation()
+              const node = onClick()
 
-      <UEditorEmojiMenu
-        :editor="editor"
-        :items="emojiItems"
-      />
-      <UEditorSuggestionMenu
-        :editor="editor"
-        :items="suggestionItems"
-      />
+              handlers.suggestion?.execute(editor, { pos: node?.pos }).run()
+            }"
+          />
+
+          <UDropdownMenu
+            v-slot="{ open }"
+            :content="{ side: 'left' }"
+            :items="getDragHandleItems(editor)"
+            :modal="false"
+            :ui="{ content: 'w-48', label: 'text-xs' }"
+            @update:open="editor.chain().setMeta('lockDragHandle', $event).run()"
+          >
+            <UButton
+              :active="open"
+              :class="ui.handle()"
+              active-variant="soft"
+              color="neutral"
+              icon="i-lucide-grip-vertical"
+              size="sm"
+              variant="ghost"
+            />
+          </UDropdownMenu>
+        </UEditorDragHandle>
+
+        <UEditorEmojiMenu
+          :editor="editor"
+          :items="emojiItems"
+        />
+        <UEditorSuggestionMenu
+          :editor="editor"
+          :items="suggestionItems"
+        />
       </UEditor>
     </div>
+
+    <!-- 分享模态框 -->
+    <DocumentsShareDocumentModal
+      v-if="documentId"
+      v-model:open="showShareModal"
+      :document-id="documentId"
+      :document-title="documentTitle"
+    />
   </div>
 </template>

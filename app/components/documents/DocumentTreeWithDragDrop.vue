@@ -13,6 +13,10 @@ interface ExtendedTreeItem extends TreeItem {
   _loaded?: boolean // 标记是否已加载子项
 }
 
+interface Props {
+  compact?: boolean // 紧凑模式：使用下拉菜单，隐藏标题和按钮区域
+}
+
 const {
   fetchDocuments,
   deleteDocument,
@@ -42,6 +46,7 @@ const deletingId = ref<string | null>(null)
 const renamingId = ref<string | null>(null)
 const renamingLoadingId = ref<string | null>(null)
 const downloadingId = ref<string | null>(null)
+const showRenameModal = ref(false)
 const renameInput = ref('')
 const showCreateFolder = ref(false)
 const newFolderName = ref('')
@@ -105,7 +110,7 @@ const loadFolderChildren = async (folderId: string, item: ExtendedTreeItem, forc
     item._loaded = true
   } catch (error) {
     console.error('Failed to load folder children:', error)
-    alert('加载文件夹内容失败，请稍后重试')
+    alert(documentsData.value?.loadFolderFailed || '加载文件夹内容失败，请稍后重试')
     // 加载失败时，保持为空数组，这样用户仍然可以看到文件夹是可展开的
     item.children = []
     item._loaded = true
@@ -236,6 +241,9 @@ const handleCreateDocument = async () => {
         parentItem.children.push(convertToTreeItem(document))
       }
     }
+
+    // 跳转到新创建的文档编辑页面
+    await navigateTo(`${safeLocalePath('/documents')}/${document.id}`)
   } catch (error: any) {
     alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
   } finally {
@@ -294,36 +302,55 @@ const handleCreateFolder = async () => {
 const handleStartRename = (id: string, currentTitle: string) => {
   renamingId.value = id
   renameInput.value = currentTitle
+  showRenameModal.value = true
 }
 
 // 处理取消重命名
 const handleCancelRename = () => {
   renamingId.value = null
   renameInput.value = ''
+  showRenameModal.value = false
 }
 
 // 处理重命名
-const handleRename = async (id: string) => {
-  if (!renameInput.value.trim()) {
+const handleRename = async () => {
+  if (!renamingId.value || !renameInput.value.trim()) {
     alert(documentsData.value?.pleaseEnterTitle || '请输入名称')
+    return
+  }
+
+  const id = renamingId.value
+  const newTitle = renameInput.value.trim()
+
+  // 验证标题不能包含路径分隔符
+  if (newTitle.includes('/') || newTitle.includes('\\')) {
+    alert(documentsData.value?.titleCannotContainPath || '标题不能包含路径分隔符（/ 或 \\）')
     return
   }
 
   try {
     renamingLoadingId.value = id
-    await renameDocument(id, renameInput.value.trim())
+    await renameDocument(id, newTitle)
 
     // 更新树中的标签
     const item = findItemInTree(treeItems.value, id)
     if (item) {
-      item.label = renameInput.value.trim()
+      item.label = newTitle
     }
 
-    renamingId.value = null
-    renameInput.value = ''
+    handleCancelRename()
+
+    // 发布重命名通知，通知编辑页面更新
+    const nuxtApp = useNuxtApp()
+    if (nuxtApp.$publishNotification) {
+      nuxtApp.$publishNotification('document:renamed', {
+        id,
+        title: newTitle
+      })
+    }
   } catch (error: any) {
     console.error('重命名失败:', error)
-    alert(error.message || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+    alert(error.message || documentsData.value?.renameFailedRetry || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
   } finally {
     renamingLoadingId.value = null
   }
@@ -514,7 +541,7 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
   // 防止将文件夹移动到自己的子文件夹中
   if (draggedItemId.value) {
     if (draggedItemId.value === targetItem.id) {
-      alert('不能将项目移动到自己的位置')
+      alert(documentsData.value?.cannotMoveToSelf || '不能将项目移动到自己的位置')
       dragOverItemId.value = null
       dragOverPosition.value = null
       draggedItemId.value = null
@@ -522,7 +549,7 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
     }
 
     if (targetItem.type === 'folder' && isDescendant(draggedItemId.value, targetItem.id)) {
-      alert('不能将文件夹移动到自己的子文件夹中')
+      alert(documentsData.value?.cannotMoveIntoSubfolder || '不能将文件夹移动到自己的子文件夹中')
       dragOverItemId.value = null
       dragOverPosition.value = null
       draggedItemId.value = null
@@ -571,22 +598,24 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
     }
 
     // 记录移动前的父文件夹ID（用于刷新）
-    const oldParentId = draggedItem ? (() => {
-      const findParent = (items: ExtendedTreeItem[], targetId: string, parent: ExtendedTreeItem | null = null): ExtendedTreeItem | null => {
-        for (const item of items) {
-          if (item.id === targetId) {
-            return parent
+    const oldParentId = draggedItem
+      ? (() => {
+          const findParent = (items: ExtendedTreeItem[], targetId: string, parent: ExtendedTreeItem | null = null): ExtendedTreeItem | null => {
+            for (const item of items) {
+              if (item.id === targetId) {
+                return parent
+              }
+              if (item.children) {
+                const found = findParent(item.children, targetId, item)
+                if (found !== null) return found
+              }
+            }
+            return null
           }
-          if (item.children) {
-            const found = findParent(item.children, targetId, item)
-            if (found !== null) return found
-          }
-        }
-        return null
-      }
-      const parent = findParent(treeItems.value, draggedItemId.value)
-      return parent?.id || null
-    })() : null
+          const parent = findParent(treeItems.value, draggedItemId.value)
+          return parent?.id || null
+        })()
+      : null
 
     await moveDocument(draggedItemId.value, newParentId)
 
@@ -615,7 +644,7 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
     await refreshExpandedFolders()
   } catch (error: any) {
     console.error('移动失败:', error)
-    alert(error.message || '移动失败，请稍后重试')
+    alert(error.message || documentsData.value?.moveFailed || '移动失败，请稍后重试')
   } finally {
     movingDocument.value = false
     dragOverItemId.value = null
@@ -661,22 +690,24 @@ const handleRootDrop = async (event: DragEvent) => {
     movingDocument.value = true
     // 记录移动前的父文件夹ID（用于刷新）
     const draggedItem = findItemInTree(treeItems.value, draggedItemId.value)
-    const oldParentId = draggedItem ? (() => {
-      const findParent = (items: ExtendedTreeItem[], targetId: string, parent: ExtendedTreeItem | null = null): ExtendedTreeItem | null => {
-        for (const item of items) {
-          if (item.id === targetId) {
-            return parent
+    const oldParentId = draggedItem
+      ? (() => {
+          const findParent = (items: ExtendedTreeItem[], targetId: string, parent: ExtendedTreeItem | null = null): ExtendedTreeItem | null => {
+            for (const item of items) {
+              if (item.id === targetId) {
+                return parent
+              }
+              if (item.children) {
+                const found = findParent(item.children, targetId, item)
+                if (found !== null) return found
+              }
+            }
+            return null
           }
-          if (item.children) {
-            const found = findParent(item.children, targetId, item)
-            if (found !== null) return found
-          }
-        }
-        return null
-      }
-      const parent = findParent(treeItems.value, draggedItemId.value)
-      return parent?.id || null
-    })() : null
+          const parent = findParent(treeItems.value, draggedItemId.value)
+          return parent?.id || null
+        })()
+      : null
 
     // 移动到根目录（parentId 为 null）
     await moveDocument(draggedItemId.value, null)
@@ -694,7 +725,7 @@ const handleRootDrop = async (event: DragEvent) => {
     await refreshExpandedFolders()
   } catch (error: any) {
     console.error('移动到根目录失败:', error)
-    alert(error.message || '移动到根目录失败，请稍后重试')
+    alert(error.message || documentsData.value?.moveToRootFailed || '移动到根目录失败，请稍后重试')
   } finally {
     movingDocument.value = false
     dragOverItemId.value = null
@@ -707,7 +738,7 @@ const handleRootDrop = async (event: DragEvent) => {
 // 修复路径
 const fixingPaths = ref(false)
 const handleFixPaths = async () => {
-  if (!confirm('确定要修复所有文档路径吗？这将重新计算所有文档和文件夹的路径，确保路径与文件夹结构一致。')) {
+  if (!confirm(documentsData.value?.fixPathsConfirm || '确定要修复所有文档路径吗？这将重新计算所有文档和文件夹的路径，确保路径与文件夹结构一致。')) {
     return
   }
 
@@ -718,12 +749,12 @@ const handleFixPaths = async () => {
     })
 
     if (result.success) {
-      alert(`路径修复完成！修复了 ${result.fixed} 个项目，${result.errors} 个错误。`)
+      alert((documentsData.value?.fixPathsSuccess || '路径修复完成！修复了 {fixed} 个项目，{errors} 个错误。').replace('{fixed}', String(result.fixed)).replace('{errors}', String(result.errors)))
       await loadRootItems()
     }
   } catch (error: any) {
     console.error('修复路径失败:', error)
-    alert(error.message || '修复路径失败，请稍后重试')
+    alert(error.message || documentsData.value?.fixPathsFailed || '修复路径失败，请稍后重试')
   } finally {
     fixingPaths.value = false
   }
@@ -744,13 +775,21 @@ const treeItemToDocument = (item: ExtendedTreeItem): Document => {
 
 // 使用右键菜单 composable
 const { getFolderMenuItems, getDocumentMenuItems, getEmptyAreaMenuItems } = useDocumentContextMenu({
-  onOpen: (item: Document) => {
+  onOpen: async (item: Document) => {
     if (item.type === 'folder') {
-      // 文件夹的展开/折叠由 UTree 自动处理
+      // 文件夹的展开/折叠，并加载子项
       const folderId = item.id
+      const folderItem = findItemInTree(treeItems.value, folderId)
+      
       if (!expanded.value.includes(folderId)) {
+        // 展开文件夹
         expanded.value.push(folderId)
+        // 如果文件夹还未加载，加载子项
+        if (folderItem && folderItem.type === 'folder' && !folderItem._loaded) {
+          await loadFolderChildren(folderId, folderItem)
+        }
       } else {
+        // 折叠文件夹
         expanded.value = expanded.value.filter(id => id !== folderId)
       }
     } else {
@@ -800,14 +839,192 @@ const onSelect = (e, item) => {
   }
   // 文件夹的点击让 UTree 自动处理展开/折叠
 }
-onMounted(() => {
-  loadRootItems()
+
+const props = withDefaults(defineProps<Props>(), {
+  compact: false
+})
+
+// 获取当前路由的文档ID，用于高亮显示
+const route = useRoute()
+const currentDocumentId = computed(() => {
+  const id = route.params.id
+  return id && typeof id === 'string' ? id : null
+})
+
+// 监听当前文档ID变化，自动展开到该文档
+watch(currentDocumentId, async (newDocId) => {
+  if (newDocId && treeItems.value.length > 0) {
+    // 等待树加载完成后再展开
+    await nextTick()
+    await expandToDocument(newDocId)
+  }
+}, { immediate: false })
+
+// 展开到指定文档的路径（一层一层展开）
+const expandToDocument = async (documentId: string) => {
+  try {
+    // 使用 API 获取文档的完整路径
+    const response = await $fetch<{ path: string[], documentId: string }>(`/api/documents/${documentId}/path`)
+    const path = response.path
+
+    if (path.length === 0) {
+      // 文档在根目录，无需展开
+      return
+    }
+
+    // 从根目录开始，一层一层展开
+    for (let i = 0; i < path.length; i++) {
+      const folderId = path[i]
+      
+      // 如果文件夹还未展开，先展开它
+      if (!expanded.value.includes(folderId)) {
+        expanded.value.push(folderId)
+      }
+
+      // 找到文件夹项
+      const folderItem = findItemInTree(treeItems.value, folderId)
+      
+      if (folderItem && folderItem.type === 'folder') {
+        // 如果文件夹还未加载，先加载子项
+        if (!folderItem._loaded) {
+          await loadFolderChildren(folderId, folderItem)
+        }
+        
+        // 等待一小段时间，确保 UI 更新
+        await new Promise(resolve => setTimeout(resolve, 50))
+      } else {
+        // 如果找不到文件夹项，可能需要先加载父文件夹
+        // 尝试从根目录重新查找
+        if (i > 0) {
+          // 如果当前文件夹不在树中，可能需要先展开父文件夹
+          const parentFolderId = path[i - 1]
+          const parentItem = findItemInTree(treeItems.value, parentFolderId)
+          if (parentItem && parentItem.type === 'folder' && !parentItem._loaded) {
+            await loadFolderChildren(parentFolderId, parentItem)
+            // 重新查找当前文件夹
+            const currentItem = findItemInTree(treeItems.value, folderId)
+            if (currentItem && currentItem.type === 'folder' && !currentItem._loaded) {
+              await loadFolderChildren(folderId, currentItem)
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to expand to document:', error)
+    // 如果 API 失败，回退到原来的方法
+    try {
+      const document = await getDocument(documentId)
+      if (!document || !document.parent_id) return
+
+      // 递归获取所有父文件夹ID
+      const parentIds: string[] = []
+      let currentParentId: string | null = document.parent_id || null
+
+      while (currentParentId) {
+        parentIds.push(currentParentId)
+        const parentDoc = await getDocument(currentParentId)
+        if (!parentDoc) break
+        currentParentId = parentDoc.parent_id || null
+      }
+
+      // 从根到文档，依次展开并加载文件夹
+      for (let i = parentIds.length - 1; i >= 0; i--) {
+        const folderId = parentIds[i]
+        if (!expanded.value.includes(folderId)) {
+          expanded.value.push(folderId)
+          const folderItem = findItemInTree(treeItems.value, folderId)
+          if (folderItem && folderItem.type === 'folder' && !folderItem._loaded) {
+            await loadFolderChildren(folderId, folderItem)
+            await new Promise(resolve => setTimeout(resolve, 50))
+          }
+        }
+      }
+    } catch (fallbackError) {
+      console.error('Fallback expand method also failed:', fallbackError)
+    }
+  }
+}
+
+// 下拉菜单项
+const dropdownItems = computed(() => [
+  {
+    label: documentsData.value?.newDocument || '新建文档',
+    icon: 'i-lucide-file-plus',
+    onSelect: () => {
+      navigateTo(safeLocalePath('/'))
+    }
+  },
+  {
+    label: documentsData.value?.newFolder || '新建文件夹',
+    icon: 'i-lucide-folder-plus',
+    onSelect: () => {
+      selectedParentId.value = null
+      showCreateFolder.value = true
+    }
+  },
+  {
+    label: documentsData.value?.expandAll || '展开全部',
+    icon: 'i-lucide-chevrons-down-up',
+    onSelect: expandAll
+  },
+  {
+    label: documentsData.value?.collapseAll || '折叠全部',
+    icon: 'i-lucide-chevrons-up-down',
+    onSelect: collapseAll
+  },
+  {
+    label: documentsData.value?.fixPaths || '修复路径',
+    icon: 'i-lucide-wrench',
+    onSelect: handleFixPaths,
+    disabled: fixingPaths.value
+  }
+])
+
+onMounted(async () => {
+  await loadRootItems()
+
+  // 如果有当前文档ID，展开到该文档
+  if (currentDocumentId.value) {
+    await nextTick()
+    await expandToDocument(currentDocumentId.value)
+  }
+
+  // 订阅编辑页面的重命名通知
+  const nuxtApp = useNuxtApp()
+  if (nuxtApp.$subscribeNotification) {
+    const unsubscribe = nuxtApp.$subscribeNotification<{ id: string, title: string }>('document:renamed', (payload) => {
+      // 如果重命名的是树中的某个文档，更新树中的标签
+      if (payload && payload.id) {
+        const item = findItemInTree(treeItems.value, payload.id)
+        if (item) {
+          item.label = payload.title
+        }
+      }
+    })
+
+    // 组件卸载时取消订阅
+    onUnmounted(() => {
+      unsubscribe()
+    })
+  }
+})
+
+// 监听路由变化，当切换到新文档时展开到该文档
+watch(currentDocumentId, async (newId) => {
+  if (newId) {
+    await expandToDocument(newId)
+  }
 })
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center justify-between gap-4">
+  <div :class="compact ? '' : 'space-y-4'">
+    <!-- 正常模式：标题和按钮区域 -->
+    <div
+      v-if="!compact"
+      class="flex items-center justify-between gap-4"
+    >
       <h2 class="text-xl font-semibold">
         {{ documentsData?.documentTree || '文档树' }}
       </h2>
@@ -851,7 +1068,7 @@ onMounted(() => {
           variant="ghost"
           @click="handleFixPaths"
         >
-          修复路径
+          {{ documentsData?.fixPaths || '修复路径' }}
         </UButton>
       </div>
     </div>
@@ -874,12 +1091,12 @@ onMounted(() => {
             @keyup.enter="handleCreateDocument"
           />
         </UFormField>
-      <div
-        v-if="createDocumentParentId"
-        class="mt-2 text-sm text-gray-500"
-      >
-        {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
-      </div>
+        <div
+          v-if="createDocumentParentId"
+          class="mt-2 text-sm text-gray-500"
+        >
+          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+        </div>
       </template>
 
       <template #footer="{ close }">
@@ -942,6 +1159,44 @@ onMounted(() => {
       </template>
     </UModal>
 
+    <!-- 重命名模态框 -->
+    <UModal
+      v-model:open="showRenameModal"
+      :title="documentsData?.rename || '重命名'"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UFormField
+          :label="documentsData?.name || '名称'"
+          name="renameInput"
+          required
+        >
+          <UInput
+            v-model="renameInput"
+            :placeholder="documentsData?.pleaseEnterTitle || '请输入名称'"
+            autofocus
+            @keyup.enter="handleRename"
+          />
+        </UFormField>
+      </template>
+
+      <template #footer="{ close }">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          @click="handleCancelRename"
+        >
+          {{ actionsData?.cancel || '取消' }}
+        </UButton>
+        <UButton
+          :loading="renamingLoadingId !== null"
+          @click="handleRename"
+        >
+          {{ documentsData?.save || '保存' }}
+        </UButton>
+      </template>
+    </UModal>
+
     <!-- 加载状态 -->
     <div
       v-if="loading && treeItems.length === 0"
@@ -994,15 +1249,37 @@ onMounted(() => {
         @dragleave="handleRootDragLeave"
         @drop.prevent="handleRootDrop"
       >
-        <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-          <UIcon name="i-lucide-folder" class="w-4 h-4" />
-          <span>{{ documentsData?.rootDirectory || '根目录' }}</span>
-          <span
-            v-if="dragOverRoot"
-            class="ml-auto text-xs text-blue-600 dark:text-blue-400"
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <UIcon
+              name="i-lucide-folder"
+              class="w-4 h-4"
+            />
+            <span>{{ documentsData?.rootDirectory || '根目录' }}</span>
+            <span
+              v-if="dragOverRoot"
+              class="text-xs text-blue-600 dark:text-blue-400"
+            >
+              {{ documentsData?.dropToRoot || '拖动到此处移动到根目录' }}
+            </span>
+          </div>
+          <!-- 紧凑模式：下拉菜单 -->
+          <div
+            v-if="compact"
+            class="flex-shrink-0"
           >
-            {{ documentsData?.dropToRoot || '拖动到此处移动到根目录' }}
-          </span>
+            <UDropdownMenu
+              :items="dropdownItems"
+              :content="{ align: 'end' }"
+            >
+              <UButton
+                icon="i-lucide-more-vertical"
+                size="xs"
+                variant="ghost"
+                color="neutral"
+              />
+            </UDropdownMenu>
+          </div>
         </div>
       </div>
       <div class="p-2">
@@ -1014,117 +1291,89 @@ onMounted(() => {
           nested
           @select="onSelect"
         >
-        <template #item="{ item, expanded }">
-          <UContextMenu :items="getTreeItemMenuItems(item as ExtendedTreeItem)">
-            <div class="flex items-center w-full justify-between">
-              <div class="flex items-center gap-2">
-                <UIcon :name="item.icon"/>
-                <div
-                  :class="[
-                'flex items-center gap-2 w-full group min-h-[2rem] cursor-context-menu',
-                draggedItemId === item.id ? 'opacity-50' : '',
-                dragOverItemId === item.id && dragOverPosition === 'inside' ? 'bg-blue-100 dark:bg-blue-900 rounded' : ''
-              ]"
-                  :draggable="true"
-                  style="width: 100%;"
-                  @click="(e) => {
-                // 文档的点击在 UTree 的 @select 事件中处理
-                // 这里只处理拖放相关的事件，不阻止点击事件传播
-              }"
-                  @dragend="handleDragEnd"
-                  @dragleave="handleDragLeave"
-                  @dragover="handleDragOver($event, item as ExtendedTreeItem)"
-                  @dragstart="handleDragStart($event, item as ExtendedTreeItem)"
-                  @drop="handleDrop($event, item as ExtendedTreeItem)"
-                >
-                  <!-- 加载指示器 -->
-                  <div
-                    v-if="item.type === 'folder' && loadingFolders.has(item.id)"
-                    class="w-4 h-4"
-                  >
-                    <UIcon
-                      class="w-4 h-4 animate-spin"
-                      name="i-lucide-loader-2"
-                    />
-                  </div>
-
-                  <span class="flex-1 truncate">
-              <span
-                v-if="renamingId !== item.id"
-              >
-                {{ item.label }}
-              </span>
+          <template #item="{ item, expanded }">
+            <UContextMenu :items="getTreeItemMenuItems(item as ExtendedTreeItem)">
               <div
-                v-else
-                class="flex items-center gap-1"
-                @click.stop
-              >
-                <UInput
-                  v-model="renameInput"
-                  autofocus
-                  class="flex-1"
-                  size="xs"
-                  @keyup.enter="handleRename(item.id)"
-                  @keyup.esc="handleCancelRename"
-                  @click.stop
-                />
-                <UButton
-                  :loading="renamingLoadingId === item.id"
-                  color="primary"
-                  icon="i-lucide-check"
-                  size="xs"
-                  @click.stop="handleRename(item.id)"
-                />
-                <UButton
-                  icon="i-lucide-x"
-                  size="xs"
-                  variant="ghost"
-                  @click.stop="handleCancelRename"
-                />
-              </div>
-            </span>
-
-                  <!-- 操作按钮 -->
+                :class="{
+                  'bg-primary/30': currentDocumentId === item.id && item.type === 'document',
+                  'rounded-lg px-1': true
+                }"
+                class="flex items-center w-full justify-between">
+                <div class="flex items-center gap-2">
+                  <UIcon :name="item.icon" />
                   <div
-                    v-if="renamingId !== item.id"
-                    class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                    @click.stop
+                    :class="[
+                      'flex items-center gap-2 w-full group min-h-[2rem] cursor-context-menu',
+                      draggedItemId === item.id ? 'opacity-50' : '',
+                      dragOverItemId === item.id && dragOverPosition === 'inside' ? 'bg-blue-100 dark:bg-blue-900 rounded' : ''
+                    ]"
+                    :draggable="true"
+                    style="width: 100%;"
+                    @click="(e) => {
+                      // 文档的点击在 UTree 的 @select 事件中处理
+                      // 这里只处理拖放相关的事件，不阻止点击事件传播
+                    }"
+                    @dragend="handleDragEnd"
+                    @dragleave="handleDragLeave"
+                    @dragover="handleDragOver($event, item as ExtendedTreeItem)"
+                    @dragstart="handleDragStart($event, item as ExtendedTreeItem)"
+                    @drop="handleDrop($event, item as ExtendedTreeItem)"
                   >
-                    <UButton
-                      color="neutral"
-                      icon="i-lucide-pencil"
-                      size="xs"
-                      variant="ghost"
-                      @click.stop="handleStartRename(item.id, item.label || '')"
-                    />
-                    <UButton
-                      v-if="item.type === 'document'"
-                      :loading="downloadingId === item.id"
-                      color="neutral"
-                      icon="i-lucide-download"
-                      size="xs"
-                      variant="ghost"
-                      @click.stop="handleDownload(item.id, $event)"
-                    />
-                    <UButton
-                      :loading="deletingId === item.id"
-                      color="error"
-                      icon="i-lucide-trash-2"
-                      size="xs"
-                      variant="ghost"
-                      @click.stop="handleDelete(item.id, $event)"
-                    />
+                    <!-- 加载指示器 -->
+                    <div
+                      v-if="item.type === 'folder' && loadingFolders.has(item.id)"
+                      class="w-4 h-4"
+                    >
+                      <UIcon
+                        class="w-4 h-4 animate-spin"
+                        name="i-lucide-loader-2"
+                      />
+                    </div>
+
+                    <span class="flex-1 truncate">
+                      {{ item.label }}
+                    </span>
+
+                    <!-- 操作按钮 -->
+                    <div
+                      class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      @click.stop
+                    >
+                      <UButton
+                        color="neutral"
+                        icon="i-lucide-pencil"
+                        size="xs"
+                        variant="ghost"
+                        @click.stop="handleStartRename(item.id, item.label || '')"
+                      />
+                      <UButton
+                        v-if="item.type === 'document'"
+                        :loading="downloadingId === item.id"
+                        color="neutral"
+                        icon="i-lucide-download"
+                        size="xs"
+                        variant="ghost"
+                        @click.stop="handleDownload(item.id, $event)"
+                      />
+                      <UButton
+                        :loading="deletingId === item.id"
+                        color="error"
+                        icon="i-lucide-trash-2"
+                        size="xs"
+                        variant="ghost"
+                        @click.stop="handleDelete(item.id, $event)"
+                      />
+                    </div>
                   </div>
                 </div>
+                <UIcon
+                  v-if="item.type === 'folder'"
+                  :name="`i-lucide-chevron-up`"
+                  :class="`${expanded ? 'rotate-180' : 'rotate-0'} duration-200`"
+                />
               </div>
-              <UIcon
-                v-if="item.type === 'folder'"
-                :name="`i-lucide-chevron-up`"
-                :class="`${expanded ? 'rotate-180' : 'rotate-0'} duration-200`"
-              />
-            </div>
-          </UContextMenu>
-        </template>
+            </UContextMenu>
+          </template>
         </UTree>
       </div>
     </div>
