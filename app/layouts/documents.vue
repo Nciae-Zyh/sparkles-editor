@@ -67,6 +67,14 @@ onMounted(async () => {
           {{ documentsData?.newDocument || '新建文档' }}
         </UButton>
         <UButton
+          :to="safeLocalePath('/shares')"
+          icon="i-lucide-link"
+          variant="soft"
+          size="sm"
+        >
+          我的分享
+        </UButton>
+        <UButton
           :to="safeLocalePath('/documents')"
           icon="i-lucide-user"
           variant="soft"

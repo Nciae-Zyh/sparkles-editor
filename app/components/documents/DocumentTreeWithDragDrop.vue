@@ -775,13 +775,21 @@ const treeItemToDocument = (item: ExtendedTreeItem): Document => {
 
 // 使用右键菜单 composable
 const { getFolderMenuItems, getDocumentMenuItems, getEmptyAreaMenuItems } = useDocumentContextMenu({
-  onOpen: (item: Document) => {
+  onOpen: async (item: Document) => {
     if (item.type === 'folder') {
-      // 文件夹的展开/折叠由 UTree 自动处理
+      // 文件夹的展开/折叠，并加载子项
       const folderId = item.id
+      const folderItem = findItemInTree(treeItems.value, folderId)
+      
       if (!expanded.value.includes(folderId)) {
+        // 展开文件夹
         expanded.value.push(folderId)
+        // 如果文件夹还未加载，加载子项
+        if (folderItem && folderItem.type === 'folder' && !folderItem._loaded) {
+          await loadFolderChildren(folderId, folderItem)
+        }
       } else {
+        // 折叠文件夹
         expanded.value = expanded.value.filter(id => id !== folderId)
       }
     } else {
@@ -843,39 +851,98 @@ const currentDocumentId = computed(() => {
   return id && typeof id === 'string' ? id : null
 })
 
-// 展开到指定文档的路径
+// 监听当前文档ID变化，自动展开到该文档
+watch(currentDocumentId, async (newDocId) => {
+  if (newDocId && treeItems.value.length > 0) {
+    // 等待树加载完成后再展开
+    await nextTick()
+    await expandToDocument(newDocId)
+  }
+}, { immediate: false })
+
+// 展开到指定文档的路径（一层一层展开）
 const expandToDocument = async (documentId: string) => {
   try {
-    // 获取文档信息以获取 parent_id
-    const document = await getDocument(documentId)
-    if (!document) return
+    // 使用 API 获取文档的完整路径
+    const response = await $fetch<{ path: string[], documentId: string }>(`/api/documents/${documentId}/path`)
+    const path = response.path
 
-    // 递归获取所有父文件夹ID
-    const parentIds: string[] = []
-    let currentParentId: string | null = document.parent_id || null
-
-    while (currentParentId) {
-      parentIds.push(currentParentId)
-      // 获取父文件夹信息
-      const parentDoc = await getDocument(currentParentId)
-      if (!parentDoc) break
-      currentParentId = parentDoc.parent_id || null
+    if (path.length === 0) {
+      // 文档在根目录，无需展开
+      return
     }
 
-    // 从根到文档，依次展开并加载文件夹
-    for (let i = parentIds.length - 1; i >= 0; i--) {
-      const folderId = parentIds[i]
+    // 从根目录开始，一层一层展开
+    for (let i = 0; i < path.length; i++) {
+      const folderId = path[i]
+      
+      // 如果文件夹还未展开，先展开它
       if (!expanded.value.includes(folderId)) {
         expanded.value.push(folderId)
-        // 找到文件夹项并加载
-        const folderItem = findItemInTree(treeItems.value, folderId)
-        if (folderItem && folderItem.type === 'folder' && !folderItem._loaded) {
+      }
+
+      // 找到文件夹项
+      const folderItem = findItemInTree(treeItems.value, folderId)
+      
+      if (folderItem && folderItem.type === 'folder') {
+        // 如果文件夹还未加载，先加载子项
+        if (!folderItem._loaded) {
           await loadFolderChildren(folderId, folderItem)
+        }
+        
+        // 等待一小段时间，确保 UI 更新
+        await new Promise(resolve => setTimeout(resolve, 50))
+      } else {
+        // 如果找不到文件夹项，可能需要先加载父文件夹
+        // 尝试从根目录重新查找
+        if (i > 0) {
+          // 如果当前文件夹不在树中，可能需要先展开父文件夹
+          const parentFolderId = path[i - 1]
+          const parentItem = findItemInTree(treeItems.value, parentFolderId)
+          if (parentItem && parentItem.type === 'folder' && !parentItem._loaded) {
+            await loadFolderChildren(parentFolderId, parentItem)
+            // 重新查找当前文件夹
+            const currentItem = findItemInTree(treeItems.value, folderId)
+            if (currentItem && currentItem.type === 'folder' && !currentItem._loaded) {
+              await loadFolderChildren(folderId, currentItem)
+            }
+          }
         }
       }
     }
   } catch (error) {
     console.error('Failed to expand to document:', error)
+    // 如果 API 失败，回退到原来的方法
+    try {
+      const document = await getDocument(documentId)
+      if (!document || !document.parent_id) return
+
+      // 递归获取所有父文件夹ID
+      const parentIds: string[] = []
+      let currentParentId: string | null = document.parent_id || null
+
+      while (currentParentId) {
+        parentIds.push(currentParentId)
+        const parentDoc = await getDocument(currentParentId)
+        if (!parentDoc) break
+        currentParentId = parentDoc.parent_id || null
+      }
+
+      // 从根到文档，依次展开并加载文件夹
+      for (let i = parentIds.length - 1; i >= 0; i--) {
+        const folderId = parentIds[i]
+        if (!expanded.value.includes(folderId)) {
+          expanded.value.push(folderId)
+          const folderItem = findItemInTree(treeItems.value, folderId)
+          if (folderItem && folderItem.type === 'folder' && !folderItem._loaded) {
+            await loadFolderChildren(folderId, folderItem)
+            await new Promise(resolve => setTimeout(resolve, 50))
+          }
+        }
+      }
+    } catch (fallbackError) {
+      console.error('Fallback expand method also failed:', fallbackError)
+    }
   }
 }
 
@@ -919,6 +986,7 @@ onMounted(async () => {
 
   // 如果有当前文档ID，展开到该文档
   if (currentDocumentId.value) {
+    await nextTick()
     await expandToDocument(currentDocumentId.value)
   }
 
