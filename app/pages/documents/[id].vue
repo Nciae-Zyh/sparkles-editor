@@ -102,13 +102,21 @@ const saveRename = async () => {
     return
   }
 
+  const newTitle = renameInput.value.trim()
+  
+  // 验证标题不能包含路径分隔符
+  if (newTitle.includes('/') || newTitle.includes('\\')) {
+    alert(documentsData.value?.titleCannotContainPath || '标题不能包含路径分隔符（/ 或 \\）')
+    return
+  }
+
   try {
     isRenamingLoading.value = true
-    await renameDocument(documentId.value, renameInput.value.trim())
-    documentTitle.value = renameInput.value.trim()
+    await renameDocument(documentId.value, newTitle)
+    documentTitle.value = newTitle
     // 更新文档对象
     if (document.value) {
-      document.value.title = renameInput.value.trim()
+      document.value.title = newTitle
     }
     cancelRename()
     
@@ -117,7 +125,7 @@ const saveRename = async () => {
     if (nuxtApp.$publishNotification) {
       nuxtApp.$publishNotification('document:renamed', {
         id: documentId.value,
-        title: renameInput.value.trim()
+        title: newTitle
       })
     }
     // 注意：重命名后，originalDocumentTitle 会在 MarkdownEditor 中通过 watch 自动更新

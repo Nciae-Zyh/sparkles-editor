@@ -143,12 +143,15 @@ const handleCreateDocument = async () => {
   try {
     creatingDocument.value = true
     const savedParentId = createDocumentParentId.value // 保存 parentId
-    await createEmptyDocument(newDocumentName.value.trim(), savedParentId || undefined)
+    const document = await createEmptyDocument(newDocumentName.value.trim(), savedParentId || undefined)
     newDocumentName.value = ''
     createDocumentParentId.value = null
     showCreateDocument.value = false
     // 刷新文档列表以显示新创建的文档
     await fetchDocuments(savedParentId || currentParentId.value)
+    
+    // 跳转到新创建的文档编辑页面
+    await navigateTo(`${safeLocalePath('/documents')}/${document.id}`)
   } catch (error: any) {
     alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
   } finally {

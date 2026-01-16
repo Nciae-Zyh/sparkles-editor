@@ -26,14 +26,8 @@ const emit = defineEmits<{
   'create-sub-folder': [folderId: string, event: Event]
   'create-document': [folderId: string | null]
   'download': [id: string, event: Event]
-  'rename': [id: string, newTitle: string]
   'start-rename': [id: string]
-  'cancel-rename': []
 }>()
-
-const isRenaming = computed(() => props.renamingId === props.node.id)
-const isRenamingLoading = computed(() => props.renamingLoadingId === props.node.id)
-const renameInput = ref('')
 
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 
@@ -41,10 +35,6 @@ const isExpanded = computed(() => props.expandedFolders.has(props.node.id))
 const hasChildren = computed(() => props.node.children && props.node.children.length > 0)
 
 const handleClick = () => {
-  // 如果正在重命名，不触发点击事件（不跳转）
-  if (isRenaming.value) {
-    return
-  }
   emit('click', props.node)
 }
 
@@ -69,24 +59,7 @@ const handleDownload = (event: Event) => {
 
 const handleStartRename = (event: Event) => {
   event.stopPropagation()
-  renameInput.value = props.node.title
   emit('start-rename', props.node.id)
-}
-
-const handleSaveRename = () => {
-  if (!renameInput.value.trim()) {
-    alert(documentsData.value?.pleaseEnterTitle || '请输入名称')
-    return
-  }
-  if (renameInput.value.trim() === props.node.title) {
-    emit('cancel-rename')
-    return
-  }
-  emit('rename', props.node.id, renameInput.value.trim())
-}
-
-const handleCancelRename = () => {
-  emit('cancel-rename')
 }
 
 // 使用右键菜单 composable
@@ -158,39 +131,9 @@ const getMenuItems = computed(() => {
         />
 
         <!-- 标题 -->
-        <span
-          v-if="!isRenaming"
-          class="flex-1 truncate text-sm"
-        >
+        <span class="flex-1 truncate text-sm">
           {{ node.title || (documentsData?.untitled || '未命名') }}
         </span>
-        <div
-          v-else
-          class="flex-1 flex items-center gap-1"
-          @click.stop
-        >
-          <UInput
-            v-model="renameInput"
-            size="xs"
-            class="flex-1"
-            autofocus
-            @keyup.enter="handleSaveRename"
-            @keyup.esc="handleCancelRename"
-            @click.stop
-          />
-          <UButton
-            icon="i-lucide-check"
-            size="xs"
-            color="primary"
-            @click.stop="handleSaveRename"
-          />
-          <UButton
-            icon="i-lucide-x"
-            size="xs"
-            variant="ghost"
-            @click.stop="handleCancelRename"
-          />
-        </div>
 
         <!-- 操作按钮 -->
         <div
@@ -251,9 +194,7 @@ const getMenuItems = computed(() => {
         @delete="(id: string, e: Event) => emit('delete', id, e)"
         @create-sub-folder="(id: string, e: Event) => emit('create-sub-folder', id, e)"
         @download="(id: string, e: Event) => emit('download', id, e)"
-        @rename="(id: string, title: string) => emit('rename', id, title)"
         @start-rename="(id: string) => emit('start-rename', id)"
-        @cancel-rename="() => emit('cancel-rename')"
       />
     </div>
   </div>
