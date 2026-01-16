@@ -29,9 +29,15 @@ const checkCreateDocument = () => {
 watch(() => route.query.function, () => {
   checkCreateDocument()
 })
-
+const defaultContent = computed(() => $tm('editor.defaultContent'))
 onMounted(() => {
-  content.value = JSON.parse(JSON.stringify($t('editor.defaultContent')))
+  if (route.query && 'create' === route.query.function) {
+    try {
+      content.value = defaultContent.value
+    } catch (e) {
+      console.error('初始化默认内容失败:', e)
+    }
+  }
   checkCreateDocument()
 })
 </script>
@@ -39,9 +45,9 @@ onMounted(() => {
 <template>
   <MarkdownEditor
     v-model="content"
-    :enable-before-unload="false"
     :allow-save="allowSave"
     :document-id="newDocumentId"
+    :enable-before-unload="false"
     @document-saved="async (id) => {
       isNewDocument = false
       allowSave.value = false // 保存后恢复预览模式
