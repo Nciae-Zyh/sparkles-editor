@@ -12,7 +12,9 @@ export default defineNuxtConfig({
     '@nuxt/image',
     '@nuxtjs/i18n',
     'nuxt-vue3-google-signin',
-    '@nuxtjs/device'
+    '@nuxtjs/device',
+    '@pinia/nuxt',
+    'pinia-plugin-persistedstate/nuxt'
   ],
   ssr: true,
 

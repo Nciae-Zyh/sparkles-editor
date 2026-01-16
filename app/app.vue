@@ -1,15 +1,26 @@
 <script lang="ts" setup>
-const { locale, locales } = useI18n()
+import {useNotificationStore} from "~/store/notification";
+
+const {
+  locale,
+  locales
+} = useI18n()
 const route = useRoute()
 
 const appData = computed(() => $tm('app') as Record<string, string> | undefined)
 
 useHead({
   meta: [
-    { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+    {
+      name: 'viewport',
+      content: 'width=device-width, initial-scale=1'
+    }
   ],
   link: [
-    { rel: 'icon', href: '/favicon.ico' }
+    {
+      rel: 'icon',
+      href: '/favicon.ico'
+    }
   ],
   htmlAttrs: {
     lang: () => locale.value
@@ -38,19 +49,33 @@ useHead({
       rel: 'alternate',
       hreflang: loc.code,
       href: loc.code === 'zh' ? basePath : `/en${basePath === '/' ? '' : basePath}`
-    })).concat([{
-      rel: 'alternate',
-      hreflang: 'x-default',
-      href: basePath
-    }])
+    })).concat([
+      {
+        rel: 'alternate',
+        hreflang: 'x-default',
+        href: basePath
+      }
+    ])
   })
+})
+const {
+  subscribe: subscribeNotification,
+  clearAll: clearAllSubscribe,
+  publish: publishNotification
+} = useNotificationStore()
+onBeforeMount(() => {
+  const nuxtApp = useNuxtApp()
+  nuxtApp.$subscribeNotification = subscribeNotification
+  nuxtApp.$clearAllSubscribe = clearAllSubscribe
+  nuxtApp.$publishNotification = publishNotification
+
 })
 </script>
 
 <template>
   <UApp>
     <NuxtLayout>
-      <NuxtPage />
+      <NuxtPage/>
     </NuxtLayout>
   </UApp>
 </template>
