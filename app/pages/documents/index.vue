@@ -28,6 +28,6 @@ const currentFolderId = computed(() => route.query.folder as string | undefined)
         {{ documentsData?.myDocuments || '我的文档' }}
       </h1>
     </div>
-    <DocumentsDocumentTree />
+    <DocumentsDocumentTreeWithDragDrop />
   </div>
 </template>
