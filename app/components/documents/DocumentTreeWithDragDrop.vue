@@ -37,6 +37,7 @@ const treeItems = ref<ExtendedTreeItem[]>([])
 const loading = ref(false)
 const expanded = ref<string[]>([])
 const loadingFolders = ref<Set<string>>(new Set()) // 正在加载的文件夹
+const movingDocument = ref(false) // 正在移动文档的全局 loading 状态
 const deletingId = ref<string | null>(null)
 const renamingId = ref<string | null>(null)
 const renamingLoadingId = ref<string | null>(null)
@@ -56,7 +57,8 @@ const createDocumentParentId = ref<string | null>(null)
 // 拖放相关状态
 const draggedItemId = ref<string | null>(null)
 const dragOverItemId = ref<string | null>(null)
-const dragOverPosition = ref<'before' | 'after' | 'inside' | null>(null)
+const dragOverPosition = ref<'before' | 'after' | 'inside' | 'root' | null>(null)
+const dragOverRoot = ref(false) // 是否拖动到根目录区域
 
 // 将 Document 转换为 TreeItem 格式
 const convertToTreeItem = (doc: Document): ExtendedTreeItem => {
@@ -87,9 +89,9 @@ const loadRootItems = async () => {
 }
 
 // 懒加载文件夹的子项
-const loadFolderChildren = async (folderId: string, item: ExtendedTreeItem) => {
-  // 如果已加载，直接返回
-  if (item._loaded) {
+const loadFolderChildren = async (folderId: string, item: ExtendedTreeItem, forceReload = false) => {
+  // 如果已加载且不是强制刷新，直接返回
+  if (item._loaded && !forceReload) {
     return
   }
 
@@ -110,6 +112,29 @@ const loadFolderChildren = async (folderId: string, item: ExtendedTreeItem) => {
   } finally {
     loadingFolders.value.delete(folderId)
   }
+}
+
+// 刷新所有已展开的文件夹
+const refreshExpandedFolders = async () => {
+  const refreshFolder = async (items: ExtendedTreeItem[]) => {
+    for (const item of items) {
+      if (item.type === 'folder' && expanded.value.includes(item.id)) {
+        // 强制重新加载
+        await loadFolderChildren(item.id, item, true)
+        // 如果文件夹有子项，递归刷新
+        if (item.children && item.children.length > 0) {
+          await refreshFolder(item.children)
+        }
+      } else if (item.children && item.children.length > 0) {
+        // 即使当前文件夹未展开，也要检查其子项
+        await refreshFolder(item.children)
+      }
+    }
+  }
+  // 刷新根目录
+  await loadRootItems()
+  // 刷新所有已展开的文件夹
+  await refreshFolder(treeItems.value)
 }
 
 // 处理节点展开/折叠（通过 watch expanded 来处理）
@@ -447,6 +472,20 @@ const handleDragOver = (event: DragEvent, item: ExtendedTreeItem) => {
       if (event.dataTransfer) {
         event.dataTransfer.dropEffect = 'move'
       }
+      // 拖动到文件夹内时，自动展开该文件夹（延迟展开，避免频繁触发）
+      if (!expanded.value.includes(item.id)) {
+        // 使用 nextTick 确保在下一个事件循环中展开，避免阻塞拖拽
+        nextTick(() => {
+          if (!expanded.value.includes(item.id)) {
+            expanded.value.push(item.id)
+            // 如果文件夹未加载，异步加载其子项
+            const folderItem = findItemInTree(treeItems.value, item.id)
+            if (folderItem && !folderItem._loaded) {
+              loadFolderChildren(item.id, folderItem)
+            }
+          }
+        })
+      }
     }
   } else {
     dragOverPosition.value = y < height / 2 ? 'before' : 'after'
@@ -492,10 +531,21 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
   }
 
   try {
+    movingDocument.value = true
     let newParentId: string | null = null
 
+    // 如果拖动到文件夹内，确保该文件夹已展开
     if (dragOverPosition.value === 'inside' && targetItem.type === 'folder') {
       newParentId = targetItem.id
+      // 确保目标文件夹已展开
+      if (!expanded.value.includes(targetItem.id)) {
+        expanded.value.push(targetItem.id)
+        // 如果文件夹未加载，先加载其子项
+        const folderItem = findItemInTree(treeItems.value, targetItem.id)
+        if (folderItem && !folderItem._loaded) {
+          await loadFolderChildren(targetItem.id, folderItem)
+        }
+      }
     } else {
       // 找到目标项的父文件夹
       const findParent = (items: ExtendedTreeItem[], targetId: string, parent: ExtendedTreeItem | null = null): ExtendedTreeItem | null => {
@@ -520,6 +570,24 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
       newParentId = targetItem.id
     }
 
+    // 记录移动前的父文件夹ID（用于刷新）
+    const oldParentId = draggedItem ? (() => {
+      const findParent = (items: ExtendedTreeItem[], targetId: string, parent: ExtendedTreeItem | null = null): ExtendedTreeItem | null => {
+        for (const item of items) {
+          if (item.id === targetId) {
+            return parent
+          }
+          if (item.children) {
+            const found = findParent(item.children, targetId, item)
+            if (found !== null) return found
+          }
+        }
+        return null
+      }
+      const parent = findParent(treeItems.value, draggedItemId.value)
+      return parent?.id || null
+    })() : null
+
     await moveDocument(draggedItemId.value, newParentId)
 
     // 更新树结构
@@ -542,10 +610,14 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
         treeItems.value.push(item)
       }
     }
+
+    // 刷新所有已展开的文件夹（包括原位置和新位置的父文件夹）
+    await refreshExpandedFolders()
   } catch (error: any) {
     console.error('移动失败:', error)
     alert(error.message || '移动失败，请稍后重试')
   } finally {
+    movingDocument.value = false
     dragOverItemId.value = null
     dragOverPosition.value = null
     draggedItemId.value = null
@@ -555,7 +627,81 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
 const handleDragEnd = () => {
   dragOverItemId.value = null
   dragOverPosition.value = null
+  dragOverRoot.value = false
   draggedItemId.value = null
+}
+
+// 处理拖动到根目录区域
+const handleRootDragOver = (event: DragEvent) => {
+  if (!draggedItemId.value) {
+    return
+  }
+  event.preventDefault()
+  event.stopPropagation()
+  dragOverRoot.value = true
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+}
+
+const handleRootDragLeave = () => {
+  dragOverRoot.value = false
+}
+
+const handleRootDrop = async (event: DragEvent) => {
+  event.preventDefault()
+  event.stopPropagation()
+
+  if (!draggedItemId.value) {
+    dragOverRoot.value = false
+    return
+  }
+
+  try {
+    movingDocument.value = true
+    // 记录移动前的父文件夹ID（用于刷新）
+    const draggedItem = findItemInTree(treeItems.value, draggedItemId.value)
+    const oldParentId = draggedItem ? (() => {
+      const findParent = (items: ExtendedTreeItem[], targetId: string, parent: ExtendedTreeItem | null = null): ExtendedTreeItem | null => {
+        for (const item of items) {
+          if (item.id === targetId) {
+            return parent
+          }
+          if (item.children) {
+            const found = findParent(item.children, targetId, item)
+            if (found !== null) return found
+          }
+        }
+        return null
+      }
+      const parent = findParent(treeItems.value, draggedItemId.value)
+      return parent?.id || null
+    })() : null
+
+    // 移动到根目录（parentId 为 null）
+    await moveDocument(draggedItemId.value, null)
+
+    // 更新树结构
+    const item = findItemInTree(treeItems.value, draggedItemId.value)
+    if (item) {
+      // 从原位置移除
+      removeItemFromTree(treeItems.value, draggedItemId.value)
+      // 添加到根目录
+      treeItems.value.push(item)
+    }
+
+    // 刷新所有已展开的文件夹
+    await refreshExpandedFolders()
+  } catch (error: any) {
+    console.error('移动到根目录失败:', error)
+    alert(error.message || '移动到根目录失败，请稍后重试')
+  } finally {
+    movingDocument.value = false
+    dragOverItemId.value = null
+    dragOverPosition.value = null
+    dragOverRoot.value = false
+    draggedItemId.value = null
+  }
 }
 
 // 修复路径
@@ -820,16 +966,54 @@ onMounted(() => {
     <!-- 树形视图 -->
     <div
       v-else
-      class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-900"
+      class="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 relative"
     >
-      <UTree
-        v-model:expanded="expanded"
-        :get-key="(item) => item.id"
-        :items="treeItems"
-        color="neutral"
-        nested
-        @select="onSelect"
+      <!-- 全局 loading 遮罩 -->
+      <div
+        v-if="movingDocument"
+        class="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center"
       >
+        <div class="flex flex-col items-center gap-2">
+          <UIcon
+            name="i-lucide-loader-2"
+            class="w-8 h-8 animate-spin text-primary"
+          />
+          <span class="text-sm text-gray-600 dark:text-gray-400">
+            {{ documentsData?.moving || '正在移动...' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- 根目录拖放区域 -->
+      <div
+        :class="[
+          'p-2 border-b border-gray-200 dark:border-gray-700 transition-colors',
+          dragOverRoot ? 'bg-blue-100 dark:bg-blue-900' : ''
+        ]"
+        @dragover.prevent="handleRootDragOver"
+        @dragleave="handleRootDragLeave"
+        @drop.prevent="handleRootDrop"
+      >
+        <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+          <UIcon name="i-lucide-folder" class="w-4 h-4" />
+          <span>{{ documentsData?.rootDirectory || '根目录' }}</span>
+          <span
+            v-if="dragOverRoot"
+            class="ml-auto text-xs text-blue-600 dark:text-blue-400"
+          >
+            {{ documentsData?.dropToRoot || '拖动到此处移动到根目录' }}
+          </span>
+        </div>
+      </div>
+      <div class="p-2">
+        <UTree
+          v-model:expanded="expanded"
+          :get-key="(item) => item.id"
+          :items="treeItems"
+          color="neutral"
+          nested
+          @select="onSelect"
+        >
         <template #item="{ item, expanded }">
           <UContextMenu :items="getTreeItemMenuItems(item as ExtendedTreeItem)">
             <div class="flex items-center w-full justify-between">
@@ -941,7 +1125,8 @@ onMounted(() => {
             </div>
           </UContextMenu>
         </template>
-      </UTree>
+        </UTree>
+      </div>
     </div>
   </div>
 </template>
