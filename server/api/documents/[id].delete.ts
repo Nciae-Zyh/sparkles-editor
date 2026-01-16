@@ -16,7 +16,7 @@ export default eventHandler(async (event) => {
 
   // 检查文档是否存在且属于当前用户
   const document = await db.prepare(`
-    SELECT id, r2_key, type, path FROM documents WHERE id = ? AND user_id = ?
+    SELECT id, r2_key, type FROM documents WHERE id = ? AND user_id = ?
   `).bind(id, user.id).first() as any
 
   if (!document) {

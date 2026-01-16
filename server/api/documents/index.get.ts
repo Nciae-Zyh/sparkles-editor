@@ -20,14 +20,14 @@ export default eventHandler(async (event) => {
   let documents
   if (parentId) {
     documents = await db.prepare(`
-      SELECT id, title, type, parent_id, path, created_at, updated_at
+      SELECT id, title, type, parent_id, created_at, updated_at
       FROM documents
       WHERE user_id = ? AND parent_id = ?
       ORDER BY type DESC, updated_at DESC
     `).bind(user.id, parentId).all()
   } else {
     documents = await db.prepare(`
-      SELECT id, title, type, parent_id, path, created_at, updated_at
+      SELECT id, title, type, parent_id, created_at, updated_at
       FROM documents
       WHERE user_id = ? AND (parent_id IS NULL OR parent_id = '')
       ORDER BY type DESC, updated_at DESC

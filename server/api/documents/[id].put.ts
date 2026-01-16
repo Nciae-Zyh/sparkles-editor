@@ -67,7 +67,7 @@ export default eventHandler(async (event) => {
     let existing: any
     try {
       existing = await db.prepare(`
-        SELECT id, r2_key, type, path, parent_id, title FROM documents WHERE id = ? AND user_id = ?
+        SELECT id, r2_key, type, parent_id, title FROM documents WHERE id = ? AND user_id = ?
       `).bind(id, user.id).first() as any
 
       if (!existing) {
@@ -77,7 +77,7 @@ export default eventHandler(async (event) => {
           message: 'Document not found'
         })
       }
-      console.log(`[PUT /api/documents/[id]] [${requestId}] 文档存在: type=${existing.type}, path=${existing.path}`)
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 文档存在: type=${existing.type}`)
     } catch (error: any) {
       if (error.statusCode) {
         throw error
@@ -94,7 +94,6 @@ export default eventHandler(async (event) => {
 
     const now = Math.floor(Date.now() / 1000)
     let r2Key = existing.r2_key
-    let newPath = existing.path
     let newParentId = existing.parent_id
 
     // 6. 如果标题改变，解析新路径并更新
@@ -111,20 +110,10 @@ export default eventHandler(async (event) => {
 
       // 自动创建文件夹路径（如果路径包含文件夹）
       let finalParentId: string | null = null
-      let parentPath = '/'
       if (folderPath.length > 0) {
         try {
           finalParentId = await ensureFolderPath(db, user.id, folderPath, null)
           console.log(`[PUT /api/documents/[id]] [${requestId}] 文件夹路径创建成功: finalParentId=${finalParentId}`)
-
-          if (finalParentId) {
-            const finalParent = await db.prepare('SELECT path FROM documents WHERE id = ? AND user_id = ?')
-              .bind(finalParentId, user.id)
-              .first() as any
-            if (finalParent) {
-              parentPath = finalParent.path
-            }
-          }
         } catch (error: any) {
           console.error(`[PUT /api/documents/[id]] [${requestId}] 创建文件夹路径时出错:`, {
             message: error?.message,
@@ -138,38 +127,38 @@ export default eventHandler(async (event) => {
         }
       }
 
-      newPath = parentPath === '/' ? `/${id}` : `${parentPath}/${id}`
       newParentId = finalParentId
 
-      // 检查新路径是否已存在
+      // 检查同一父文件夹下是否已存在同名项
       try {
-        const pathConflict = await db.prepare('SELECT id FROM documents WHERE path = ? AND user_id = ? AND id != ?')
-          .bind(newPath, user.id, id)
-          .first()
+        const nameConflict = await db.prepare(`
+          SELECT id FROM documents 
+          WHERE user_id = ? AND parent_id = ? AND title = ? AND id != ?
+        `).bind(user.id, newParentId || null, finalTitle, id).first()
 
-        if (pathConflict) {
-          console.error(`[PUT /api/documents/[id]] [${requestId}] 路径冲突: path=${newPath}`)
+        if (nameConflict) {
+          console.error(`[PUT /api/documents/[id]] [${requestId}] 名称冲突: title=${finalTitle}`)
           throw createError({
             statusCode: 409,
             message: 'A document or folder with this name already exists in this location'
           })
         }
-        console.log(`[PUT /api/documents/[id]] [${requestId}] 路径检查通过: newPath=${newPath}`)
+        console.log(`[PUT /api/documents/[id]] [${requestId}] 名称检查通过`)
       } catch (error: any) {
         if (error.statusCode) {
           throw error
         }
-        console.error(`[PUT /api/documents/[id]] [${requestId}] 检查路径冲突时出错:`, {
+        console.error(`[PUT /api/documents/[id]] [${requestId}] 检查名称冲突时出错:`, {
           message: error?.message,
           stack: error?.stack
         })
         throw createError({
           statusCode: 500,
-          message: `Failed to check path conflict: ${error?.message || 'Unknown error'}`
+          message: `Failed to check name conflict: ${error?.message || 'Unknown error'}`
         })
       }
     } else {
-      console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤6: 路径未改变，跳过路径更新`)
+      console.log(`[PUT /api/documents/[id]] [${requestId}] 步骤6: 标题未改变，跳过更新`)
     }
 
     // 7. 如果是文档类型，更新 R2 内容
@@ -214,13 +203,12 @@ export default eventHandler(async (event) => {
       const finalTitle = title !== undefined ? title.trim() : existing.title
       const result = await db.prepare(`
         UPDATE documents
-        SET title = ?, r2_key = ?, parent_id = ?, path = ?, updated_at = ?
+        SET title = ?, r2_key = ?, parent_id = ?, updated_at = ?
         WHERE id = ? AND user_id = ?
       `).bind(
         finalTitle,
         r2Key,
         newParentId,
-        newPath,
         now,
         id,
         user.id
@@ -261,7 +249,6 @@ export default eventHandler(async (event) => {
         id,
         title: finalTitle,
         parent_id: newParentId,
-        path: newPath,
         updated_at: now
       }
     }

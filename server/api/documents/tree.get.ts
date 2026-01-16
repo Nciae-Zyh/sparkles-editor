@@ -1,6 +1,6 @@
 import { getDBWithMigration } from '../../utils/db'
 import { getCurrentUser } from '../../utils/auth'
-import type { Document } from '../../../types'
+import type { Document } from '~/types'
 
 interface DocumentTreeNode extends Document {
   children?: DocumentTreeNode[]
@@ -17,13 +17,33 @@ export default eventHandler(async (event) => {
 
   const db = await getDBWithMigration(event)
 
-  // 获取用户的所有文档和文件夹
+  // 使用递归 CTE 优化深层级查询
+  // 获取用户的所有文档和文件夹，按层级排序
   const allItems = await db.prepare(`
-    SELECT id, title, type, parent_id, path, created_at, updated_at
-    FROM documents
-    WHERE user_id = ?
+    WITH RECURSIVE folder_tree AS (
+      -- 根节点（parent_id IS NULL）
+      SELECT 
+        id, title, type, parent_id, created_at, updated_at,
+        0 as depth,
+        CAST(id AS TEXT) as path_ids
+      FROM documents
+      WHERE user_id = ? AND parent_id IS NULL
+      
+      UNION ALL
+      
+      -- 递归查询子节点
+      SELECT 
+        d.id, d.title, d.type, d.parent_id, d.created_at, d.updated_at,
+        ft.depth + 1 as depth,
+        ft.path_ids || '/' || d.id as path_ids
+      FROM documents d
+      INNER JOIN folder_tree ft ON d.parent_id = ft.id
+      WHERE d.user_id = ? AND ft.depth < 100  -- 限制最大深度为100层
+    )
+    SELECT id, title, type, parent_id, created_at, updated_at, depth
+    FROM folder_tree
     ORDER BY type DESC, title ASC
-  `).bind(user.id).all() as { results: Document[] }
+  `).bind(user.id, user.id).all() as { results: Document[] }
 
   const items = allItems.results || []
 
