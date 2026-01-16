@@ -1,0 +1,30 @@
+{
+  "editor": {
+    "placeholder": "Start writing, type '/' for commands...",
+    "welcome": "Welcome to the Editor",
+    "intro": "This is a feature-rich rich text editor that supports various formats and features.",
+    "richText": "Rich Text Editing",
+    "richTextDesc": "Supports **bold**, *italic*, <u>underline</u>, ~~strikethrough~~ and `inline code`.",
+    "codeBlock": "Code Block",
+    "codeBlockDesc": "Code blocks support syntax highlighting.",
+    "list": "List",
+    "table": "Table",
+    "tableDesc": "Insert and edit tables with row and column operations.",
+    "features": "Features",
+    "toolbar": "Toolbar",
+    "toolbarDesc": "Select text to see the bubble toolbar, the top fixed toolbar provides quick access to common operations.",
+    "dragHandle": "Drag Handle",
+    "dragHandleDesc": "Use the drag handle on the left to reorder, copy, delete or convert block types.",
+    "slashCommand": "Slash Command",
+    "slashCommandDesc": "Type `/` to quickly insert headings, lists, code blocks, tables, images, etc.",
+    "imageUpload": "Image Upload",
+    "imageUploadDesc": "Supports custom image upload nodes.",
+    "emoji": "Emoji",
+    "emojiDesc": "Use `:` to add emoji 🚀",
+    "defaultContent": "# Welcome to the Editor\n\nThis is a feature-rich rich text editor that supports various formats and features.\n\n## Rich Text Editing\n\nSupports **bold**, *italic*, <u>underline</u>, ~~strikethrough~~ and `inline code`.\n\n![Image Placeholder](/placeholder.jpeg)\n\n### Code Block\n\nCode blocks support syntax highlighting.\n\n```typescript\nconst greeting = 'Hello, World!'\nconsole.log(greeting)\n```\n\n### List\n\n1. Ordered list\n2. Auto numbering\n\n- Unordered list\n  - Supports nesting\n  - Multi-level nesting\n\n- [ ] Task list\n- [x] Completed task\n\n### Table\n\nInsert and edit tables with row and column operations.\n\n| Feature | Description | Status |\n| ------- | ----------- | ------ |\n| Table | Full table support | ✅ |\n| Markdown | Content serialization | ✅ |\n\n---\n\n## Features\n\n### Toolbar\n\nSelect text to see the bubble toolbar, the top fixed toolbar provides quick access to common operations.\n\n### Drag Handle\n\nUse the drag handle on the left to reorder, copy, delete or convert block types.\n\n### Slash Command\n\nType `/` to quickly insert headings, lists, code blocks, tables, images, etc.\n\n### Image Upload\n\nSupports custom image upload nodes.\n\n### Emoji\n\nUse `:` to add emoji 🚀\n",
+    "autoSaving": "Auto saving...",
+    "saved": "Saved",
+    "editorNotReady": "Editor not ready",
+    "importFileFailed": "Failed to import file"
+  }
+}
