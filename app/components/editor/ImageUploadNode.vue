@@ -104,7 +104,7 @@ function cancelImage() {
             <img
               :src="imageSrc"
               :alt="imageData?.preview"
-              class="w-full rounded-lg object-contain max-h-64 border border-gray-200 dark:border-gray-800"
+              class="w-full rounded-lg object-contain max-h-64 border border-default"
             >
           </div>
           <UInput

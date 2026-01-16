@@ -78,19 +78,19 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="h-full  flex bg-gray-50 flex-1 w-full">
+  <div class="h-full  flex bg-muted flex-1 w-full">
     <UScrollArea class="w-full">
       <div class="container mx-auto px-4 py-8 max-w-4xl">
         <!-- 密码输入界面 -->
         <div
           v-if="showPasswordInput && !error"
-          class="bg-white rounded-lg shadow-md p-8"
+          class="bg-default rounded-lg shadow-md p-8"
         >
           <div class="text-center mb-6">
-            <h1 class="text-2xl font-bold text-gray-800 mb-2">
+            <h1 class="text-2xl font-bold text-highlighted mb-2">
               {{ sharesData?.viewSharedDocument || '查看分享的文档' }}
             </h1>
-            <p class="text-gray-600">
+            <p class="text-toned">
               {{ sharesData?.passwordRequired || '此文档需要密码才能查看' }}
             </p>
           </div>
@@ -102,7 +102,7 @@ onMounted(() => {
             <div>
               <label
                 for="password"
-                class="block text-sm font-medium text-gray-700 mb-2"
+                class="block text-sm font-medium text-default mb-2"
               >
                 {{ sharesData?.enterPassword || '访问密码' }}
               </label>
@@ -110,14 +110,14 @@ onMounted(() => {
                 id="password"
                 v-model="password"
                 type="password"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                class="w-full px-4 py-2 border border-accented rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 :placeholder="sharesData?.passwordPlaceholderInput || '请输入访问密码'"
                 :disabled="loading"
                 @keyup.enter="handlePasswordSubmit"
               />
               <p
                 v-if="passwordError"
-                class="mt-2 text-sm text-red-600"
+                class="mt-2 text-sm text-error"
               >
                 {{ passwordError }}
               </p>
@@ -126,7 +126,7 @@ onMounted(() => {
             <button
               type="submit"
               :disabled="loading"
-              class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="w-full bg-primary text-inverted py-2 px-4 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <span v-if="loading">{{ sharesData?.verifyPassword || '验证中...' }}</span>
               <span v-else>{{ sharesData?.viewDocument || '查看文档' }}</span>
@@ -137,9 +137,9 @@ onMounted(() => {
         <!-- 错误提示 -->
         <div
           v-if="error"
-          class="bg-white rounded-lg shadow-md p-8 text-center"
+          class="bg-default rounded-lg shadow-md p-8 text-center"
         >
-          <div class="text-red-600 mb-4">
+          <div class="text-error mb-4">
             <UIcon
               name="i-lucide-alert-circle"
               class="w-16 h-16 mx-auto mb-4"
@@ -150,7 +150,7 @@ onMounted(() => {
           </div>
           <button
             @click="$router.push(safeLocalePath('/'))"
-            class="text-blue-600 hover:text-blue-700"
+            class="text-primary hover:text-primary/80"
           >
             {{ sharesData?.backToHome || '返回首页' }}
           </button>
@@ -163,20 +163,20 @@ onMounted(() => {
         >
           <UIcon
             name="i-lucide-loader-2"
-            class="w-8 h-8 animate-spin text-blue-600"
+            class="w-8 h-8 animate-spin text-primary"
           />
         </div>
 
         <!-- 文档内容 -->
         <div
           v-if="share && !showPasswordInput && !error"
-          class="bg-white rounded-lg shadow-md"
+          class="bg-default rounded-lg shadow-md"
         >
-          <div class="border-b border-gray-200 px-6 py-4">
-            <h1 class="text-2xl font-bold text-gray-800">
+          <div class="border-b border-default px-6 py-4">
+            <h1 class="text-2xl font-bold text-highlighted">
               {{ share.document_title }}
             </h1>
-            <p class="text-sm text-gray-500 mt-2">
+            <p class="text-sm text-muted mt-2">
               {{ sharesData?.shareTime || '分享时间' }}：{{ new Date(share.created_at * 1000).toLocaleString('zh-CN') }}
             </p>
           </div>

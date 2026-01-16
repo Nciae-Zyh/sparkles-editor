@@ -56,7 +56,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white dark:bg-gray-900">
+  <div class="min-h-screen bg-default">
     <AppHeader>
       <template #default>
         <UButton

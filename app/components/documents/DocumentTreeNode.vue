@@ -99,8 +99,8 @@ const getMenuItems = computed(() => {
     <UContextMenu :items="getMenuItems">
       <div
         :class="[
-          'flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer group',
-          props.currentDocumentId === props.node.id && props.node.type === 'document' ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-primary-500' : ''
+          'flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted cursor-pointer group',
+          props.currentDocumentId === props.node.id && props.node.type === 'document' ? 'bg-primary/10 border-l-2 border-primary' : ''
         ]"
         :style="{ paddingLeft: `${level * 1.5 + 0.5}rem` }"
         @click="handleClick"
@@ -113,7 +113,7 @@ const getMenuItems = computed(() => {
         >
           <UIcon
             :name="isExpanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
-            class="w-4 h-4 text-gray-400"
+            class="w-4 h-4 text-dimmed"
           />
         </div>
         <div
@@ -126,7 +126,7 @@ const getMenuItems = computed(() => {
           :name="node.type === 'folder' ? 'i-lucide-folder' : 'i-lucide-file-text'"
           :class="[
             'w-5 h-5 flex-shrink-0',
-            node.type === 'folder' ? 'text-yellow-500' : 'text-blue-500'
+            node.type === 'folder' ? 'text-warning' : 'text-primary'
           ]"
         />
 

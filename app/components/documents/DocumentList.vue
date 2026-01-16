@@ -302,7 +302,7 @@ const {
         </UFormField>
         <div
           v-if="createDocumentParentId"
-          class="mt-2 text-sm text-gray-500"
+          class="mt-2 text-sm text-muted"
         >
           {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
         </div>
@@ -375,7 +375,7 @@ const {
       v-else-if="documents.length === 0"
       :items="getEmptyAreaMenuItems"
     >
-      <div class="text-center py-12 text-gray-500 cursor-context-menu">
+      <div class="text-center py-12 text-muted cursor-context-menu">
         {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
       </div>
     </UContextMenu>
@@ -404,7 +404,7 @@ const {
                   <div class="flex items-center gap-2 flex-1">
                     <UIcon
                       name="i-lucide-folder"
-                      class="w-5 h-5 text-yellow-500"
+                      class="w-5 h-5 text-warning"
                     />
                     <h3 class="font-semibold text-lg truncate">
                       {{ folder.title }}
@@ -421,7 +421,7 @@ const {
                 </div>
               </template>
 
-              <div class="text-sm text-gray-500">
+              <div class="text-sm text-muted">
                 {{ documentsData?.folder || '文件夹' }}
               </div>
             </UCard>
@@ -447,7 +447,7 @@ const {
                   <div class="flex items-center gap-2 flex-1">
                     <UIcon
                       name="i-lucide-file-text"
-                      class="w-5 h-5 text-blue-500"
+                      class="w-5 h-5 text-primary"
                     />
                     <h3 class="font-semibold text-lg truncate">
                       {{ doc.title || (documentsData?.untitledDocument || '未命名文档') }}
@@ -464,7 +464,7 @@ const {
                 </div>
               </template>
 
-              <div class="text-sm text-gray-500 space-y-1">
+              <div class="text-sm text-muted space-y-1">
                 <div>
                   {{ documentsData?.createdAt || '创建时间' }}：{{ formatDate(doc.created_at) }}
                 </div>

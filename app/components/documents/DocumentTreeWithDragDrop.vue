@@ -1093,7 +1093,7 @@ watch(currentDocumentId, async (newId) => {
         </UFormField>
         <div
           v-if="createDocumentParentId"
-          class="mt-2 text-sm text-gray-500"
+          class="mt-2 text-sm text-muted"
         >
           {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
         </div>
@@ -1136,7 +1136,7 @@ watch(currentDocumentId, async (newId) => {
         </UFormField>
         <div
           v-if="selectedParentId"
-          class="mt-2 text-sm text-gray-500"
+          class="mt-2 text-sm text-muted"
         >
           {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
         </div>
@@ -1213,7 +1213,7 @@ watch(currentDocumentId, async (newId) => {
       v-else-if="treeItems.length === 0"
       :items="getEmptyAreaMenuItems"
     >
-      <div class="text-center py-12 text-gray-500 cursor-context-menu">
+      <div class="text-center py-12 text-muted cursor-context-menu">
         {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
       </div>
     </UContextMenu>
@@ -1221,19 +1221,19 @@ watch(currentDocumentId, async (newId) => {
     <!-- 树形视图 -->
     <div
       v-else
-      class="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 relative"
+      class="border border-default rounded-lg bg-default relative"
     >
       <!-- 全局 loading 遮罩 -->
       <div
         v-if="movingDocument"
-        class="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center"
+        class="absolute inset-0 bg-default/80 backdrop-blur-sm z-50 flex items-center justify-center"
       >
         <div class="flex flex-col items-center gap-2">
           <UIcon
             name="i-lucide-loader-2"
             class="w-8 h-8 animate-spin text-primary"
           />
-          <span class="text-sm text-gray-600 dark:text-gray-400">
+          <span class="text-sm text-toned">
             {{ documentsData?.moving || '正在移动...' }}
           </span>
         </div>
@@ -1242,15 +1242,15 @@ watch(currentDocumentId, async (newId) => {
       <!-- 根目录拖放区域 -->
       <div
         :class="[
-          'p-2 border-b border-gray-200 dark:border-gray-700 transition-colors',
-          dragOverRoot ? 'bg-blue-100 dark:bg-blue-900' : ''
+          'p-2 border-b border-default transition-colors',
+          dragOverRoot ? 'bg-primary/20' : ''
         ]"
         @dragover.prevent="handleRootDragOver"
         @dragleave="handleRootDragLeave"
         @drop.prevent="handleRootDrop"
       >
         <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+          <div class="flex items-center gap-2 text-sm text-toned">
             <UIcon
               name="i-lucide-folder"
               class="w-4 h-4"
@@ -1258,7 +1258,7 @@ watch(currentDocumentId, async (newId) => {
             <span>{{ documentsData?.rootDirectory || '根目录' }}</span>
             <span
               v-if="dragOverRoot"
-              class="text-xs text-blue-600 dark:text-blue-400"
+              class="text-xs text-primary"
             >
               {{ documentsData?.dropToRoot || '拖动到此处移动到根目录' }}
             </span>
@@ -1305,7 +1305,7 @@ watch(currentDocumentId, async (newId) => {
                     :class="[
                       'flex items-center gap-2 w-full group min-h-[2rem] cursor-context-menu',
                       draggedItemId === item.id ? 'opacity-50' : '',
-                      dragOverItemId === item.id && dragOverPosition === 'inside' ? 'bg-blue-100 dark:bg-blue-900 rounded' : ''
+                      dragOverItemId === item.id && dragOverPosition === 'inside' ? 'bg-primary/20 rounded' : ''
                     ]"
                     :draggable="true"
                     style="width: 100%;"

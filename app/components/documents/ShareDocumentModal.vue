@@ -146,7 +146,7 @@ watch(() => props.documentId, () => {
     <template #body>
       <div class="space-y-4">
         <div>
-          <p class="text-sm text-gray-600 mb-4">
+          <p class="text-sm text-toned mb-4">
             文档：<span class="font-medium">{{ documentTitle }}</span>
           </p>
         </div>
@@ -156,19 +156,19 @@ watch(() => props.documentId, () => {
           v-if="shareId"
           class="space-y-4"
         >
-          <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-            <p class="text-sm text-green-800 mb-2">
+          <div class="bg-success/10 border border-success/20 rounded-lg p-4">
+            <p class="text-sm text-success mb-2">
               ✓ {{ sharesData?.shareLinkCreated || '分享链接已创建' }}
             </p>
-            <div class="flex items-center gap-2 bg-white rounded px-3 py-2">
+            <div class="flex items-center gap-2 bg-default rounded px-3 py-2">
               <input
                 :value="shareUrl"
                 readonly
-                class="flex-1 text-sm text-gray-700 outline-none"
+                class="flex-1 text-sm text-default outline-none"
               />
               <button
                 @click="copyShareLink"
-                class="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                class="text-primary hover:text-primary/80 text-sm font-medium"
               >
                 {{ sharesData?.copy || '复制' }}
               </button>
@@ -203,7 +203,7 @@ watch(() => props.documentId, () => {
               :placeholder="sharesData?.passwordPlaceholder || '留空则无需密码'"
             />
             <template #description>
-              <p class="text-xs text-gray-500">
+              <p class="text-xs text-muted">
                 {{ sharesData?.passwordDescription || '设置密码后，访问者需要输入密码才能查看文档' }}
               </p>
             </template>
@@ -218,7 +218,7 @@ watch(() => props.documentId, () => {
               :granularity="'minute'"
             />
             <template #description>
-              <p class="text-xs text-gray-500">
+              <p class="text-xs text-muted">
                 {{ sharesData?.expiresAtDescription || '设置过期时间后，链接将在指定时间后失效' }}
               </p>
             </template>

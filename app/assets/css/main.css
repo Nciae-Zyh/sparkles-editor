@@ -10,7 +10,7 @@
 }
 
 .dark {
-  --ui-bg: black;
+  --ui-bg: var(--ui-color-neutral-900);
 }
 
 html.dark .tiptap .shiki,
@@ -21,7 +21,10 @@ html.dark .tiptap .shiki span {
 
 /* 编辑器容器样式 */
 .editor-container {
-  @apply bg-white dark:bg-gray-900;
+  @apply bg-default;
+}
+body {
+  @apply antialiased text-default bg-default scheme-light dark:scheme-dark;
 }
 
 .editor-wrapper {
@@ -34,7 +37,7 @@ html.dark .tiptap .shiki span {
 }
 
 .tiptap p.is-editor-empty:first-child::before {
-  @apply text-gray-400 dark:text-gray-500;
+  @apply text-dimmed;
   content: attr(data-placeholder);
   float: left;
   height: 0;

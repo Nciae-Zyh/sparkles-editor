@@ -123,7 +123,7 @@ onMounted(async () => {
       <!-- 桌面端：可折叠侧边栏 -->
       <aside
         :class="[
-          'hidden lg:flex flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 transition-all duration-300 overflow-hidden',
+          'hidden lg:flex flex-col border-r border-default bg-default transition-all duration-300 overflow-hidden',
           isDocumentTreeCollapsed ? 'w-0' : 'w-80'
         ]"
       >

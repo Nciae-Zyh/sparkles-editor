@@ -108,7 +108,7 @@ const handleSave = async () => {
               required
             />
             <template #description>
-              <div class="text-xs text-gray-500 mt-1">
+              <div class="text-xs text-muted mt-1">
                 {{ actionsData?.pathDescription || '输入文件路径，系统会自动创建文件夹结构。例如: project/docs/readme.md' }}
               </div>
             </template>

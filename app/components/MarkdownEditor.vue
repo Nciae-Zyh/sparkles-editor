@@ -472,7 +472,7 @@ defineExpose({
         @update:model-value="onUpdate"
       >
         <div
-          class="sticky top-0 z-50 flex items-center bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm"
+          class="sticky top-0 z-50 flex items-center bg-default/80 backdrop-blur-md border-b border-default shadow-sm"
         >
           <div class="container mx-auto px-4 sm:px-6 lg:px-14">
             <div class="flex items-center justify-between gap-4 py-3">
@@ -637,7 +637,7 @@ defineExpose({
                 />
                 <div
                   v-if="user && canSave && isAutoSaving"
-                  class="flex items-center gap-1 text-xs text-gray-500"
+                  class="flex items-center gap-1 text-xs text-muted"
                 >
                   <UIcon
                     class="w-3 h-3 animate-spin"
@@ -647,7 +647,7 @@ defineExpose({
                 </div>
                 <div
                   v-if="user && canSave && lastSavedAt && !isAutoSaving"
-                  class="text-xs text-gray-400"
+                  class="text-xs text-dimmed"
                 >
                   {{ editorData?.saved || '已保存' }}
                 </div>

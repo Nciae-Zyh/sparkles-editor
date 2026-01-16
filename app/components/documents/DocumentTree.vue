@@ -438,7 +438,7 @@ watch(currentDocumentId, async (newId) => {
         </UFormField>
         <div
           v-if="createDocumentParentId"
-          class="mt-2 text-sm text-gray-500"
+          class="mt-2 text-sm text-muted"
         >
           {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
         </div>
@@ -481,7 +481,7 @@ watch(currentDocumentId, async (newId) => {
         </UFormField>
         <div
           v-if="selectedParentId"
-          class="mt-2 text-sm text-gray-500"
+          class="mt-2 text-sm text-muted"
         >
           {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
         </div>
@@ -558,7 +558,7 @@ watch(currentDocumentId, async (newId) => {
       v-else-if="tree.length === 0"
       :items="getEmptyAreaMenuItems"
     >
-      <div class="text-center py-12 text-gray-500 cursor-context-menu">
+      <div class="text-center py-12 text-muted cursor-context-menu">
         {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
       </div>
     </UContextMenu>
@@ -568,7 +568,7 @@ watch(currentDocumentId, async (newId) => {
       v-else
       :items="getEmptyAreaMenuItems"
     >
-      <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-900">
+      <div class="border border-default rounded-lg p-2 bg-default">
         <DocumentsDocumentTreeNode
           v-for="node in tree"
           :key="node.id"
