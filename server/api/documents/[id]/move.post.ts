@@ -1,5 +1,6 @@
 import { getDBWithMigration } from '../../../utils/db'
 import { getCurrentUser } from '../../../utils/auth'
+import { isDescendant, getAllDescendants } from '../../../utils/path-helper'
 import type { Document } from '~/types'
 
 export default eventHandler(async (event) => {
@@ -26,7 +27,7 @@ export default eventHandler(async (event) => {
 
   // 检查要移动的文档/文件夹是否存在且属于当前用户
   const item = await db.prepare(`
-    SELECT id, title, type, path, parent_id FROM documents WHERE id = ? AND user_id = ?
+    SELECT id, title, type, parent_id FROM documents WHERE id = ? AND user_id = ?
   `).bind(id, user.id).first() as any
 
   if (!item) {
@@ -37,10 +38,9 @@ export default eventHandler(async (event) => {
   }
 
   // 如果指定了 parentId，验证父文件夹是否存在
-  let newParentPath = '/'
   if (parentId) {
     const parent = await db.prepare(`
-      SELECT id, path, type FROM documents WHERE id = ? AND user_id = ?
+      SELECT id, type FROM documents WHERE id = ? AND user_id = ?
     `).bind(parentId, user.id).first() as any
 
     if (!parent) {
@@ -57,24 +57,23 @@ export default eventHandler(async (event) => {
       })
     }
 
-    // 检查是否试图将文件夹移动到自己的子文件夹中（防止循环引用）
-    if (item.type === 'folder' && parent.path.startsWith(item.path + '/')) {
-      throw createError({
-        statusCode: 400,
-        message: 'Cannot move folder into its own subfolder'
-      })
+    // 严格检查循环引用：使用 path-helper 工具函数
+    if (item.type === 'folder') {
+      const isCircular = await isDescendant(db, user.id, item.id, parentId)
+      if (isCircular) {
+        throw createError({
+          statusCode: 400,
+          message: 'Cannot move folder into its own subfolder'
+        })
+      }
     }
-
-    newParentPath = parent.path
   }
 
-  // 计算新路径
-  const newPath = newParentPath === '/' ? `/${id}` : `${newParentPath}/${id}`
-
-  // 检查新路径是否已存在（除了当前项本身）
+  // 检查目标位置是否已存在同名项（在同一父文件夹下）
   const existing = await db.prepare(`
-    SELECT id FROM documents WHERE path = ? AND user_id = ? AND id != ?
-  `).bind(newPath, user.id, id).first()
+    SELECT id FROM documents 
+    WHERE user_id = ? AND parent_id = ? AND title = ? AND id != ?
+  `).bind(user.id, parentId || null, item.title, id).first()
 
   if (existing) {
     throw createError({
@@ -83,44 +82,27 @@ export default eventHandler(async (event) => {
     })
   }
 
-  // 更新文档/文件夹的 parent_id 和 path
+  // 更新文档/文件夹的 parent_id
   const now = Math.floor(Date.now() / 1000)
   await db.prepare(`
     UPDATE documents
-    SET parent_id = ?, path = ?, updated_at = ?
+    SET parent_id = ?, updated_at = ?
     WHERE id = ? AND user_id = ?
   `).bind(
     parentId || null,
-    newPath,
     now,
     id,
     user.id
   ).run()
 
-  // 如果移动的是文件夹，需要递归更新所有子项的路径
-  if (item.type === 'folder') {
-    const updateChildrenPaths = async (oldPath: string, newPath: string) => {
-      const children = await db.prepare(`
-        SELECT id, path FROM documents WHERE path LIKE ? AND user_id = ?
-      `).bind(`${oldPath}/%`, user.id).all() as { results: Array<{ id: string, path: string }> }
-
-      for (const child of children.results) {
-        const newChildPath = child.path.replace(oldPath, newPath)
-        await db.prepare(`
-          UPDATE documents SET path = ?, updated_at = ? WHERE id = ? AND user_id = ?
-        `).bind(newChildPath, now, child.id, user.id).run()
-      }
-    }
-
-    await updateChildrenPaths(item.path, newPath)
-  }
+  // 注意：由于不再使用 path 字段，移动文件夹时不需要更新子项的路径
+  // 所有路径都通过 parent_id 递归计算
 
   return {
     success: true,
     document: {
       id,
       parent_id: parentId || null,
-      path: newPath,
       updated_at: now
     } as Partial<Document>
   }

@@ -220,13 +220,23 @@ const findItemInTree = (items: ExtendedTreeItem[], id: string): ExtendedTreeItem
 
 // 检查是否是子项（防止循环引用）
 const isDescendant = (parentId: string, childId: string): boolean => {
+  // 如果 parentId 和 childId 相同，直接返回 true（不能移动到自己）
+  if (parentId === childId) return true
+  
   const parent = findItemInTree(treeItems.value, parentId)
   if (!parent || !parent.children) return false
   
-  const checkChildren = (items: ExtendedTreeItem[]): boolean => {
+  const checkChildren = (items: ExtendedTreeItem[], visited: Set<string> = new Set()): boolean => {
+    // 防止无限递归
+    if (visited.has(parentId)) return false
+    visited.add(parentId)
+    
     for (const item of items) {
       if (item.id === childId) return true
-      if (item.children && checkChildren(item.children)) return true
+      if (item.children) {
+        // 递归检查子项
+        if (checkChildren(item.children, visited)) return true
+      }
     }
     return false
   }
@@ -312,13 +322,25 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
     return
   }
 
-  // 防止将文件夹移动到自己的子文件夹中
-  if (draggedItemId.value && targetItem.type === 'folder' && isDescendant(draggedItemId.value, targetItem.id)) {
-    alert('不能将文件夹移动到自己的子文件夹中')
-    dragOverItemId.value = null
-    dragOverPosition.value = null
-    draggedItemId.value = null
-    return
+  // 防止将文件夹移动到自己的子文件夹中（更严格的检查）
+  if (draggedItemId.value) {
+    // 检查1：不能移动到自己
+    if (draggedItemId.value === targetItem.id) {
+      alert('不能将项目移动到自己的位置')
+      dragOverItemId.value = null
+      dragOverPosition.value = null
+      draggedItemId.value = null
+      return
+    }
+
+    // 检查2：如果目标是文件夹，检查是否是自己的子文件夹
+    if (targetItem.type === 'folder' && isDescendant(draggedItemId.value, targetItem.id)) {
+      alert('不能将文件夹移动到自己的子文件夹中')
+      dragOverItemId.value = null
+      dragOverPosition.value = null
+      draggedItemId.value = null
+      return
+    }
   }
 
   try {
@@ -370,6 +392,31 @@ const handleDragEnd = () => {
   draggedItemId.value = null
 }
 
+// 修复路径
+const fixingPaths = ref(false)
+const handleFixPaths = async () => {
+  if (!confirm('确定要修复所有文档路径吗？这将重新计算所有文档和文件夹的路径，确保路径与文件夹结构一致。')) {
+    return
+  }
+
+  try {
+    fixingPaths.value = true
+    const result = await $fetch<{ success: boolean, fixed: number, errors: number }>('/api/documents/fix-paths', {
+      method: 'POST'
+    })
+    
+    if (result.success) {
+      alert(`路径修复完成！修复了 ${result.fixed} 个项目，${result.errors} 个错误。`)
+      await loadTree()
+    }
+  } catch (error: any) {
+    console.error('修复路径失败:', error)
+    alert(error.message || '修复路径失败，请稍后重试')
+  } finally {
+    fixingPaths.value = false
+  }
+}
+
 onMounted(() => {
   loadTree()
 })
@@ -412,6 +459,16 @@ onMounted(() => {
           @click="collapseAll"
         >
           {{ documentsData?.collapseAll || '折叠全部' }}
+        </UButton>
+        <UButton
+          icon="i-lucide-wrench"
+          size="sm"
+          variant="ghost"
+          color="warning"
+          :loading="fixingPaths"
+          @click="handleFixPaths"
+        >
+          修复路径
         </UButton>
       </div>
     </div>

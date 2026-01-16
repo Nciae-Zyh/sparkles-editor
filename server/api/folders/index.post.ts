@@ -23,9 +23,8 @@ export default eventHandler(async (event) => {
   const db = await getDBWithMigration(event)
 
   // 验证父目录是否存在且属于当前用户
-  let parentPath = '/'
   if (parentId) {
-    const parent = await db.prepare('SELECT id, path, type FROM documents WHERE id = ? AND user_id = ?')
+    const parent = await db.prepare('SELECT id, type FROM documents WHERE id = ? AND user_id = ?')
       .bind(parentId, user.id)
       .first() as any
 
@@ -42,18 +41,16 @@ export default eventHandler(async (event) => {
         message: 'Parent must be a folder'
       })
     }
-
-    parentPath = parent.path
   }
 
   const folderId = generateDocumentId()
   const now = Math.floor(Date.now() / 1000)
-  const path = parentPath === '/' ? `/${folderId}` : `${parentPath}/${folderId}`
 
-  // 检查路径是否已存在
-  const existing = await db.prepare('SELECT id FROM documents WHERE path = ? AND user_id = ?')
-    .bind(path, user.id)
-    .first()
+  // 检查同一父文件夹下是否已存在同名文件夹
+  const existing = await db.prepare(`
+    SELECT id FROM documents 
+    WHERE user_id = ? AND parent_id = ? AND title = ? AND type = 'folder'
+  `).bind(user.id, parentId || null, title).first()
 
   if (existing) {
     throw createError({
@@ -62,17 +59,16 @@ export default eventHandler(async (event) => {
     })
   }
 
-  // 保存到数据库
+  // 保存到数据库（不再使用 path 字段）
   await db.prepare(`
-    INSERT INTO documents (id, user_id, title, r2_key, parent_id, path, type, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO documents (id, user_id, title, r2_key, parent_id, type, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     folderId,
     user.id,
     title,
     '', // 文件夹不需要 R2 key
     parentId || null,
-    path,
     'folder',
     now,
     now
@@ -84,7 +80,6 @@ export default eventHandler(async (event) => {
       id: folderId,
       title,
       parent_id: parentId || null,
-      path,
       type: 'folder',
       created_at: now,
       updated_at: now

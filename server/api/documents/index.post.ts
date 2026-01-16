@@ -89,15 +89,7 @@ export default eventHandler(async (event) => {
         finalParentId = await ensureFolderPath(db, user.id, folderPath, null)
         console.log(`[POST /api/documents] [${requestId}] 文件夹路径创建成功: finalParentId=${finalParentId}`)
 
-        // 更新 parentPath 用于后续路径计算
-        if (finalParentId) {
-          const finalParent = await db.prepare('SELECT path FROM documents WHERE id = ? AND user_id = ?')
-            .bind(finalParentId, user.id)
-            .first() as any
-          if (finalParent) {
-            parentPath = finalParent.path
-          }
-        }
+        // 不再需要获取 parentPath，因为已移除 path 字段
       } catch (error: any) {
         console.error(`[POST /api/documents] [${requestId}] 创建文件夹路径时出错:`, {
           message: error?.message,
@@ -152,35 +144,35 @@ export default eventHandler(async (event) => {
     }
 
     const now = Math.floor(Date.now() / 1000)
-    const path = parentPath === '/' ? `/${documentId}` : `${parentPath}/${documentId}`
-    console.log(`[POST /api/documents] [${requestId}] 文档ID确定: documentId=${documentId}, path=${path}`)
+    console.log(`[POST /api/documents] [${requestId}] 文档ID确定: documentId=${documentId}`)
 
-    // 8. 检查路径是否已存在
-    console.log(`[POST /api/documents] [${requestId}] 步骤8: 检查路径冲突`)
+    // 8. 检查同一父文件夹下是否已存在同名项
+    console.log(`[POST /api/documents] [${requestId}] 步骤8: 检查名称冲突`)
     try {
-      const existing = await db.prepare('SELECT id FROM documents WHERE path = ? AND user_id = ?')
-        .bind(path, user.id)
-        .first()
+      const existing = await db.prepare(`
+        SELECT id FROM documents 
+        WHERE user_id = ? AND parent_id = ? AND title = ? AND type = ?
+      `).bind(user.id, finalParentId || null, finalTitle, type).first()
 
       if (existing) {
-        console.error(`[POST /api/documents] [${requestId}] 路径已存在: path=${path}`)
+        console.error(`[POST /api/documents] [${requestId}] 同名项已存在: title=${finalTitle}`)
         throw createError({
           statusCode: 409,
           message: 'A document or folder with this name already exists in this location'
         })
       }
-      console.log(`[POST /api/documents] [${requestId}] 路径检查通过`)
+      console.log(`[POST /api/documents] [${requestId}] 名称检查通过`)
     } catch (error: any) {
       if (error.statusCode) {
         throw error
       }
-      console.error(`[POST /api/documents] [${requestId}] 检查路径时出错:`, {
+      console.error(`[POST /api/documents] [${requestId}] 检查名称冲突时出错:`, {
         message: error?.message,
         stack: error?.stack
       })
       throw createError({
         statusCode: 500,
-        message: `Failed to check path conflict: ${error?.message || 'Unknown error'}`
+        message: `Failed to check name conflict: ${error?.message || 'Unknown error'}`
       })
     }
 
@@ -226,15 +218,14 @@ export default eventHandler(async (event) => {
     console.log(`[POST /api/documents] [${requestId}] 步骤10: 保存到数据库`)
     try {
       const result = await db.prepare(`
-        INSERT INTO documents (id, user_id, title, r2_key, parent_id, path, type, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO documents (id, user_id, title, r2_key, parent_id, type, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         documentId,
         user.id,
         finalTitle,
         r2Key,
         finalParentId,
-        path,
         type,
         now,
         now
@@ -282,7 +273,6 @@ export default eventHandler(async (event) => {
         id: documentId,
         title: finalTitle,
         parent_id: finalParentId,
-        path,
         type,
         created_at: now,
         updated_at: now
