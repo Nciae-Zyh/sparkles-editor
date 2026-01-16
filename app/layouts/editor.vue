@@ -40,9 +40,6 @@ onMounted(async () => {
         </slot>
       </template>
     </AppHeader>
-
-    <div class="flex-1 min-h-0 overflow-hidden">
-      <slot />
-    </div>
+    <slot />
   </div>
 </template>

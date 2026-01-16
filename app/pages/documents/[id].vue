@@ -103,28 +103,29 @@ const saveRename = async () => {
 </script>
 
 <template>
-  <div
-    v-if="loading && !document"
-    class="flex justify-center items-center min-h-screen"
-  >
-    <UIcon
-      name="i-lucide-loader-2"
-      class="w-8 h-8 animate-spin"
+  <div class="flex-1 overflow-hidden">
+    <div
+      v-if="loading && !document"
+      class="flex justify-center items-center min-h-screen"
+    >
+      <UIcon
+        name="i-lucide-loader-2"
+        class="w-8 h-8 animate-spin"
+      />
+    </div>
+    <MarkdownEditor
+      v-else
+      v-model="content"
+      :document-id="documentId"
+      :document-title="documentTitle"
+      :readonly="isReadOnly"
+      :is-renaming="isRenaming"
+      :rename-input="renameInput"
+      :rename-loading="isRenamingLoading"
+      @start-rename="startRename"
+      @save-rename="saveRename"
+      @cancel-rename="cancelRename"
+      @update:rename-input="(val) => { renameInput = val }"
     />
   </div>
-
-  <MarkdownEditor
-    v-else
-    v-model="content"
-    :document-id="documentId"
-    :document-title="documentTitle"
-    :readonly="isReadOnly"
-    :is-renaming="isRenaming"
-    :rename-input="renameInput"
-    :rename-loading="isRenamingLoading"
-    @start-rename="startRename"
-    @save-rename="saveRename"
-    @cancel-rename="cancelRename"
-    @update:rename-input="(val) => { renameInput = val }"
-  />
 </template>
