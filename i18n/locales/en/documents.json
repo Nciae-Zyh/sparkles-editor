@@ -48,6 +48,10 @@
     "createDocumentFailed": "Failed to create document",
     "rootDirectory": "Root Directory",
     "dropToRoot": "Drop here to move to root directory",
-    "moving": "Moving..."
+    "moving": "Moving...",
+    "titleCannotContainPath": "Title cannot contain path separators (/ or \\)",
+    "pleaseEnterTitle": "Please enter name",
+    "name": "Name",
+    "save": "Save"
   }
 }
