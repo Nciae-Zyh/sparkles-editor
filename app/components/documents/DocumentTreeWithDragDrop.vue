@@ -916,12 +916,12 @@ const dropdownItems = computed(() => [
 
 onMounted(async () => {
   await loadRootItems()
-  
+
   // 如果有当前文档ID，展开到该文档
   if (currentDocumentId.value) {
     await expandToDocument(currentDocumentId.value)
   }
-  
+
   // 订阅编辑页面的重命名通知
   const nuxtApp = useNuxtApp()
   if (nuxtApp.$subscribeNotification) {
@@ -934,7 +934,7 @@ onMounted(async () => {
         }
       }
     })
-    
+
     // 组件卸载时取消订阅
     onUnmounted(() => {
       unsubscribe()
@@ -1227,7 +1227,8 @@ watch(currentDocumentId, async (newId) => {
             <UContextMenu :items="getTreeItemMenuItems(item as ExtendedTreeItem)">
               <div
                 :class="{
-                  'bg-primary/30': currentDocumentId === item.id && item.type === 'document'
+                  'bg-primary/30': currentDocumentId === item.id && item.type === 'document',
+                  'rounded-lg px-1': true
                 }"
                 class="flex items-center w-full justify-between">
                 <div class="flex items-center gap-2">

@@ -1,5 +1,9 @@
 <script lang="ts" setup>
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
+import { CalendarDate, CalendarDateTime, parseDateTime } from '@internationalized/date'
+import type { DateValue } from '@internationalized/date'
+import * as z from 'zod'
+import type { FormSubmitEvent } from '@nuxt/ui'
 
 interface Props {
   documentId: string
@@ -26,13 +30,27 @@ watch(open, (newVal) => {
 
 const loading = ref(false)
 const error = ref('')
-const password = ref('')
-const expiresAt = ref('')
 const shareId = ref<string | null>(null)
 const shareUrl = ref('')
 
+// 表单 schema
+const schema = z.object({
+  password: z.string().optional(),
+  expiresAt: z.custom<DateValue | null>().optional()
+})
+
+type FormSchema = z.output<typeof schema>
+
+const state = reactive<{
+  password?: string
+  expiresAt?: DateValue | null
+}>({
+  password: undefined,
+  expiresAt: undefined
+})
+
 // 创建分享
-const createShare = async () => {
+const createShare = async (event: FormSubmitEvent<FormSchema>) => {
   if (loading.value) return
 
   loading.value = true
@@ -43,12 +61,33 @@ const createShare = async () => {
       document_id: props.documentId
     }
 
-    if (password.value.trim()) {
-      body.password = password.value.trim()
+    if (event.data.password?.trim()) {
+      body.password = event.data.password.trim()
     }
 
-    if (expiresAt.value) {
-      body.expires_at = expiresAt.value
+    // 将 DateValue 转换为 ISO 字符串
+    if (event.data.expiresAt) {
+      let dateTime: CalendarDateTime
+      if (event.data.expiresAt instanceof CalendarDate) {
+        // 如果是 CalendarDate，转换为 CalendarDateTime（设置为当天的 23:59:59）
+        dateTime = event.data.expiresAt.toDateTime({ hour: 23, minute: 59, second: 59 })
+      } else if (event.data.expiresAt instanceof CalendarDateTime) {
+        dateTime = event.data.expiresAt
+      } else {
+        // 其他类型，尝试转换
+        dateTime = event.data.expiresAt as CalendarDateTime
+      }
+      // 转换为 ISO 字符串格式
+      // 使用 Date 对象构建，然后转换为 ISO 字符串
+      const date = new Date(
+        dateTime.year,
+        dateTime.month - 1,
+        dateTime.day,
+        dateTime.hour || 0,
+        dateTime.minute || 0,
+        dateTime.second || 0
+      )
+      body.expires_at = date.toISOString()
     }
 
     const response = await $fetch('/api/shares', {
@@ -83,8 +122,8 @@ const close = () => {
 
 // 重置表单
 const reset = () => {
-  password.value = ''
-  expiresAt.value = ''
+  state.password = undefined
+  state.expiresAt = undefined
   shareId.value = null
   shareUrl.value = ''
   error.value = ''
@@ -137,58 +176,61 @@ watch(() => props.documentId, () => {
         </div>
 
         <!-- 创建分享表单 -->
-        <form
+        <UForm
           v-else
-          id="share-form"
+          ref="shareForm"
+          :schema="schema"
+          :state="state"
           class="space-y-4"
+          @submit="createShare"
         >
-          <!-- 密码设置 -->
-          <div>
-            <label
-              for="password"
-              class="block text-sm font-medium text-gray-700 mb-2"
-            >
-              访问密码（可选）
-            </label>
+          <UAlert
+            v-if="error"
+            color="error"
+            variant="soft"
+            :title="error"
+          />
+
+          <UFormField
+            label="访问密码（可选）"
+            name="password"
+          >
             <UInput
-              id="password"
-              v-model="password"
+              v-model="state.password"
               type="password"
               placeholder="留空则无需密码"
             />
-            <p class="mt-1 text-xs text-gray-500">
-              设置密码后，访问者需要输入密码才能查看文档
-            </p>
-          </div>
+            <template #description>
+              <p class="text-xs text-gray-500">
+                设置密码后，访问者需要输入密码才能查看文档
+              </p>
+            </template>
+          </UFormField>
 
-          <!-- 过期时间 -->
-          <div>
-            <label
-              for="expires_at"
-              class="block text-sm font-medium text-gray-700 mb-2"
-            >
-              过期时间（可选）
-            </label>
-            <UInput
-              id="expires_at"
-              v-model="expiresAt"
-              type="datetime-local"
-            />
-            <p class="mt-1 text-xs text-gray-500">
-              设置过期时间后，链接将在指定时间后失效
-            </p>
-          </div>
-
-          <!-- 错误提示 -->
-          <div
-            v-if="error"
-            class="bg-red-50 border border-red-200 rounded-lg p-3"
+          <UFormField
+            label="过期时间（可选）"
+            name="expiresAt"
           >
-            <p class="text-sm text-red-800">
-              {{ error }}
-            </p>
-          </div>
-        </form>
+            <UInputDate
+              v-model="state.expiresAt"
+              :granularity="'minute'"
+            />
+            <template #description>
+              <p class="text-xs text-gray-500">
+                设置过期时间后，链接将在指定时间后失效
+              </p>
+            </template>
+          </UFormField>
+
+          <UButton
+            type="submit"
+            block
+            :loading="loading"
+            class="mt-4"
+          >
+            创建分享链接
+          </UButton>
+        </UForm>
       </div>
     </template>
 
@@ -199,14 +241,6 @@ watch(() => props.documentId, () => {
           @click="closeModal"
         >
           取消
-        </UButton>
-        <UButton
-          :loading="loading"
-          type="submit"
-          form="share-form"
-          @click.prevent="createShare"
-        >
-          创建分享链接
         </UButton>
       </template>
       <template v-else>
