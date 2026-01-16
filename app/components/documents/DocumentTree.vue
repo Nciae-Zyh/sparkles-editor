@@ -31,6 +31,8 @@ const deletingId = ref<string | null>(null)
 const downloadingId = ref<string | null>(null)
 const renamingId = ref<string | null>(null)
 const renamingLoadingId = ref<string | null>(null)
+const showRenameModal = ref(false)
+const renameInput = ref('')
 const showCreateFolder = ref(false)
 const newFolderName = ref('')
 const creatingFolder = ref(false)
@@ -187,12 +189,15 @@ const handleCreateDocument = async () => {
 
   try {
     creatingDocument.value = true
-    await createEmptyDocument(newDocumentName.value.trim(), createDocumentParentId.value || undefined)
+    const document = await createEmptyDocument(newDocumentName.value.trim(), createDocumentParentId.value || undefined)
     newDocumentName.value = ''
     createDocumentParentId.value = null
     showCreateDocument.value = false
     // 重新加载树
     await loadTree()
+    
+    // 跳转到新创建的文档编辑页面
+    await navigateTo(`${safeLocalePath('/documents')}/${document.id}`)
   } catch (error: any) {
     alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
   } finally {
@@ -209,22 +214,41 @@ const openCreateDocumentModal = (parentId?: string | null) => {
 
 // 处理开始重命名
 const handleStartRename = (id: string) => {
+  const node = flat.value.find(d => d.id === id)
   renamingId.value = id
+  renameInput.value = node?.title || ''
+  showRenameModal.value = true
 }
 
 // 处理取消重命名
 const handleCancelRename = () => {
   renamingId.value = null
+  renameInput.value = ''
+  showRenameModal.value = false
 }
 
 // 处理重命名
-const handleRename = async (id: string, newTitle: string) => {
+const handleRename = async () => {
+  if (!renamingId.value || !renameInput.value.trim()) {
+    alert(documentsData.value?.pleaseEnterTitle || '请输入名称')
+    return
+  }
+
+  const id = renamingId.value
+  const newTitle = renameInput.value.trim()
+  
+  // 验证标题不能包含路径分隔符
+  if (newTitle.includes('/') || newTitle.includes('\\')) {
+    alert(documentsData.value?.titleCannotContainPath || '标题不能包含路径分隔符（/ 或 \\）')
+    return
+  }
+
   try {
     renamingLoadingId.value = id
     await renameDocument(id, newTitle)
     // 重新加载树
     await loadTree()
-    renamingId.value = null
+    handleCancelRename()
     
     // 发布重命名通知，通知编辑页面更新
     const nuxtApp = useNuxtApp()
@@ -445,6 +469,44 @@ onMounted(() => {
       </template>
     </UModal>
 
+    <!-- 重命名模态框 -->
+    <UModal
+      v-model:open="showRenameModal"
+      :title="documentsData?.rename || '重命名'"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UFormField
+          :label="documentsData?.name || '名称'"
+          name="renameInput"
+          required
+        >
+          <UInput
+            v-model="renameInput"
+            :placeholder="documentsData?.pleaseEnterTitle || '请输入名称'"
+            autofocus
+            @keyup.enter="handleRename"
+          />
+        </UFormField>
+      </template>
+
+      <template #footer="{ close }">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          @click="handleCancelRename"
+        >
+          {{ actionsData?.cancel || '取消' }}
+        </UButton>
+        <UButton
+          :loading="renamingLoadingId !== null"
+          @click="handleRename"
+        >
+          {{ documentsData?.save || '保存' }}
+        </UButton>
+      </template>
+    </UModal>
+
     <!-- 加载状态 -->
     <div
       v-if="loading && tree.length === 0"
@@ -489,9 +551,7 @@ onMounted(() => {
           @create-sub-folder="(id: string, e: Event) => handleCreateSubFolder(id, e)"
           @create-document="(folderId: string | null) => handleCreateDocument(folderId)"
           @download="(id: string, e: Event) => handleDownload(id, e)"
-          @rename="(id: string, title: string) => handleRename(id, title)"
           @start-rename="(id: string) => handleStartRename(id)"
-          @cancel-rename="() => handleCancelRename()"
         />
       </div>
     </UContextMenu>

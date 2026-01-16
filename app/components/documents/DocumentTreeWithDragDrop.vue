@@ -46,6 +46,7 @@ const deletingId = ref<string | null>(null)
 const renamingId = ref<string | null>(null)
 const renamingLoadingId = ref<string | null>(null)
 const downloadingId = ref<string | null>(null)
+const showRenameModal = ref(false)
 const renameInput = ref('')
 const showCreateFolder = ref(false)
 const newFolderName = ref('')
@@ -240,6 +241,9 @@ const handleCreateDocument = async () => {
         parentItem.children.push(convertToTreeItem(document))
       }
     }
+
+    // 跳转到新创建的文档编辑页面
+    await navigateTo(`${safeLocalePath('/documents')}/${document.id}`)
   } catch (error: any) {
     alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
   } finally {
@@ -298,40 +302,50 @@ const handleCreateFolder = async () => {
 const handleStartRename = (id: string, currentTitle: string) => {
   renamingId.value = id
   renameInput.value = currentTitle
+  showRenameModal.value = true
 }
 
 // 处理取消重命名
 const handleCancelRename = () => {
   renamingId.value = null
   renameInput.value = ''
+  showRenameModal.value = false
 }
 
 // 处理重命名
-const handleRename = async (id: string) => {
-  if (!renameInput.value.trim()) {
+const handleRename = async () => {
+  if (!renamingId.value || !renameInput.value.trim()) {
     alert(documentsData.value?.pleaseEnterTitle || '请输入名称')
+    return
+  }
+
+  const id = renamingId.value
+  const newTitle = renameInput.value.trim()
+
+  // 验证标题不能包含路径分隔符
+  if (newTitle.includes('/') || newTitle.includes('\\')) {
+    alert(documentsData.value?.titleCannotContainPath || '标题不能包含路径分隔符（/ 或 \\）')
     return
   }
 
   try {
     renamingLoadingId.value = id
-    await renameDocument(id, renameInput.value.trim())
+    await renameDocument(id, newTitle)
 
     // 更新树中的标签
     const item = findItemInTree(treeItems.value, id)
     if (item) {
-      item.label = renameInput.value.trim()
+      item.label = newTitle
     }
 
-    renamingId.value = null
-    renameInput.value = ''
+    handleCancelRename()
 
     // 发布重命名通知，通知编辑页面更新
     const nuxtApp = useNuxtApp()
     if (nuxtApp.$publishNotification) {
       nuxtApp.$publishNotification('document:renamed', {
         id,
-        title: renameInput.value.trim()
+        title: newTitle
       })
     }
   } catch (error: any) {
@@ -889,27 +903,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <!-- 紧凑模式：下拉菜单 -->
-    <div
-      v-if="compact"
-      class="flex justify-end"
-    >
-      <UDropdownMenu
-        :items="dropdownItems"
-        :content="{ align: 'end' }"
-      >
-        <UButton
-          icon="i-lucide-more-vertical"
-          size="sm"
-          variant="ghost"
-        />
-      </UDropdownMenu>
-    </div>
-
+  <div :class="compact ? '' : 'space-y-4'">
     <!-- 正常模式：标题和按钮区域 -->
     <div
-      v-else
+      v-if="!compact"
       class="flex items-center justify-between gap-4"
     >
       <h2 class="text-xl font-semibold">
@@ -1046,6 +1043,44 @@ onMounted(() => {
       </template>
     </UModal>
 
+    <!-- 重命名模态框 -->
+    <UModal
+      v-model:open="showRenameModal"
+      :title="documentsData?.rename || '重命名'"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UFormField
+          :label="documentsData?.name || '名称'"
+          name="renameInput"
+          required
+        >
+          <UInput
+            v-model="renameInput"
+            :placeholder="documentsData?.pleaseEnterTitle || '请输入名称'"
+            autofocus
+            @keyup.enter="handleRename"
+          />
+        </UFormField>
+      </template>
+
+      <template #footer="{ close }">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          @click="handleCancelRename"
+        >
+          {{ actionsData?.cancel || '取消' }}
+        </UButton>
+        <UButton
+          :loading="renamingLoadingId !== null"
+          @click="handleRename"
+        >
+          {{ documentsData?.save || '保存' }}
+        </UButton>
+      </template>
+    </UModal>
+
     <!-- 加载状态 -->
     <div
       v-if="loading && treeItems.length === 0"
@@ -1098,18 +1133,37 @@ onMounted(() => {
         @dragleave="handleRootDragLeave"
         @drop.prevent="handleRootDrop"
       >
-        <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-          <UIcon
-            name="i-lucide-folder"
-            class="w-4 h-4"
-          />
-          <span>{{ documentsData?.rootDirectory || '根目录' }}</span>
-          <span
-            v-if="dragOverRoot"
-            class="ml-auto text-xs text-blue-600 dark:text-blue-400"
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <UIcon
+              name="i-lucide-folder"
+              class="w-4 h-4"
+            />
+            <span>{{ documentsData?.rootDirectory || '根目录' }}</span>
+            <span
+              v-if="dragOverRoot"
+              class="text-xs text-blue-600 dark:text-blue-400"
+            >
+              {{ documentsData?.dropToRoot || '拖动到此处移动到根目录' }}
+            </span>
+          </div>
+          <!-- 紧凑模式：下拉菜单 -->
+          <div
+            v-if="compact"
+            class="flex-shrink-0"
           >
-            {{ documentsData?.dropToRoot || '拖动到此处移动到根目录' }}
-          </span>
+            <UDropdownMenu
+              :items="dropdownItems"
+              :content="{ align: 'end' }"
+            >
+              <UButton
+                icon="i-lucide-more-vertical"
+                size="xs"
+                variant="ghost"
+                color="neutral"
+              />
+            </UDropdownMenu>
+          </div>
         </div>
       </div>
       <div class="p-2">
@@ -1125,7 +1179,7 @@ onMounted(() => {
             <UContextMenu :items="getTreeItemMenuItems(item as ExtendedTreeItem)">
               <div
                 :class="{
-                  'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-primary-500': currentDocumentId === item.id && item.type === 'document'
+                  'bg-primary/30': currentDocumentId === item.id && item.type === 'document'
                 }"
                 class="flex items-center w-full justify-between">
                 <div class="flex items-center gap-2">
@@ -1160,44 +1214,11 @@ onMounted(() => {
                     </div>
 
                     <span class="flex-1 truncate">
-                      <span
-                        v-if="renamingId !== item.id"
-                      >
-                        {{ item.label }}
-                      </span>
-                      <div
-                        v-else
-                        class="flex items-center gap-1"
-                        @click.stop
-                      >
-                        <UInput
-                          v-model="renameInput"
-                          autofocus
-                          class="flex-1"
-                          size="xs"
-                          @keyup.enter="handleRename(item.id)"
-                          @keyup.esc="handleCancelRename"
-                          @click.stop
-                        />
-                        <UButton
-                          :loading="renamingLoadingId === item.id"
-                          color="primary"
-                          icon="i-lucide-check"
-                          size="xs"
-                          @click.stop="handleRename(item.id)"
-                        />
-                        <UButton
-                          icon="i-lucide-x"
-                          size="xs"
-                          variant="ghost"
-                          @click.stop="handleCancelRename"
-                        />
-                      </div>
+                      {{ item.label }}
                     </span>
 
                     <!-- 操作按钮 -->
                     <div
-                      v-if="renamingId !== item.id"
                       class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                       @click.stop
                     >

@@ -114,6 +114,8 @@ export default eventHandler(async (event) => {
         try {
           finalParentId = await ensureFolderPath(db, user.id, folderPath, null)
           console.log(`[PUT /api/documents/[id]] [${requestId}] 文件夹路径创建成功: finalParentId=${finalParentId}`)
+          // 只有在有路径时才更新 parent_id
+          newParentId = finalParentId
         } catch (error: any) {
           console.error(`[PUT /api/documents/[id]] [${requestId}] 创建文件夹路径时出错:`, {
             message: error?.message,
@@ -126,8 +128,7 @@ export default eventHandler(async (event) => {
           })
         }
       }
-
-      newParentId = finalParentId
+      // 如果没有路径，保持原有的 parent_id（不更新 newParentId）
 
       // 检查同一父文件夹下是否已存在同名项
       try {
