@@ -23,6 +23,7 @@ const emit = defineEmits<{
   'click': [node: DocumentTreeNode]
   'delete': [id: string, event: Event]
   'create-sub-folder': [folderId: string, event: Event]
+  'create-document': [folderId: string | null]
   'download': [id: string, event: Event]
   'rename': [id: string, newTitle: string]
   'start-rename': [id: string]
@@ -97,6 +98,9 @@ const { getFolderMenuItems, getDocumentMenuItems } = useDocumentContextMenu({
   },
   onDelete: (item: Document, event: Event) => {
     emit('delete', item.id, event)
+  },
+  onCreateDocument: (parentId?: string | null) => {
+    emit('create-document', parentId || (props.node.type === 'folder' ? props.node.id : null))
   },
   onCreateFolder: (parentId?: string | null) => {
     emit('create-sub-folder', parentId || props.node.id, new Event('contextmenu'))

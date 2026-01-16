@@ -568,6 +568,10 @@ const { getFolderMenuItems, getDocumentMenuItems, getEmptyAreaMenuItems } = useD
   onDelete: (item: Document, event: Event) => {
     handleDelete(item.id, event)
   },
+  onCreateDocument: (parentId?: string | null) => {
+    const folderParam = parentId ? `?folder=${parentId}` : ''
+    navigateTo(`${safeLocalePath('/')}${folderParam}`)
+  },
   onCreateFolder: (parentId?: string | null) => {
     selectedParentId.value = parentId || null
     showCreateFolder.value = true
