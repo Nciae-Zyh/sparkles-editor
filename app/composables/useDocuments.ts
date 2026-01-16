@@ -196,6 +196,31 @@ export const useDocuments = () => {
     }
   }
 
+  const moveDocument = async (id: string, parentId: string | null) => {
+    try {
+      loading.value = true
+      const data = await $fetch<{ success: boolean, document: Partial<Document> }>(`/api/documents/${id}/move`, {
+        method: 'POST',
+        body: { parentId }
+      })
+      // 更新本地列表
+      const index = documents.value.findIndex(d => d.id === id)
+      if (index !== -1 && data.document) {
+        documents.value[index] = { ...documents.value[index], ...data.document }
+      }
+      return data.document
+    } catch (error: any) {
+      console.error('[useDocuments] 移动文档失败:', {
+        message: error?.message,
+        statusCode: error?.statusCode,
+        data: error?.data
+      })
+      throw new Error(error.data?.message || error.message || '移动文档失败')
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     documents: readonly(documents),
     loading: readonly(loading),
@@ -206,6 +231,7 @@ export const useDocuments = () => {
     saveDocument,
     deleteDocument,
     createFolder,
-    renameDocument
+    renameDocument,
+    moveDocument
   }
 }
