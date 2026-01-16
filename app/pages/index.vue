@@ -31,7 +31,6 @@ watch(() => route.query.function, () => {
 })
 
 onMounted(() => {
-  content.value = JSON.parse(JSON.stringify($t('editor.defaultContent')))
   checkCreateDocument()
 })
 </script>
@@ -40,6 +39,7 @@ onMounted(() => {
   <MarkdownEditor
     v-model="content"
     :enable-before-unload="false"
+    :readonly="!allowSave"
     :allow-save="allowSave"
     :document-id="newDocumentId"
     @document-saved="async (id) => {
