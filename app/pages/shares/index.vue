@@ -90,7 +90,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-50 flex-1 w-full">
     <div class="container mx-auto px-4 py-8 max-w-6xl">
       <div class="mb-6">
         <h1 class="text-3xl font-bold text-gray-800 mb-2">
@@ -154,7 +154,7 @@ onMounted(async () => {
               <h3 class="text-lg font-semibold text-gray-800 mb-2">
                 {{ share.document_title }}
               </h3>
-              
+
               <div class="space-y-2 text-sm text-gray-600">
                 <div class="flex items-center gap-4">
                   <span>
@@ -180,7 +180,7 @@ onMounted(async () => {
                     {{ formatExpiresAt(share.expires_at) }}
                   </span>
                 </div>
-                
+
                 <div class="text-xs text-gray-500">
                   创建时间：{{ formatDate(share.created_at) }}
                 </div>

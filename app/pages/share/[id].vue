@@ -77,7 +77,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50">
+  <div class="min-h-screen bg-gray-50 flex-1 w-full">
     <div class="container mx-auto px-4 py-8 max-w-4xl">
       <!-- 密码输入界面 -->
       <div
