@@ -41,7 +41,7 @@ export default defineNuxtConfig({
     sessionSecret: 'your-secret-key-change-in-production',
     public: {
       googleClientId: '',
-      siteUrl: ''
+      siteUrl: 'https://sparkles-editor.com'
     }
   },
 
