@@ -52,6 +52,16 @@
     "titleCannotContainPath": "Title cannot contain path separators (/ or \\)",
     "pleaseEnterTitle": "Please enter name",
     "name": "Name",
-    "save": "Save"
+    "save": "Save",
+    "fixPaths": "Fix Paths",
+    "fixPathsConfirm": "Are you sure you want to fix all document paths? This will recalculate all document and folder paths to ensure they match the folder structure.",
+    "fixPathsSuccess": "Path fix completed! Fixed {fixed} items, {errors} errors.",
+    "fixPathsFailed": "Failed to fix paths, please try again later",
+    "moveFailed": "Move failed, please try again later",
+    "moveToRootFailed": "Failed to move to root directory, please try again later",
+    "cannotMoveToSelf": "Cannot move item to its own position",
+    "cannotMoveIntoSubfolder": "Cannot move folder into its own subfolder",
+    "loadFolderFailed": "Failed to load folder contents, please try again later",
+    "renameFailedRetry": "Rename failed, please try again later"
   }
 }
