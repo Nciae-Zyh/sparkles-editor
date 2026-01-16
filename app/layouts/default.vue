@@ -31,6 +31,7 @@ const createNewDocument = () => {
 onMounted(async () => {
   await fetchUser()
 })
+const openLeft = ref(false)
 </script>
 
 <template>
@@ -107,7 +108,11 @@ onMounted(async () => {
         </UButton>
       </div>
     </AppHeader>
-    <slot />
+    <div class="flex-1 min-h-0 flex overflow-hidden">
+      <div class="h-full flex flex-1">
+        <slot />
+      </div>
+    </div>
     <AuthModal
       v-model:open="authModalOpen"
       :mode="authMode"

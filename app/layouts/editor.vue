@@ -40,6 +40,11 @@ onMounted(async () => {
         </slot>
       </template>
     </AppHeader>
-    <slot />
+    <div class="flex-1 min-h-0 flex overflow-hidden">
+      <div class="h-full flex flex-1">
+<!--        TODO: 将可选择展开和缩起的文件Tree列表菜单，但是在移动端把这部分设置为USlideover的表现形式。触发位置都在顶部菜单的左侧标题位置 -->
+        <slot />
+      </div>
+    </div>
   </div>
 </template>
