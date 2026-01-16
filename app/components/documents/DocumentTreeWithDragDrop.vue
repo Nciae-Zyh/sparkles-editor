@@ -187,21 +187,22 @@ const handleCreateDocument = async () => {
 
   try {
     creatingDocument.value = true
-    const document = await createEmptyDocument(newDocumentName.value.trim(), createDocumentParentId.value || undefined)
+    const savedParentId = createDocumentParentId.value // 保存 parentId，因为后面会被清空
+    const document = await createEmptyDocument(newDocumentName.value.trim(), savedParentId || undefined)
     newDocumentName.value = ''
     createDocumentParentId.value = null
     showCreateDocument.value = false
 
     // 如果是在根目录创建，添加到根列表
-    if (!createDocumentParentId.value) {
+    if (!savedParentId) {
       treeItems.value.unshift(convertToTreeItem(document))
     } else {
       // 如果是在某个文件夹内创建，需要找到该文件夹并添加
-      const parentItem = findItemInTree(treeItems.value, createDocumentParentId.value)
+      const parentItem = findItemInTree(treeItems.value, savedParentId)
       if (parentItem && parentItem.type === 'folder') {
         // 确保父文件夹已加载，如果没有加载则先加载
         if (!parentItem._loaded) {
-          await loadFolderChildren(createDocumentParentId.value, parentItem)
+          await loadFolderChildren(savedParentId, parentItem)
         }
         // 确保 children 数组存在
         if (!parentItem.children) {
@@ -233,9 +234,9 @@ const handleCreateFolder = async () => {
 
   try {
     creatingFolder.value = true
-    const folder = await createFolder(newFolderName.value.trim(), selectedParentId.value || undefined)
+    const savedParentId = selectedParentId.value // 保存 parentId，因为后面会被清空
+    const folder = await createFolder(newFolderName.value.trim(), savedParentId || undefined)
     newFolderName.value = ''
-    const savedParentId = selectedParentId.value
     selectedParentId.value = null
     showCreateFolder.value = false
 
@@ -626,7 +627,8 @@ const { getFolderMenuItems, getDocumentMenuItems, getEmptyAreaMenuItems } = useD
     openCreateDocumentModal(parentId)
   },
   onCreateFolder: (parentId?: string | null) => {
-    selectedParentId.value = parentId || null
+    // 如果提供了 parentId，使用它；否则保持当前的 selectedParentId（可能是 null）
+    selectedParentId.value = parentId !== undefined ? parentId : null
     showCreateFolder.value = true
   },
   onDownload: (item: Document, event: Event) => {

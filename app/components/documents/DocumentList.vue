@@ -77,9 +77,12 @@ const handleCreateFolder = async () => {
 
   try {
     creatingFolder.value = true
-    await createFolder(newFolderName.value.trim(), currentParentId.value)
+    const savedParentId = currentParentId.value // 保存 parentId
+    await createFolder(newFolderName.value.trim(), savedParentId)
     newFolderName.value = ''
     showCreateFolder.value = false
+    // 刷新文档列表以显示新创建的文件夹
+    await fetchDocuments(savedParentId)
   } catch (error: any) {
     alert(error.message || documentsData.value?.createFolderFailed || '创建文件夹失败')
   } finally {
@@ -139,10 +142,13 @@ const handleCreateDocument = async () => {
 
   try {
     creatingDocument.value = true
-    await createEmptyDocument(newDocumentName.value.trim(), createDocumentParentId.value || undefined)
+    const savedParentId = createDocumentParentId.value // 保存 parentId
+    await createEmptyDocument(newDocumentName.value.trim(), savedParentId || undefined)
     newDocumentName.value = ''
     createDocumentParentId.value = null
     showCreateDocument.value = false
+    // 刷新文档列表以显示新创建的文档
+    await fetchDocuments(savedParentId || currentParentId.value)
   } catch (error: any) {
     alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
   } finally {
@@ -180,7 +186,10 @@ const {
     openCreateDocumentModal(parentId)
   },
   onCreateFolder: (parentId?: string | null) => {
-    currentParentId.value = parentId || undefined
+    // 如果提供了 parentId，使用它；否则使用当前的 currentParentId
+    if (parentId !== undefined && parentId !== null) {
+      currentParentId.value = parentId
+    }
     showCreateFolder.value = true
   },
   currentParentId: () => currentParentId.value

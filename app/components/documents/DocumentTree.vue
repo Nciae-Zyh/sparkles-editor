@@ -113,7 +113,8 @@ const handleCreateFolder = async () => {
 
   try {
     creatingFolder.value = true
-    await createFolder(newFolderName.value.trim(), selectedParentId.value || undefined)
+    const savedParentId = selectedParentId.value // 保存 parentId
+    await createFolder(newFolderName.value.trim(), savedParentId || undefined)
     newFolderName.value = ''
     selectedParentId.value = null
     showCreateFolder.value = false
@@ -240,7 +241,8 @@ const { getFolderMenuItems, getDocumentMenuItems } = useDocumentContextMenu({
     openCreateDocumentModal(parentId)
   },
   onCreateFolder: (parentId?: string | null) => {
-    selectedParentId.value = parentId || null
+    // 如果提供了 parentId，使用它；否则保持当前的 selectedParentId（可能是 null）
+    selectedParentId.value = parentId !== undefined ? parentId : null
     showCreateFolder.value = true
   },
   onDownload: (item: Document, event: Event) => {
