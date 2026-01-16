@@ -818,50 +818,53 @@ onMounted(() => {
     </UContextMenu>
 
     <!-- 树形视图 -->
-    <UContextMenu
+    <div
       v-else
-      :items="getEmptyAreaMenuItems"
+      class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-900"
     >
-      <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-2 bg-white dark:bg-gray-900">
-        <UTree
-          v-model:expanded="expanded"
-          :get-key="(item) => item.id"
-          :items="treeItems"
-          color="neutral"
-          nested
-          @select="onSelect"
-        >
-          <template #item-label="{ item }">
-            <UContextMenu :items="getTreeItemMenuItems(item as ExtendedTreeItem)">
-              <div
-                :class="[
-                  'flex items-center gap-2 w-full group',
-                  draggedItemId === item.id ? 'opacity-50' : '',
-                  dragOverItemId === item.id && dragOverPosition === 'inside' ? 'bg-blue-100 dark:bg-blue-900 rounded' : ''
-                ]"
-                :draggable="true"
-                @click="(e) => {
-                  // 文档的点击在 UTree 的 @select 事件中处理
-                  // 这里只处理拖放相关的事件，不阻止点击事件传播
-                }"
-                @dragend="handleDragEnd"
-                @dragleave="handleDragLeave"
-                @dragover="handleDragOver($event, item as ExtendedTreeItem)"
-                @dragstart="handleDragStart($event, item as ExtendedTreeItem)"
-                @drop="handleDrop($event, item as ExtendedTreeItem)"
-              >
-            <!-- 加载指示器 -->
-            <div
-              v-if="item.type === 'folder' && loadingFolders.has(item.id)"
-              class="w-4 h-4"
-            >
-              <UIcon
-                class="w-4 h-4 animate-spin"
-                name="i-lucide-loader-2"
-              />
-            </div>
+      <UTree
+        v-model:expanded="expanded"
+        :get-key="(item) => item.id"
+        :items="treeItems"
+        color="neutral"
+        nested
+        @select="onSelect"
+      >
+        <template #item="{ item, expanded }">
+          <UContextMenu :items="getTreeItemMenuItems(item as ExtendedTreeItem)">
+            <div class="flex items-center w-full justify-between">
+              <div class="flex items-center gap-2">
+                <UIcon :name="item.icon"/>
+                <div
+                  :class="[
+                'flex items-center gap-2 w-full group min-h-[2rem] cursor-context-menu',
+                draggedItemId === item.id ? 'opacity-50' : '',
+                dragOverItemId === item.id && dragOverPosition === 'inside' ? 'bg-blue-100 dark:bg-blue-900 rounded' : ''
+              ]"
+                  :draggable="true"
+                  style="width: 100%;"
+                  @click="(e) => {
+                // 文档的点击在 UTree 的 @select 事件中处理
+                // 这里只处理拖放相关的事件，不阻止点击事件传播
+              }"
+                  @dragend="handleDragEnd"
+                  @dragleave="handleDragLeave"
+                  @dragover="handleDragOver($event, item as ExtendedTreeItem)"
+                  @dragstart="handleDragStart($event, item as ExtendedTreeItem)"
+                  @drop="handleDrop($event, item as ExtendedTreeItem)"
+                >
+                  <!-- 加载指示器 -->
+                  <div
+                    v-if="item.type === 'folder' && loadingFolders.has(item.id)"
+                    class="w-4 h-4"
+                  >
+                    <UIcon
+                      class="w-4 h-4 animate-spin"
+                      name="i-lucide-loader-2"
+                    />
+                  </div>
 
-            <span class="flex-1 truncate">
+                  <span class="flex-1 truncate">
               <span
                 v-if="renamingId !== item.id"
               >
@@ -897,42 +900,48 @@ onMounted(() => {
               </div>
             </span>
 
-            <!-- 操作按钮 -->
-            <div
-              v-if="renamingId !== item.id"
-              class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-              @click.stop
-            >
-              <UButton
-                color="neutral"
-                icon="i-lucide-pencil"
-                size="xs"
-                variant="ghost"
-                @click.stop="handleStartRename(item.id, item.label || '')"
-              />
-              <UButton
-                v-if="item.type === 'document'"
-                :loading="downloadingId === item.id"
-                color="neutral"
-                icon="i-lucide-download"
-                size="xs"
-                variant="ghost"
-                @click.stop="handleDownload(item.id, $event)"
-              />
-              <UButton
-                :loading="deletingId === item.id"
-                color="error"
-                icon="i-lucide-trash-2"
-                size="xs"
-                variant="ghost"
-                @click.stop="handleDelete(item.id, $event)"
+                  <!-- 操作按钮 -->
+                  <div
+                    v-if="renamingId !== item.id"
+                    class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    @click.stop
+                  >
+                    <UButton
+                      color="neutral"
+                      icon="i-lucide-pencil"
+                      size="xs"
+                      variant="ghost"
+                      @click.stop="handleStartRename(item.id, item.label || '')"
+                    />
+                    <UButton
+                      v-if="item.type === 'document'"
+                      :loading="downloadingId === item.id"
+                      color="neutral"
+                      icon="i-lucide-download"
+                      size="xs"
+                      variant="ghost"
+                      @click.stop="handleDownload(item.id, $event)"
+                    />
+                    <UButton
+                      :loading="deletingId === item.id"
+                      color="error"
+                      icon="i-lucide-trash-2"
+                      size="xs"
+                      variant="ghost"
+                      @click.stop="handleDelete(item.id, $event)"
+                    />
+                  </div>
+                </div>
+              </div>
+              <UIcon
+                v-if="item.type === 'folder'"
+                :name="`i-lucide-chevron-up`"
+                :class="`${expanded ? 'rotate-180' : 'rotate-0'} duration-200`"
               />
             </div>
-              </div>
-            </UContextMenu>
-          </template>
-        </UTree>
-      </div>
-    </UContextMenu>
+          </UContextMenu>
+        </template>
+      </UTree>
+    </div>
   </div>
 </template>
