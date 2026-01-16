@@ -9,6 +9,7 @@ import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
 import { ImageUpload } from '~/components/editor/ImageUploadExtension'
 import { useAuth } from '~/composables/useAuth'
 import { useDocuments } from '~/composables/useDocuments'
+import { useSafeLocalePath } from '~/utils/safeLocalePath'
 
 interface Props {
   placeholder?: string
@@ -51,6 +52,8 @@ const { user } = useAuth()
 const { saveDocument, getDocument } = useDocuments()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
+const showShareModal = ref(false)
+const safeLocalePath = useSafeLocalePath()
 // 保存原始文档标题，用于自动保存（沿用用户设置的标题，不从内容提取）
 const originalDocumentTitle = ref<string | null>(null)
 
@@ -595,6 +598,26 @@ defineExpose({
                     {{ actionsData?.downloadMarkdown }}
                   </span>
                 </UButton>
+                <UButton
+                  v-if="user && documentId && !readonly"
+                  icon="i-lucide-share-2"
+                  size="sm"
+                  variant="soft"
+                  color="primary"
+                  @click="showShareModal = true"
+                >
+                  <span v-if="!$device.isMobile">分享</span>
+                </UButton>
+                <UButton
+                  v-if="user"
+                  :to="safeLocalePath('/shares')"
+                  icon="i-lucide-link"
+                  size="sm"
+                  variant="soft"
+                  color="primary"
+                >
+                  <span v-if="!$device.isMobile">我的分享</span>
+                </UButton>
                 <DocumentsSaveDocumentButton
                   v-if="user && canSave"
                   :content="content || ''"
@@ -722,5 +745,13 @@ defineExpose({
         />
       </UEditor>
     </div>
+
+    <!-- 分享模态框 -->
+    <DocumentsShareDocumentModal
+      v-if="documentId"
+      v-model:open="showShareModal"
+      :document-id="documentId"
+      :document-title="documentTitle"
+    />
   </div>
 </template>

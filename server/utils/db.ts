@@ -74,6 +74,28 @@ export async function initDB(db: D1Database) {
       throw new Error(`Failed to create documents table: ${error?.message || 'Unknown error'}`)
     }
 
+    // 创建分享表
+    try {
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS shares (
+          id TEXT PRIMARY KEY,
+          document_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          password_hash TEXT,
+          expires_at INTEGER,
+          view_count INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+          FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `).run()
+      console.log('[initDB] Shares table created/verified')
+    } catch (error: any) {
+      console.error('[initDB] Failed to create shares table:', error)
+      throw new Error(`Failed to create shares table: ${error?.message || 'Unknown error'}`)
+    }
+
     // 数据库迁移：检查并添加缺失的列
     await migrateDB(db)
 
@@ -86,7 +108,10 @@ export async function initDB(db: D1Database) {
       'CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type)',
       'CREATE INDEX IF NOT EXISTS idx_documents_user_parent ON documents(user_id, parent_id)',
       'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
-      'CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)'
+      'CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)',
+      'CREATE INDEX IF NOT EXISTS idx_shares_document_id ON shares(document_id)',
+      'CREATE INDEX IF NOT EXISTS idx_shares_user_id ON shares(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_shares_created_at ON shares(created_at DESC)'
     ]
 
     for (const statement of indexStatements) {
@@ -156,6 +181,49 @@ export async function migrateDB(db: D1Database) {
     // 这里我们标记需要迁移，实际迁移在 migrateRemovePath 中处理
     if (columnNames.includes('path')) {
       console.log('[migrateDB] path 列存在，将在下次迁移时移除')
+    }
+
+    // 检查 shares 表是否存在，如果不存在则创建
+    const sharesTableInfo = await db.prepare(`
+      SELECT name FROM sqlite_master 
+      WHERE type='table' AND name='shares'
+    `).first()
+
+    if (!sharesTableInfo) {
+      try {
+        await db.prepare(`
+          CREATE TABLE IF NOT EXISTS shares (
+            id TEXT PRIMARY KEY,
+            document_id TEXT NOT NULL,
+            user_id TEXT NOT NULL,
+            password_hash TEXT,
+            expires_at INTEGER,
+            view_count INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+            updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+          )
+        `).run()
+        console.log('[migrateDB] Shares table created')
+        
+        // 创建 shares 表的索引
+        const shareIndexStatements = [
+          'CREATE INDEX IF NOT EXISTS idx_shares_document_id ON shares(document_id)',
+          'CREATE INDEX IF NOT EXISTS idx_shares_user_id ON shares(user_id)',
+          'CREATE INDEX IF NOT EXISTS idx_shares_created_at ON shares(created_at DESC)'
+        ]
+        for (const statement of shareIndexStatements) {
+          try {
+            await db.prepare(statement).run()
+            console.log(`[migrateDB] Share index created: ${statement}`)
+          } catch (error: any) {
+            console.warn(`[migrateDB] Failed to create share index: ${statement}`, error?.message)
+          }
+        }
+      } catch (error: any) {
+        console.error('[migrateDB] Failed to create shares table:', error)
+      }
     }
 
     // 执行迁移

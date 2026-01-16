@@ -33,3 +33,14 @@ export interface AuthSession {
   user: User
   token: string
 }
+
+export interface Share {
+  id: string
+  document_id: string
+  user_id: string
+  password_hash?: string | null
+  expires_at?: number | null
+  view_count: number
+  created_at: number
+  updated_at: number
+}
