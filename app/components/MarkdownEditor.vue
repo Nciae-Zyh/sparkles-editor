@@ -255,6 +255,10 @@ const {
   getTableToolbarItems
 } = useEditorToolbar(customHandlers)
 
+// AI 功能
+const { continueWriting, loading: aiLoading, error: aiError } = useAI()
+const isAIContinuing = ref(false)
+
 // 移除了从内容中提取标题的函数，因为用户希望沿用设置的标题，而不是自动从内容提取
 
 // 自动保存逻辑已移至 watch([content, canSave]) 中
@@ -420,6 +424,36 @@ const handleSave = async () => {
   }
 }
 
+// AI 续写处理
+async function handleAIContinue() {
+  if (!editorRef.value?.editor || !content.value) {
+    return
+  }
+
+  const editor = editorRef.value.editor
+  const currentContent = content.value
+
+  if (!currentContent.trim()) {
+    alert(editorData.value?.aiContinueError || '请先输入一些内容')
+    return
+  }
+
+  try {
+    isAIContinuing.value = true
+    const continuedText = await continueWriting(currentContent)
+    
+    // 将续写的内容追加到当前内容后面
+    const newContent = currentContent + '\n\n' + continuedText
+    editor.commands.setContent(newContent, { contentType: 'markdown' })
+    content.value = newContent
+  } catch (error: any) {
+    console.error('AI continue error:', error)
+    alert(aiError.value || editorData.value?.aiContinueError || '续写失败，请稍后重试')
+  } finally {
+    isAIContinuing.value = false
+  }
+}
+
 // 定义快捷键
 defineShortcuts({
   meta_s: {
@@ -529,12 +563,26 @@ defineExpose({
                 <!-- 工具栏 -->
                 <div
                   v-if="!readonly"
-                  class="flex-1 overflow-x-auto"
+                  class="flex-1 overflow-x-auto flex items-center gap-2"
                 >
                   <UEditorToolbar
                     :editor="editor"
                     :items="toolbarItems"
                   />
+                  <!-- AI 续写按钮 -->
+                  <UButton
+                    :loading="isAIContinuing"
+                    :disabled="!content || !content.trim()"
+                    color="primary"
+                    icon="i-lucide-sparkles"
+                    size="sm"
+                    variant="soft"
+                    @click="handleAIContinue"
+                  >
+                    <span v-if="!$device.isMobile">
+                      {{ editorData?.aiContinue || 'AI 续写' }}
+                    </span>
+                  </UButton>
                 </div>
               </div>
               <div

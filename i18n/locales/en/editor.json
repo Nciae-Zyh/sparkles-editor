@@ -25,6 +25,11 @@
     "autoSaving": "Auto saving...",
     "saved": "Saved",
     "editorNotReady": "Editor not ready",
-    "importFileFailed": "Failed to import file"
+    "importFileFailed": "Failed to import file",
+    "aiContinue": "AI Continue",
+    "aiContinueDesc": "Use AI to continue the current content",
+    "aiContinueLoading": "AI continuing...",
+    "aiContinueError": "Failed to continue, please try again later",
+    "aiContinueSuccess": "Continue completed"
   }
 }

@@ -41,6 +41,8 @@ export default defineNuxtConfig({
     googleClientId: '',
     googleClientSecret: '',
     sessionSecret: 'your-secret-key-change-in-production',
+    xiaomiAiApiKey: '', // 小米 AI API Key
+    xiaomiAiApiUrl: 'https://api.xiaomimimo.com/v1', // 小米 AI API 地址
     public: {
       googleClientId: '',
       siteUrl: 'https://sparkles-editor.com'

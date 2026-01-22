@@ -42,6 +42,13 @@
     "passwordError": "密码错误",
     "enterPasswordError": "请输入密码",
     "backToHome": "返回首页",
-    "shareTime": "分享时间"
+    "shareTime": "分享时间",
+    "aiSummary": "AI 总结",
+    "aiSummaryDesc": "使用 AI 生成文档总结",
+    "aiSummaryLoading": "AI 总结中...",
+    "aiSummaryError": "总结失败，请稍后重试",
+    "aiSummaryCached": "已使用缓存的总结",
+    "generateSummary": "生成总结",
+    "summary": "总结"
   }
 }

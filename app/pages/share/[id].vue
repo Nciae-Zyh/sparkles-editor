@@ -19,6 +19,12 @@ const content = ref('')
 const showPasswordInput = ref(true)
 const passwordError = ref('')
 
+// AI 总结功能
+const { summarize, loading: aiSummaryLoading, error: aiSummaryError } = useAI()
+const summary = ref<string>('')
+const isSummaryVisible = ref(false)
+const summaryCached = ref(false)
+
 const fetchShare = async (requirePassword = false) => {
   if (loading.value) return
 
@@ -69,6 +75,23 @@ const handlePasswordSubmit = () => {
     return
   }
   fetchShare(true)
+}
+
+// AI 总结处理
+const handleAISummarize = async () => {
+  if (!content.value || !content.value.trim()) {
+    return
+  }
+
+  try {
+    const result = await summarize(content.value, shareId.value)
+    summary.value = result.content
+    summaryCached.value = result.cached
+    isSummaryVisible.value = true
+  } catch (error: any) {
+    console.error('AI summarize error:', error)
+    // 错误已经在 composable 中处理
+  }
 }
 
 onMounted(() => {
@@ -173,11 +196,54 @@ onMounted(() => {
           class="bg-default rounded-lg shadow-md"
         >
           <div class="border-b border-default px-6 py-4">
-            <h1 class="text-2xl font-bold text-highlighted">
-              {{ share.document_title }}
-            </h1>
-            <p class="text-sm text-muted mt-2">
-              {{ sharesData?.shareTime || '分享时间' }}：{{ new Date(share.created_at * 1000).toLocaleString('zh-CN') }}
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1">
+                <h1 class="text-2xl font-bold text-highlighted">
+                  {{ share.document_title }}
+                </h1>
+                <p class="text-sm text-muted mt-2">
+                  {{ sharesData?.shareTime || '分享时间' }}：{{ new Date(share.created_at * 1000).toLocaleString('zh-CN') }}
+                </p>
+              </div>
+              <!-- AI 总结按钮 -->
+              <UButton
+                :loading="aiSummaryLoading"
+                :disabled="!content || !content.trim()"
+                color="primary"
+                icon="i-lucide-sparkles"
+                size="sm"
+                variant="soft"
+                @click="handleAISummarize"
+              >
+                <span v-if="!$device.isMobile">
+                  {{ sharesData?.generateSummary || '生成总结' }}
+                </span>
+              </UButton>
+            </div>
+          </div>
+
+          <!-- AI 总结显示区域 -->
+          <div
+            v-if="isSummaryVisible && summary"
+            class="border-b border-default px-6 py-4 bg-primary/5 dark:bg-primary/10"
+          >
+            <div class="flex items-start gap-2 mb-2">
+              <UIcon
+                name="i-lucide-sparkles"
+                class="w-5 h-5 text-primary mt-0.5"
+              />
+              <h2 class="text-lg font-semibold text-highlighted">
+                {{ sharesData?.summary || '总结' }}
+              </h2>
+              <span
+                v-if="summaryCached"
+                class="text-xs text-muted ml-auto"
+              >
+                {{ sharesData?.aiSummaryCached || '已使用缓存的总结' }}
+              </span>
+            </div>
+            <p class="text-sm text-default whitespace-pre-wrap">
+              {{ summary }}
             </p>
           </div>
 

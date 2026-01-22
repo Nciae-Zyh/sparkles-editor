@@ -42,6 +42,13 @@
     "passwordError": "Incorrect password",
     "enterPasswordError": "Please enter password",
     "backToHome": "Back to Home",
-    "shareTime": "Share Time"
+    "shareTime": "Share Time",
+    "aiSummary": "AI Summary",
+    "aiSummaryDesc": "Generate document summary using AI",
+    "aiSummaryLoading": "AI summarizing...",
+    "aiSummaryError": "Failed to summarize, please try again later",
+    "aiSummaryCached": "Using cached summary",
+    "generateSummary": "Generate Summary",
+    "summary": "Summary"
   }
 }

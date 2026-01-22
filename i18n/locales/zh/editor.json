@@ -25,6 +25,11 @@
     "autoSaving": "自动保存中...",
     "saved": "已保存",
     "editorNotReady": "编辑器未就绪",
-    "importFileFailed": "导入文件失败"
+    "importFileFailed": "导入文件失败",
+    "aiContinue": "AI 续写",
+    "aiContinueDesc": "使用 AI 继续完成当前内容",
+    "aiContinueLoading": "AI 续写中...",
+    "aiContinueError": "续写失败，请稍后重试",
+    "aiContinueSuccess": "续写完成"
   }
 }
