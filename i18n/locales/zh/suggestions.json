@@ -4,6 +4,8 @@
     "insert": "插入",
     "emoji": "表情",
     "table": "表格",
-    "horizontalRule": "水平分割线"
+    "horizontalRule": "水平分割线",
+    "aiContinue": "AI 续写",
+    "aiContinueDesc": "使用 AI 续写当前段落或生成新内容"
   }
 }

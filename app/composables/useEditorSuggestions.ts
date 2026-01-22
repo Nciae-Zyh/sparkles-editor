@@ -69,6 +69,10 @@ export function useEditorSuggestions<T extends EditorCustomHandlers>(_customHand
       kind: 'horizontalRule',
       label: suggestions?.horizontalRule,
       icon: 'i-lucide-separator-horizontal'
+    }, {
+      kind: 'aiContinue',
+      label: suggestions?.aiContinue,
+      icon: 'i-lucide-sparkles'
     }]] as EditorSuggestionMenuItem<T>[][]
   })
 

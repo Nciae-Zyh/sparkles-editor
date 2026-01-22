@@ -4,8 +4,15 @@ export function useAI() {
 
   /**
    * AI 续写功能
+   * @param content 完整文档内容（作为上下文）
+   * @param currentParagraph 当前段落内容（可选，如果有则续写当前段落，否则续写新内容）
+   * @param maxTokens 最大 token 数
    */
-  const continueWriting = async (content: string, maxTokens = 500): Promise<string> => {
+  const continueWriting = async (
+    content: string,
+    currentParagraph?: string,
+    maxTokens = 500
+  ): Promise<string> => {
     loading.value = true
     error.value = null
 
@@ -17,6 +24,8 @@ export function useAI() {
         method: 'POST',
         body: {
           content,
+          context: content,
+          currentParagraph,
           maxTokens
         }
       })

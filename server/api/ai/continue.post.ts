@@ -4,7 +4,7 @@ export default eventHandler(async (event) => {
   const config = useRuntimeConfig()
   const body = await readBody(event)
 
-  const { content, maxTokens = 500 } = body
+  const { content, context, currentParagraph, maxTokens = 500 } = body
 
   if (!content || typeof content !== 'string') {
     throw createError({
@@ -21,6 +21,30 @@ export default eventHandler(async (event) => {
   }
 
   try {
+    // 构建更智能的 prompt
+    let prompt = ''
+    
+    if (currentParagraph && currentParagraph.trim()) {
+      // 如果有当前段落，续写当前段落
+      prompt = `请根据以下上下文，自然地续写当前段落。保持与原文风格、语气和主题一致，续写内容应该流畅地接续当前段落，不要重复已有内容。
+
+上下文：
+${context || ''}
+
+当前段落：
+${currentParagraph}
+
+请续写当前段落：`
+    } else {
+      // 如果没有当前段落，根据上下文续写新内容
+      prompt = `请根据以下上下文，自然地续写一段新内容。保持与原文风格、语气和主题一致，内容应该与上下文连贯。
+
+上下文：
+${content}
+
+请续写新内容：`
+    }
+
     // 调用小米 AI API
     const response = await fetch(`${config.xiaomiAiApiUrl}/chat/completions`, {
       method: 'POST',
@@ -33,7 +57,7 @@ export default eventHandler(async (event) => {
         messages: [
           {
             role: 'user',
-            content: `请继续完成以下内容，保持风格一致：\n\n${content}`
+            content: prompt
           }
         ],
         max_tokens: maxTokens,

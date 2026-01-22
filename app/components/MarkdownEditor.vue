@@ -218,6 +218,76 @@ watch([
   }, AUTO_SAVE_DELAY)
 })
 
+// AI 续写处理函数
+async function handleAIContinueAtPosition(editor: Editor, pos?: number) {
+  if (!editor || !content.value) {
+    return
+  }
+
+  const currentContent = content.value
+  if (!currentContent.trim()) {
+    alert(editorData.value?.aiContinueError || '请先输入一些内容')
+    return
+  }
+
+  try {
+    isAIContinuing.value = true
+
+    // 获取当前段落内容
+    const { state } = editor
+    const { selection } = state
+    const currentPos = pos !== undefined ? pos : selection.from
+
+    // 获取当前段落
+    let currentParagraph = ''
+    let insertPosition = currentPos
+    const $pos = state.doc.resolve(currentPos)
+    const paragraph = $pos.parent
+    
+    if (paragraph && paragraph.type.name === 'paragraph') {
+      // 获取段落文本
+      currentParagraph = paragraph.textContent || ''
+      // 在段落末尾插入
+      insertPosition = $pos.end()
+    } else {
+      // 如果不是段落，尝试获取当前节点的文本
+      const node = state.doc.nodeAt(currentPos)
+      if (node && node.isText) {
+        currentParagraph = node.textContent || ''
+        insertPosition = currentPos + node.nodeSize
+      } else {
+        // 如果找不到文本节点，使用当前位置
+        insertPosition = currentPos
+      }
+    }
+
+    // 调用 AI 续写
+    const continuedText = await continueWriting(currentContent, currentParagraph)
+
+    // 在合适位置插入续写内容
+    if (currentParagraph.trim()) {
+      // 如果有当前段落，在段落末尾插入（添加空格分隔）
+      editor.chain()
+        .focus()
+        .setTextSelection(insertPosition)
+        .insertContent(' ' + continuedText)
+        .run()
+    } else {
+      // 如果没有当前段落，在当前位置插入新段落
+      editor.chain()
+        .focus()
+        .setTextSelection(insertPosition)
+        .insertContent('\n\n' + continuedText)
+        .run()
+    }
+  } catch (error: any) {
+    console.error('AI continue error:', error)
+    alert(aiError.value || editorData.value?.aiContinueError || '续写失败，请稍后重试')
+  } finally {
+    isAIContinuing.value = false
+  }
+}
+
 // Custom handlers for editor
 const customHandlers = {
   imageUpload: {
@@ -238,6 +308,14 @@ const customHandlers = {
       withHeaderRow: true
     }),
     isActive: (editor: Editor) => editor.isActive('table'),
+    isDisabled: undefined
+  },
+  aiContinue: {
+    canExecute: (editor: Editor) => !!content.value && content.value.trim().length > 0,
+    execute: (editor: Editor, options?: { pos?: number }) => {
+      handleAIContinueAtPosition(editor, options?.pos)
+    },
+    isActive: () => false,
     isDisabled: undefined
   }
 } satisfies EditorCustomHandlers
@@ -424,34 +502,12 @@ const handleSave = async () => {
   }
 }
 
-// AI 续写处理
+// AI 续写处理（工具栏按钮使用）
 async function handleAIContinue() {
-  if (!editorRef.value?.editor || !content.value) {
+  if (!editorRef.value?.editor) {
     return
   }
-
-  const editor = editorRef.value.editor
-  const currentContent = content.value
-
-  if (!currentContent.trim()) {
-    alert(editorData.value?.aiContinueError || '请先输入一些内容')
-    return
-  }
-
-  try {
-    isAIContinuing.value = true
-    const continuedText = await continueWriting(currentContent)
-    
-    // 将续写的内容追加到当前内容后面
-    const newContent = currentContent + '\n\n' + continuedText
-    editor.commands.setContent(newContent, { contentType: 'markdown' })
-    content.value = newContent
-  } catch (error: any) {
-    console.error('AI continue error:', error)
-    alert(aiError.value || editorData.value?.aiContinueError || '续写失败，请稍后重试')
-  } finally {
-    isAIContinuing.value = false
-  }
+  await handleAIContinueAtPosition(editorRef.value.editor)
 }
 
 // 定义快捷键

@@ -4,6 +4,8 @@
     "insert": "Insert",
     "emoji": "Emoji",
     "table": "Table",
-    "horizontalRule": "Horizontal Rule"
+    "horizontalRule": "Horizontal Rule",
+    "aiContinue": "AI Continue",
+    "aiContinueDesc": "Use AI to continue the current paragraph or generate new content"
   }
 }
