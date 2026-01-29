@@ -149,7 +149,7 @@ const handleCreateDocument = async () => {
     showCreateDocument.value = false
     // 刷新文档列表以显示新创建的文档
     await fetchDocuments(savedParentId || currentParentId.value)
-    
+
     // 跳转到新创建的文档编辑页面
     await navigateTo(`${safeLocalePath('/documents')}/${document.id}`)
   } catch (error: any) {
@@ -197,6 +197,10 @@ const {
   },
   currentParentId: () => currentParentId.value
 })
+const createNewDocument = () => {
+  newDocumentName.value = ''
+  showCreateDocument.value = true
+}
 </script>
 
 <template>
@@ -211,18 +215,18 @@ const {
           :text="documentsData?.newDocument || '新建文档'"
         >
           <UButton
-            :to="currentParentId ? `${safeLocalePath('/')}?folder=${currentParentId}` : safeLocalePath('/')"
             icon="i-lucide-file-plus"
             size="sm"
             variant="soft"
+            @click="createNewDocument"
           />
         </UTooltip>
         <UButton
           v-else
-          :to="currentParentId ? `${safeLocalePath('/')}?folder=${currentParentId}` : safeLocalePath('/')"
           icon="i-lucide-file-plus"
           size="sm"
           variant="soft"
+          @click="createNewDocument"
         >
           {{ documentsData?.newDocument || '新建文档' }}
         </UButton>

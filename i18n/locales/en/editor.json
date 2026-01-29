@@ -26,10 +26,14 @@
     "saved": "Saved",
     "editorNotReady": "Editor not ready",
     "importFileFailed": "Failed to import file",
-    "aiContinue": "AI Continue",
-    "aiContinueDesc": "Use AI to continue the current content",
+    "aiContinue": "Continue writing",
+    "aiContinueDesc": "Use AI to continue the current paragraph or generate new content",
     "aiContinueLoading": "AI continuing...",
     "aiContinueError": "Failed to continue, please try again later",
-    "aiContinueSuccess": "Continue completed"
+    "aiContinueSuccess": "Continue completed",
+    "aiExpand": "Expand selection",
+    "aiExpandDesc": "Use AI to expand the selected text",
+    "aiExpandNoSelection": "Please select text to expand first",
+    "aiExpandError": "Failed to expand, please try again later"
   }
 }

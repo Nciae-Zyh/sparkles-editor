@@ -44,6 +44,46 @@ export function useAI() {
   }
 
   /**
+   * AI 选中扩写：对选中的文本进行扩写
+   * @param selectedText 选中的文本
+   * @param context 可选，周围上下文
+   * @param maxTokens 最大 token 数
+   */
+  const expandSelected = async (
+    selectedText: string,
+    context?: string,
+    maxTokens = 500
+  ): Promise<string> => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await $fetch<{
+        success: boolean
+        content: string
+      }>('/api/ai/expand', {
+        method: 'POST',
+        body: {
+          selectedText,
+          context,
+          maxTokens
+        }
+      })
+
+      if (!response.success || !response.content) {
+        throw new Error('Failed to expand selection')
+      }
+
+      return response.content
+    } catch (err: any) {
+      error.value = err.message || '扩写失败，请稍后重试'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
    * AI 总结功能（带缓存）
    */
   const summarize = async (content: string, shareId?: string): Promise<{
@@ -86,6 +126,7 @@ export function useAI() {
     loading: readonly(loading),
     error: readonly(error),
     continueWriting,
+    expandSelected,
     summarize
   }
 }

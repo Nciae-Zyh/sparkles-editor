@@ -5,7 +5,9 @@
     "emoji": "表情",
     "table": "表格",
     "horizontalRule": "水平分割线",
-    "aiContinue": "AI 续写",
-    "aiContinueDesc": "使用 AI 续写当前段落或生成新内容"
+    "aiContinue": "文章续写",
+    "aiContinueDesc": "使用 AI 续写当前段落或生成新内容",
+    "aiExpand": "选中扩写",
+    "aiExpandDesc": "使用 AI 扩写选中内容"
   }
 }

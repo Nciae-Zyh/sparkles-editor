@@ -5,7 +5,9 @@
     "emoji": "Emoji",
     "table": "Table",
     "horizontalRule": "Horizontal Rule",
-    "aiContinue": "AI Continue",
-    "aiContinueDesc": "Use AI to continue the current paragraph or generate new content"
+    "aiContinue": "Continue writing",
+    "aiContinueDesc": "Use AI to continue the current paragraph or generate new content",
+    "aiExpand": "Expand selection",
+    "aiExpandDesc": "Use AI to expand the selected text"
   }
 }

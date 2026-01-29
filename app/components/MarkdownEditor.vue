@@ -334,8 +334,9 @@ const {
 } = useEditorToolbar(customHandlers)
 
 // AI 功能
-const { continueWriting, loading: aiLoading, error: aiError } = useAI()
+const { continueWriting, expandSelected, loading: aiLoading, error: aiError } = useAI()
 const isAIContinuing = ref(false)
+const isAIExpanding = ref(false)
 
 // 移除了从内容中提取标题的函数，因为用户希望沿用设置的标题，而不是自动从内容提取
 
@@ -510,6 +511,57 @@ async function handleAIContinue() {
   await handleAIContinueAtPosition(editorRef.value.editor)
 }
 
+// 选中扩写：用 AI 扩写选中的文本，替换选区
+async function handleAIExpandSelected(editor: Editor) {
+  if (!editor || !content.value) {
+    return
+  }
+  const { state } = editor
+  const { from, to } = state.selection
+  if (from === to) {
+    alert(editorData.value?.aiExpandNoSelection || '请先选中要扩写的文本')
+    return
+  }
+  const selectedText = state.doc.textBetween(from, to, ' ')
+  if (!selectedText.trim()) {
+    alert(editorData.value?.aiExpandNoSelection || '请先选中要扩写的文本')
+    return
+  }
+  try {
+    isAIExpanding.value = true
+    const context = content.value
+    const expandedText = await expandSelected(selectedText, context)
+    editor.chain()
+      .focus()
+      .setTextSelection({ from, to })
+      .insertContent(expandedText)
+      .run()
+  } catch (error: any) {
+    console.error('AI expand error:', error)
+    alert(aiError.value || editorData.value?.aiExpandError || '扩写失败，请稍后重试')
+  } finally {
+    isAIExpanding.value = false
+  }
+}
+
+// 气泡工具栏中「选中扩写」按钮的 items
+function getAIBubbleItems(editor: Editor) {
+  const data = editorData.value
+  return [[{
+    icon: 'i-lucide-sparkles',
+    label: data?.aiExpand || '选中扩写',
+    tooltip: { text: data?.aiExpandDesc || '使用 AI 扩写选中内容' },
+    onClick: () => handleAIExpandSelected(editor)
+  }]]
+}
+
+// 合并格式工具栏与「选中扩写」按钮，供气泡工具栏使用
+function getMergedBubbleItems(editor: Editor) {
+  const base = bubbleToolbarItems.value ?? []
+  const aiItems = getAIBubbleItems(editor)
+  return [...base, ...aiItems]
+}
+
 // 定义快捷键
 defineShortcuts({
   meta_s: {
@@ -625,7 +677,7 @@ defineExpose({
                     :editor="editor"
                     :items="toolbarItems"
                   />
-                  <!-- AI 续写按钮 -->
+                  <!-- 文章续写按钮 -->
                   <UButton
                     :loading="isAIContinuing"
                     :disabled="!content || !content.trim()"
@@ -636,7 +688,7 @@ defineExpose({
                     @click="handleAIContinue"
                   >
                     <span v-if="!$device.isMobile">
-                      {{ editorData?.aiContinue || 'AI 续写' }}
+                      {{ editorData?.aiContinue || '文章续写' }}
                     </span>
                   </UButton>
                 </div>
@@ -762,7 +814,7 @@ defineExpose({
         <UEditorToolbar
           v-if="!readonly"
           :editor="editor"
-          :items="bubbleToolbarItems"
+          :items="getMergedBubbleItems(editor)"
           :should-show="({ editor, view, state }: any) => {
             if (editor.isActive('imageUpload') || editor.isActive('image') || state.selection instanceof CellSelection) {
               return false
