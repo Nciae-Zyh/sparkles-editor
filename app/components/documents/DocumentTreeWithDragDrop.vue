@@ -952,7 +952,7 @@ const dropdownItems = computed(() => [
     label: documentsData.value?.newDocument || '新建文档',
     icon: 'i-lucide-file-plus',
     onSelect: () => {
-      navigateTo(safeLocalePath('/'))
+      openCreateDocumentModal()
     }
   },
   {
