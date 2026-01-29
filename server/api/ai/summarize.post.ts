@@ -1,4 +1,7 @@
 import { getDBWithMigration } from '~~/server/utils/db'
+import { logAiConfig, logAiError, logAiRequest, logAiSuccess, logAiUpstream, logAiValidationFail } from '~~/server/utils/ai-log'
+
+const ENDPOINT = 'summarize'
 
 // 使用 Web Crypto API 生成 SHA-256 哈希
 async function sha256(text: string): Promise<string> {
@@ -11,31 +14,44 @@ async function sha256(text: string): Promise<string> {
 
 export default eventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const body = await readBody(event)
+  const body = await readBody(event).catch((e) => {
+    logAiError(ENDPOINT, e, { phase: 'readBody' })
+    throw createError({ statusCode: 400, message: 'Invalid request body' })
+  })
 
   const { content, shareId } = body
 
+  logAiRequest(ENDPOINT, {
+    hasContent: !!content,
+    contentLength: typeof content === 'string' ? content.length : 0,
+    shareId: shareId ?? '(none)'
+  })
+
   if (!content || typeof content !== 'string') {
+    logAiValidationFail(ENDPOINT, 'content is required and must be string')
     throw createError({
       statusCode: 400,
       message: 'Content is required'
     })
   }
 
-  if (!config.xiaomiAiApiKey) {
+  const apiUrl = (config.xiaomiAiApiUrl as string) || ''
+  const hasApiKey = !!(config.xiaomiAiApiKey as string)?.trim()
+  logAiConfig(ENDPOINT, { hasApiKey, apiUrl })
+
+  if (!hasApiKey) {
+    logAiError(ENDPOINT, new Error('AI API key is not configured'), { phase: 'config' })
     throw createError({
       statusCode: 500,
       message: 'AI API key is not configured'
     })
   }
 
-  // 生成内容哈希用于缓存
   const contentHash = await sha256(content)
 
   try {
     const db = await getDBWithMigration(event)
 
-    // 如果有 shareId，检查缓存
     if (shareId) {
       const cached = await db.prepare(`
         SELECT summary, content_hash
@@ -47,6 +63,7 @@ export default eventHandler(async (event) => {
       }>()
 
       if (cached) {
+        logAiSuccess(ENDPOINT, { contentLength: cached.summary.length, cached: true })
         return {
           success: true,
           content: cached.summary,
@@ -55,8 +72,16 @@ export default eventHandler(async (event) => {
       }
     }
 
-    // 调用小米 AI API 生成总结
-    const response = await fetch(`${config.xiaomiAiApiUrl}/chat/completions`, {
+    const requestUrl = `${apiUrl}/chat/completions`
+    if (!requestUrl.startsWith('http')) {
+      logAiError(ENDPOINT, new Error('Invalid xiaomiAiApiUrl'), { apiUrl })
+      throw createError({
+        statusCode: 500,
+        message: 'AI API URL is invalid'
+      })
+    }
+
+    const response = await fetch(requestUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -75,21 +100,33 @@ export default eventHandler(async (event) => {
       })
     })
 
+    const rawBody = await response.text()
+    logAiUpstream(ENDPOINT, requestUrl, response.status, rawBody.slice(0, 200))
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
+      let errorMessage = 'AI API request failed'
+      try {
+        const errorData = JSON.parse(rawBody)
+        errorMessage = errorData?.error?.message || errorMessage
+        logAiError(ENDPOINT, new Error(errorMessage), {
+          phase: 'upstream',
+          status: response.status,
+          errorData: errorData?.error ?? errorData
+        })
+      } catch (_) {
+        logAiError(ENDPOINT, new Error(rawBody || String(response.status)), { phase: 'upstream', status: response.status })
+      }
       throw createError({
         statusCode: response.status,
-        message: errorData.error?.message || 'AI API request failed'
+        message: errorMessage
       })
     }
 
-    const data = await response.json()
+    const data = JSON.parse(rawBody) as { choices?: Array<{ message?: { content?: string } }> }
     const summary = data.choices?.[0]?.message?.content || ''
 
-    // 如果有 shareId，保存到缓存
     if (shareId && summary) {
       try {
-        // 确保表存在
         await db.prepare(`
           CREATE TABLE IF NOT EXISTS share_summaries (
             id TEXT PRIMARY KEY,
@@ -101,7 +138,6 @@ export default eventHandler(async (event) => {
           )
         `).run()
 
-        // 创建索引
         await db.prepare(`
           CREATE INDEX IF NOT EXISTS idx_share_summaries_share_id
           ON share_summaries(share_id)
@@ -112,17 +148,17 @@ export default eventHandler(async (event) => {
           ON share_summaries(content_hash)
         `).run().catch(() => {})
 
-        // 插入或更新缓存
         const summaryId = `${shareId}-${contentHash}`
         await db.prepare(`
           INSERT OR REPLACE INTO share_summaries (id, share_id, content_hash, summary)
           VALUES (?, ?, ?, ?)
         `).bind(summaryId, shareId, contentHash, summary).run()
       } catch (cacheError: any) {
-        // 缓存失败不影响返回结果
-        console.warn('Failed to cache summary:', cacheError)
+        console.warn('[AI] summarize cache write failed', cacheError?.message ?? cacheError)
       }
     }
+
+    logAiSuccess(ENDPOINT, { contentLength: summary.length, cached: false })
 
     return {
       success: true,
@@ -130,7 +166,10 @@ export default eventHandler(async (event) => {
       cached: false
     }
   } catch (error: any) {
-    console.error('AI summarize error:', error)
+    if (error.statusCode) {
+      throw error
+    }
+    logAiError(ENDPOINT, error, { phase: 'handler' })
     throw createError({
       statusCode: error.statusCode || 500,
       message: error.message || 'Failed to generate summary'

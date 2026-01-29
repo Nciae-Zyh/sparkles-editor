@@ -1,3 +1,14 @@
+const AI_LOG_PREFIX = '[AI]'
+
+/** 前端 AI 调用日志，便于正式环境排查。生产环境也会输出，仅记录长度/状态不记录正文。 */
+function logClient(action: string, meta: Record<string, unknown>) {
+  console.info(AI_LOG_PREFIX, action, meta)
+}
+
+function logClientError(action: string, err: unknown, meta?: Record<string, unknown>) {
+  console.error(AI_LOG_PREFIX, action, 'error', err, meta ?? '')
+}
+
 export function useAI() {
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -16,6 +27,13 @@ export function useAI() {
     loading.value = true
     error.value = null
 
+    logClient('continue request', {
+      contentLength: content?.length ?? 0,
+      hasCurrentParagraph: !!currentParagraph,
+      currentParagraphLength: currentParagraph?.length ?? 0,
+      maxTokens
+    })
+
     try {
       const response = await $fetch<{
         success: boolean
@@ -30,12 +48,24 @@ export function useAI() {
         }
       })
 
+      logClient('continue response', {
+        success: response?.success,
+        contentLength: response?.content?.length ?? 0
+      })
+
       if (!response.success || !response.content) {
         throw new Error('Failed to generate continuation')
       }
 
       return response.content
     } catch (err: any) {
+      const statusCode = err?.statusCode ?? err?.status
+      const data = err?.data ?? err?.data
+      logClientError('continue', err, {
+        statusCode,
+        message: err?.message,
+        data: data != null ? (typeof data === 'object' ? JSON.stringify(data).slice(0, 300) : String(data)) : undefined
+      })
       error.value = err.message || '续写失败，请稍后重试'
       throw err
     } finally {
@@ -57,6 +87,12 @@ export function useAI() {
     loading.value = true
     error.value = null
 
+    logClient('expand request', {
+      selectedTextLength: selectedText?.length ?? 0,
+      contextLength: context?.length ?? 0,
+      maxTokens
+    })
+
     try {
       const response = await $fetch<{
         success: boolean
@@ -70,12 +106,24 @@ export function useAI() {
         }
       })
 
+      logClient('expand response', {
+        success: response?.success,
+        contentLength: response?.content?.length ?? 0
+      })
+
       if (!response.success || !response.content) {
         throw new Error('Failed to expand selection')
       }
 
       return response.content
     } catch (err: any) {
+      const statusCode = err?.statusCode ?? err?.status
+      const data = err?.data ?? err?.data
+      logClientError('expand', err, {
+        statusCode,
+        message: err?.message,
+        data: data != null ? (typeof data === 'object' ? JSON.stringify(data).slice(0, 300) : String(data)) : undefined
+      })
       error.value = err.message || '扩写失败，请稍后重试'
       throw err
     } finally {
@@ -93,6 +141,11 @@ export function useAI() {
     loading.value = true
     error.value = null
 
+    logClient('summarize request', {
+      contentLength: content?.length ?? 0,
+      shareId: shareId ?? '(none)'
+    })
+
     try {
       const response = await $fetch<{
         success: boolean
@@ -106,6 +159,12 @@ export function useAI() {
         }
       })
 
+      logClient('summarize response', {
+        success: response?.success,
+        contentLength: response?.content?.length ?? 0,
+        cached: response?.cached
+      })
+
       if (!response.success || !response.content) {
         throw new Error('Failed to generate summary')
       }
@@ -115,6 +174,13 @@ export function useAI() {
         cached: response.cached || false
       }
     } catch (err: any) {
+      const statusCode = err?.statusCode ?? err?.status
+      const data = err?.data ?? err?.data
+      logClientError('summarize', err, {
+        statusCode,
+        message: err?.message,
+        data: data != null ? (typeof data === 'object' ? JSON.stringify(data).slice(0, 300) : String(data)) : undefined
+      })
       error.value = err.message || '总结失败，请稍后重试'
       throw err
     } finally {
