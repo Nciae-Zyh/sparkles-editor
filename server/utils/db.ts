@@ -5,8 +5,11 @@ export function getDB(event: any) {
   return env?.DB
 }
 
+// 模块级缓存：同一 Worker 实例内只执行一次迁移
+const _migrationDone = new Set<string>()
+
 /**
- * 获取数据库并确保迁移已完成
+ * 获取数据库并确保迁移已完成（每个 Worker 实例只执行一次）
  */
 export async function getDBWithMigration(event: any): Promise<D1Database> {
   const db = getDB(event)
@@ -14,12 +17,13 @@ export async function getDBWithMigration(event: any): Promise<D1Database> {
     throw new Error('Database not available')
   }
 
-  // 执行迁移检查（非阻塞，失败不影响主流程）
-  try {
-    await migrateDB(db)
-  } catch (error: any) {
-    console.warn('[getDBWithMigration] Migration check failed:', error?.message)
-    // 迁移失败不应该阻止 API 调用，只记录警告
+  if (!_migrationDone.has('default')) {
+    try {
+      await migrateDB(db)
+      _migrationDone.add('default')
+    } catch (error: any) {
+      console.warn('[getDBWithMigration] Migration check failed:', error?.message)
+    }
   }
 
   return db
@@ -144,7 +148,7 @@ export async function migrateDB(db: D1Database) {
 
     // 检查表是否存在
     const tableInfo = await db.prepare(`
-      SELECT name FROM sqlite_master 
+      SELECT name FROM sqlite_master
       WHERE type='table' AND name='documents'
     `).first()
 
@@ -185,7 +189,7 @@ export async function migrateDB(db: D1Database) {
 
     // 检查 shares 表是否存在，如果不存在则创建
     const sharesTableInfo = await db.prepare(`
-      SELECT name FROM sqlite_master 
+      SELECT name FROM sqlite_master
       WHERE type='table' AND name='shares'
     `).first()
 
@@ -206,7 +210,7 @@ export async function migrateDB(db: D1Database) {
           )
         `).run()
         console.log('[migrateDB] Shares table created')
-        
+
         // 创建 shares 表的索引
         const shareIndexStatements = [
           'CREATE INDEX IF NOT EXISTS idx_shares_document_id ON shares(document_id)',
@@ -246,14 +250,14 @@ export async function migrateDB(db: D1Database) {
     // 迁移现有数据：为旧数据添加默认类型
     try {
       const updateResult = await db.prepare(`
-        UPDATE documents 
-        SET type = CASE 
-          WHEN type IS NULL OR type = '' THEN 'document' 
-          ELSE type 
+        UPDATE documents
+        SET type = CASE
+          WHEN type IS NULL OR type = '' THEN 'document'
+          ELSE type
         END,
-        parent_id = CASE 
-          WHEN parent_id IS NULL OR parent_id = '' THEN NULL 
-          ELSE parent_id 
+        parent_id = CASE
+          WHEN parent_id IS NULL OR parent_id = '' THEN NULL
+          ELSE parent_id
         END
         WHERE type IS NULL OR type = ''
       `).run()

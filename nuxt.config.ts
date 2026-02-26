@@ -49,7 +49,7 @@ export default defineNuxtConfig({
     }
   },
 
-  compatibilityDate: '2025-07-15',
+  compatibilityDate: '2026-02-26',
 
   nitro: {
     preset: 'cloudflare_module',
@@ -97,15 +97,6 @@ export default defineNuxtConfig({
     blob: true
   },
 
-  vite: {
-    optimizeDeps: {
-      include: [
-        '@nuxt/ui > prosemirror-state',
-        '@nuxt/ui > prosemirror-tables',
-        '@nuxt/ui > prosemirror-view'
-      ]
-    }
-  },
   hooks: {
     'build:before': async () => {
       try {
