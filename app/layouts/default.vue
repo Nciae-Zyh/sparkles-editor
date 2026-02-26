@@ -6,7 +6,7 @@ import { useDocuments } from '~/composables/useDocuments'
 const appData = computed(() => $tm('app') as Record<string, string> | undefined)
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
-const { user, fetchUser, logout } = useAuth()
+const { user, fetchUser, logout, authInitialized } = useAuth()
 const router = useRouter()
 const route = useRoute()
 const safeLocalePath = useSafeLocalePath()
@@ -58,74 +58,80 @@ const openLeft = ref(false)
   <div class="flex flex-col h-screen overflow-hidden">
     <AppHeader>
       <div class="flex items-center gap-2">
-        <UTooltip
-          v-if="user && (appData?.newDocument || '新建文档').length > 10"
-          :text="appData?.newDocument || '新建文档'"
-        >
+        <template v-if="authInitialized">
+          <UTooltip
+            v-if="user && (appData?.newDocument || '新建文档').length > 10"
+            :text="appData?.newDocument || '新建文档'"
+          >
+            <UButton
+              icon="i-lucide-file-plus"
+              variant="soft"
+              size="sm"
+              @click="createNewDocument"
+            />
+          </UTooltip>
           <UButton
+            v-else-if="user"
             icon="i-lucide-file-plus"
             variant="soft"
             size="sm"
             @click="createNewDocument"
-          />
-        </UTooltip>
-        <UButton
-          v-else-if="user"
-          icon="i-lucide-file-plus"
-          variant="soft"
-          size="sm"
-          @click="createNewDocument"
-        >
-          {{ appData?.newDocument || '新建文档' }}
-        </UButton>
-        <UTooltip
-          v-if="user && (appData?.myDocuments || '我的文档').length > 10"
-          :text="appData?.myDocuments || '我的文档'"
-        >
+          >
+            {{ appData?.newDocument || '新建文档' }}
+          </UButton>
+          <UTooltip
+            v-if="user && (appData?.myDocuments || '我的文档').length > 10"
+            :text="appData?.myDocuments || '我的文档'"
+          >
+            <UButton
+              :to="safeLocalePath('/documents')"
+              icon="i-lucide-folder"
+              variant="soft"
+              size="sm"
+            />
+          </UTooltip>
           <UButton
+            v-else-if="user"
             :to="safeLocalePath('/documents')"
             icon="i-lucide-folder"
             variant="soft"
             size="sm"
-          />
-        </UTooltip>
-        <UButton
-          v-else-if="user"
-          :to="safeLocalePath('/documents')"
-          icon="i-lucide-folder"
-          variant="soft"
-          size="sm"
-        >
-          {{ appData?.myDocuments || '我的文档' }}
-        </UButton>
-        <UButton
-          v-if="user"
-          :to="safeLocalePath('/documents')"
-          icon="i-lucide-user"
-          variant="soft"
-          size="sm"
-        >
-          {{ user.name || user.email }}
-        </UButton>
-        <UButton
-          v-if="!user"
-          icon="i-lucide-log-in"
-          variant="soft"
-          size="sm"
-          @click="() => { authMode = 'login'; authModalOpen = true }"
-        >
-          {{ appData?.login || '登录' }}
-        </UButton>
-        <UButton
-          v-if="user"
-          icon="i-lucide-log-out"
-          variant="soft"
-          color="error"
-          size="sm"
-          @click="async () => { await logout(); await navigateTo(safeLocalePath('/')) }"
-        >
-          {{ appData?.logout || '退出' }}
-        </UButton>
+          >
+            {{ appData?.myDocuments || '我的文档' }}
+          </UButton>
+          <UButton
+            v-if="user"
+            :to="safeLocalePath('/documents')"
+            icon="i-lucide-user"
+            variant="soft"
+            size="sm"
+          >
+            {{ user.name || user.email }}
+          </UButton>
+          <UButton
+            v-if="!user"
+            icon="i-lucide-log-in"
+            variant="soft"
+            size="sm"
+            @click="() => { authMode = 'login'; authModalOpen = true }"
+          >
+            {{ appData?.login || '登录' }}
+          </UButton>
+          <UButton
+            v-if="user"
+            icon="i-lucide-log-out"
+            variant="soft"
+            color="error"
+            size="sm"
+            @click="async () => { await logout(); await navigateTo(safeLocalePath('/')) }"
+          >
+            {{ appData?.logout || '退出' }}
+          </UButton>
+        </template>
+        <div
+          v-else
+          class="skeleton-shimmer h-8 w-24 rounded-md"
+        />
       </div>
     </AppHeader>
     <div class="flex-1 min-h-0 flex overflow-hidden">

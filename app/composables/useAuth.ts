@@ -3,6 +3,7 @@ import type { User } from '~~/types'
 export const useAuth = () => {
   const user = useState<User | null>('auth.user', () => null)
   const loading = ref(false)
+  const authInitialized = useState<boolean>('auth.initialized', () => false)
 
   const fetchUser = async () => {
     try {
@@ -15,6 +16,7 @@ export const useAuth = () => {
       return null
     } finally {
       loading.value = false
+      authInitialized.value = true
     }
   }
 
@@ -116,6 +118,7 @@ export const useAuth = () => {
   return {
     user: readonly(user),
     loading: readonly(loading),
+    authInitialized: readonly(authInitialized),
     fetchUser,
     login,
     register,

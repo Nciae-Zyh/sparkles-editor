@@ -6,7 +6,7 @@ import { useDocuments } from '~/composables/useDocuments'
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
 const appData = computed(() => $tm('app') as Record<string, string> | undefined)
-const { user, fetchUser, logout } = useAuth()
+const { user, fetchUser, logout, authInitialized } = useAuth()
 const router = useRouter()
 const route = useRoute()
 const safeLocalePath = useSafeLocalePath()
@@ -59,40 +59,46 @@ onMounted(async () => {
   <div class="min-h-screen bg-default">
     <AppHeader>
       <template #default>
-        <UButton
-          icon="i-lucide-plus"
-          variant="soft"
-          size="sm"
-          @click="createNewDocument"
-        >
-          {{ documentsData?.newDocument || '新建文档' }}
-        </UButton>
-        <UButton
-          :to="safeLocalePath('/shares')"
-          icon="i-lucide-link"
-          variant="soft"
-          size="sm"
-        >
-          {{ appData?.myShares || '我的分享' }}
-        </UButton>
-        <UButton
-          :to="safeLocalePath('/documents')"
-          icon="i-lucide-user"
-          variant="soft"
-          size="sm"
-        >
-          {{ user?.name || user?.email }}
-        </UButton>
-        <UButton
-          v-if="user"
-          icon="i-lucide-log-out"
-          variant="soft"
-          color="error"
-          size="sm"
-          @click="async () => { await logout(); await navigateTo(safeLocalePath('/')) }"
-        >
-          {{ appData?.logout || '退出' }}
-        </UButton>
+        <template v-if="authInitialized">
+          <UButton
+            icon="i-lucide-plus"
+            variant="soft"
+            size="sm"
+            @click="createNewDocument"
+          >
+            {{ documentsData?.newDocument || '新建文档' }}
+          </UButton>
+          <UButton
+            :to="safeLocalePath('/shares')"
+            icon="i-lucide-link"
+            variant="soft"
+            size="sm"
+          >
+            {{ appData?.myShares || '我的分享' }}
+          </UButton>
+          <UButton
+            :to="safeLocalePath('/documents')"
+            icon="i-lucide-user"
+            variant="soft"
+            size="sm"
+          >
+            {{ user?.name || user?.email }}
+          </UButton>
+          <UButton
+            v-if="user"
+            icon="i-lucide-log-out"
+            variant="soft"
+            color="error"
+            size="sm"
+            @click="async () => { await logout(); await navigateTo(safeLocalePath('/')) }"
+          >
+            {{ appData?.logout || '退出' }}
+          </UButton>
+        </template>
+        <div
+          v-else
+          class="skeleton-shimmer h-8 w-48 rounded-md"
+        />
       </template>
     </AppHeader>
 

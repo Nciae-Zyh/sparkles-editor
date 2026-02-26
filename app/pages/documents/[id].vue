@@ -10,7 +10,7 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const { user, fetchUser, loading: authLoading } = useAuth()
-const { getDocument, loading, renameDocument } = useDocuments()
+const { getDocument, renameDocument } = useDocuments()
 const safeLocalePath = useSafeLocalePath()
 
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
@@ -18,6 +18,7 @@ const documentsData = computed(() => $tm('documents') as Record<string, string> 
 const documentId = computed(() => route.params.id as string)
 const document = ref<any>(null)
 const content = ref('')
+const pageLoading = ref(true)
 const documentTitle = ref('')
 const isReadOnly = ref(false) // 是否只读模式（文档不属于当前用户）
 const isRenaming = ref(false) // 是否正在重命名
@@ -56,6 +57,8 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to load document:', error)
     await navigateTo(safeLocalePath('/documents'))
+  } finally {
+    pageLoading.value = false
   }
 
   // 订阅文档树的重命名通知
@@ -140,30 +143,48 @@ const saveRename = async () => {
 </script>
 
 <template>
-  <div class="flex-1 overflow-hidden">
-    <div
-      v-if="loading && !document"
-      class="flex justify-center items-center min-h-screen"
+  <div class="flex-1 overflow-hidden flex flex-col">
+    <Transition
+      name="fade"
+      mode="out-in"
     >
-      <UIcon
-        name="i-lucide-loader-2"
-        class="w-8 h-8 animate-spin"
+      <div
+        v-if="pageLoading"
+        key="skeleton"
+        class="flex flex-col h-full"
+      >
+        <!-- 工具栏骨架 -->
+        <div class="skeleton-shimmer h-11 border-b border-default shrink-0" />
+        <!-- 标题骨架 -->
+        <div class="px-8 pt-8 pb-4 shrink-0">
+          <div class="skeleton-shimmer h-9 w-72 rounded-md" />
+        </div>
+        <!-- 内容行骨架 -->
+        <div class="px-8 flex flex-col gap-3">
+          <div class="skeleton-shimmer h-4 w-full rounded" />
+          <div class="skeleton-shimmer h-4 w-5/6 rounded" />
+          <div class="skeleton-shimmer h-4 w-4/5 rounded" />
+          <div class="skeleton-shimmer h-4 w-3/4 rounded" />
+          <div class="skeleton-shimmer h-4 w-full rounded" />
+          <div class="skeleton-shimmer h-4 w-2/3 rounded" />
+        </div>
+      </div>
+      <MarkdownEditor
+        v-else
+        key="editor"
+        v-model="content"
+        :document-id="documentId"
+        :document-title="documentTitle"
+        :readonly="isReadOnly"
+        :is-renaming="isRenaming"
+        :rename-input="renameInput"
+        :rename-loading="isRenamingLoading"
+        @start-rename="startRename"
+        @save-rename="saveRename"
+        @cancel-rename="cancelRename"
+        @update:rename-input="(val) => { renameInput = val }"
       />
-    </div>
-    <MarkdownEditor
-      v-else
-      v-model="content"
-      :document-id="documentId"
-      :document-title="documentTitle"
-      :readonly="isReadOnly"
-      :is-renaming="isRenaming"
-      :rename-input="renameInput"
-      :rename-loading="isRenamingLoading"
-      @start-rename="startRename"
-      @save-rename="saveRename"
-      @cancel-rename="cancelRename"
-      @update:rename-input="(val) => { renameInput = val }"
-    />
+    </Transition>
 
     <!-- 分享模态框 -->
     <DocumentsShareDocumentModal
