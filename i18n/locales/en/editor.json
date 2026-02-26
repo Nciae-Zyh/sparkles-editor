@@ -34,6 +34,15 @@
     "aiExpand": "Expand selection",
     "aiExpandDesc": "Use AI to expand the selected text",
     "aiExpandNoSelection": "Please select text to expand first",
-    "aiExpandError": "Failed to expand, please try again later"
+    "aiExpandError": "Failed to expand, please try again later",
+    "aiPolish": "Polish",
+    "aiPolishDesc": "Use AI to polish the selected text",
+    "aiPolishNoSelection": "Please select text to polish first",
+    "aiPolishError": "Failed to polish, please try again later",
+    "wordCountWords": "{n} words",
+    "wordCountChars": "{n} chars",
+    "wordCountReading": "~{n} min read",
+    "outline": "Outline",
+    "outlineEmpty": "No headings"
   }
 }

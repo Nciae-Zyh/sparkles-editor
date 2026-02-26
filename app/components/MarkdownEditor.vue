@@ -55,6 +55,7 @@ const appData = computed(() => $tm('app') as Record<string, string> | undefined)
 const sharesData = computed(() => $tm('shares') as Record<string, string> | undefined)
 const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
 const showShareModal = ref(false)
+const showOutline = ref(false)
 const safeLocalePath = useSafeLocalePath()
 // 保存原始文档标题，用于自动保存（沿用用户设置的标题，不从内容提取）
 const originalDocumentTitle = ref<string | null>(null)
@@ -334,9 +335,10 @@ const {
 } = useEditorToolbar(customHandlers)
 
 // AI 功能
-const { continueWriting, expandSelected, loading: aiLoading, error: aiError } = useAI()
+const { continueWriting, expandSelected, polishSelected, loading: aiLoading, error: aiError } = useAI()
 const isAIContinuing = ref(false)
 const isAIExpanding = ref(false)
+const isAIPolishing = ref(false)
 
 // 移除了从内容中提取标题的函数，因为用户希望沿用设置的标题，而不是自动从内容提取
 
@@ -544,15 +546,56 @@ async function handleAIExpandSelected(editor: Editor) {
   }
 }
 
-// 气泡工具栏中「选中扩写」按钮的 items
+// 选中润色：用 AI 润色选中的文本，替换选区
+async function handleAIPolishSelected(editor: Editor) {
+  if (!editor || !content.value) {
+    return
+  }
+  const { state } = editor
+  const { from, to } = state.selection
+  if (from === to) {
+    alert(editorData.value?.aiPolishNoSelection || '请先选中要润色的文本')
+    return
+  }
+  const selectedText = state.doc.textBetween(from, to, ' ')
+  if (!selectedText.trim()) {
+    alert(editorData.value?.aiPolishNoSelection || '请先选中要润色的文本')
+    return
+  }
+  try {
+    isAIPolishing.value = true
+    const context = content.value
+    const polishedText = await polishSelected(selectedText, context)
+    editor.chain()
+      .focus()
+      .setTextSelection({ from, to })
+      .insertContent(polishedText)
+      .run()
+  } catch (error: any) {
+    console.error('AI polish error:', error)
+    alert(aiError.value || editorData.value?.aiPolishError || '润色失败，请稍后重试')
+  } finally {
+    isAIPolishing.value = false
+  }
+}
+
+// 气泡工具栏中「选中扩写」+「润色」按钮的 items
 function getAIBubbleItems(editor: Editor) {
   const data = editorData.value
-  return [[{
-    icon: 'i-lucide-sparkles',
-    label: data?.aiExpand || '选中扩写',
-    tooltip: { text: data?.aiExpandDesc || '使用 AI 扩写选中内容' },
-    onClick: () => handleAIExpandSelected(editor)
-  }]]
+  return [[
+    {
+      icon: 'i-lucide-sparkles',
+      label: data?.aiExpand || '选中扩写',
+      tooltip: { text: data?.aiExpandDesc || '使用 AI 扩写选中内容' },
+      onClick: () => handleAIExpandSelected(editor)
+    },
+    {
+      icon: 'i-lucide-wand-2',
+      label: data?.aiPolish || '润色',
+      tooltip: { text: data?.aiPolishDesc || '使用 AI 润色选中内容' },
+      onClick: () => handleAIPolishSelected(editor)
+    }
+  ]]
 }
 
 // 合并格式工具栏与「选中扩写」按钮，供气泡工具栏使用
@@ -595,7 +638,8 @@ defineExpose({
 
 <template>
   <div class="editor-container h-full flex flex-col overflow-hidden">
-    <div class="flex-1 min-h-0 overflow-y-auto">
+    <div class="flex-1 min-h-0 flex overflow-hidden">
+      <div class="flex-1 overflow-y-auto flex flex-col">
       <UEditor
         ref="editorRef"
         v-slot="{ editor, handlers }"
@@ -692,6 +736,18 @@ defineExpose({
                     </span>
                   </UButton>
                 </div>
+              </div>
+              <div class="hidden lg:flex shrink-0 items-center">
+                <UTooltip :text="editorData?.outline || '文档大纲'">
+                  <UButton
+                    v-if="!readonly"
+                    icon="i-lucide-list-tree"
+                    size="sm"
+                    :variant="showOutline ? 'solid' : 'soft'"
+                    color="primary"
+                    @click="showOutline = !showOutline"
+                  />
+                </UTooltip>
               </div>
               <div
                 v-if="showImportExport"
@@ -902,6 +958,14 @@ defineExpose({
           :items="suggestionItems"
         />
       </UEditor>
+      <EditorWordCountBar v-if="!readonly" :content="content || ''" />
+      </div>
+      <div
+        v-show="showOutline && !readonly"
+        class="hidden lg:flex flex-col w-48 border-l border-default overflow-y-auto shrink-0"
+      >
+        <EditorDocumentOutline :content="content || ''" :editor-ref="editorRef" />
+      </div>
     </div>
 
     <!-- 分享模态框 -->

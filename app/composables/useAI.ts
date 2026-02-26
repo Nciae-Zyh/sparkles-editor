@@ -132,6 +132,64 @@ export function useAI() {
   }
 
   /**
+   * AI 润色：对选中的文本进行润色优化
+   * @param selectedText 选中的文本
+   * @param context 可选，周围上下文
+   * @param maxTokens 最大 token 数
+   */
+  const polishSelected = async (
+    selectedText: string,
+    context?: string,
+    maxTokens = 500
+  ): Promise<string> => {
+    loading.value = true
+    error.value = null
+
+    logClient('polish request', {
+      selectedTextLength: selectedText?.length ?? 0,
+      contextLength: context?.length ?? 0,
+      maxTokens
+    })
+
+    try {
+      const response = await $fetch<{
+        success: boolean
+        content: string
+      }>('/api/ai/polish', {
+        method: 'POST',
+        body: {
+          selectedText,
+          context,
+          maxTokens
+        }
+      })
+
+      logClient('polish response', {
+        success: response?.success,
+        contentLength: response?.content?.length ?? 0
+      })
+
+      if (!response.success || !response.content) {
+        throw new Error('Failed to polish selection')
+      }
+
+      return response.content
+    } catch (err: any) {
+      const statusCode = err?.statusCode ?? err?.status
+      const data = err?.data ?? err?.data
+      logClientError('polish', err, {
+        statusCode,
+        message: err?.message,
+        data: data != null ? (typeof data === 'object' ? JSON.stringify(data).slice(0, 300) : String(data)) : undefined
+      })
+      error.value = err.message || '润色失败，请稍后重试'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
    * AI 总结功能（带缓存）
    */
   const summarize = async (content: string, shareId?: string): Promise<{
@@ -193,6 +251,7 @@ export function useAI() {
     error: readonly(error),
     continueWriting,
     expandSelected,
+    polishSelected,
     summarize
   }
 }

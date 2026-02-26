@@ -34,6 +34,15 @@
     "aiExpand": "选中扩写",
     "aiExpandDesc": "使用 AI 扩写选中内容",
     "aiExpandNoSelection": "请先选中要扩写的文本",
-    "aiExpandError": "扩写失败，请稍后重试"
+    "aiExpandError": "扩写失败，请稍后重试",
+    "aiPolish": "润色",
+    "aiPolishDesc": "使用 AI 润色选中内容",
+    "aiPolishNoSelection": "请先选中要润色的文本",
+    "aiPolishError": "润色失败，请稍后重试",
+    "wordCountWords": "{n} 词",
+    "wordCountChars": "{n} 字符",
+    "wordCountReading": "约 {n} 分钟阅读",
+    "outline": "文档大纲",
+    "outlineEmpty": "暂无标题"
   }
 }
