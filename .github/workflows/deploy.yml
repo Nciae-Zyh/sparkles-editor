@@ -1,0 +1,68 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      # 部署 Worker 代码（必须在同步 secrets 之前，确保 Worker 已存在）
+      - name: Deploy to Cloudflare Workers
+        run: cd .output/server && npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # 将 GitHub Secrets 同步到 Cloudflare Worker 的加密环境变量
+      - name: Sync secrets to Cloudflare
+        run: |
+          WORKER="sparkles-editor"
+
+          sync_secret() {
+            local name="$1" value="$2"
+            if [ -n "$value" ]; then
+              printf '%s' "$value" | npx wrangler secret put "$name" --name "$WORKER"
+              echo "✓ $name synced"
+            else
+              echo "⚠ $name skipped (not set in GitHub Secrets)"
+            fi
+          }
+
+          sync_secret NUXT_GOOGLE_CLIENT_ID        "$NUXT_GOOGLE_CLIENT_ID"
+          sync_secret NUXT_GOOGLE_CLIENT_SECRET    "$NUXT_GOOGLE_CLIENT_SECRET"
+          sync_secret NUXT_PUBLIC_GOOGLE_CLIENT_ID "$NUXT_PUBLIC_GOOGLE_CLIENT_ID"
+          sync_secret NUXT_XIAOMI_AI_API_KEY       "$NUXT_XIAOMI_AI_API_KEY"
+          sync_secret NUXT_SESSION_SECRET          "$NUXT_SESSION_SECRET"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NUXT_GOOGLE_CLIENT_ID: ${{ secrets.NUXT_GOOGLE_CLIENT_ID }}
+          NUXT_GOOGLE_CLIENT_SECRET: ${{ secrets.NUXT_GOOGLE_CLIENT_SECRET }}
+          NUXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NUXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NUXT_XIAOMI_AI_API_KEY: ${{ secrets.NUXT_XIAOMI_AI_API_KEY }}
+          NUXT_SESSION_SECRET: ${{ secrets.NUXT_SESSION_SECRET }}
