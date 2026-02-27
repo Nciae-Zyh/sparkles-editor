@@ -239,48 +239,28 @@ async function handleAIContinueAtPosition(editor: Editor, pos?: number) {
     const { selection } = state
     const currentPos = pos !== undefined ? pos : selection.from
 
-    // 获取当前段落
-    let currentParagraph = ''
-    let insertPosition = currentPos
+    // 获取当前段落文本（作为 AI 续写的上下文）
     const $pos = state.doc.resolve(currentPos)
     const paragraph = $pos.parent
-    
+    let currentParagraph = ''
     if (paragraph && paragraph.type.name === 'paragraph') {
-      // 获取段落文本
       currentParagraph = paragraph.textContent || ''
-      // 在段落末尾插入
-      insertPosition = $pos.end()
     } else {
-      // 如果不是段落，尝试获取当前节点的文本
       const node = state.doc.nodeAt(currentPos)
       if (node && node.isText) {
         currentParagraph = node.textContent || ''
-        insertPosition = currentPos + node.nodeSize
-      } else {
-        // 如果找不到文本节点，使用当前位置
-        insertPosition = currentPos
       }
     }
 
     // 调用 AI 续写
     const continuedText = await continueWriting(currentContent, currentParagraph)
 
-    // 在合适位置插入续写内容
-    if (currentParagraph.trim()) {
-      // 如果有当前段落，在段落末尾插入（添加空格分隔）
-      editor.chain()
-        .focus()
-        .setTextSelection(insertPosition)
-        .insertContent(' ' + continuedText)
-        .run()
-    } else {
-      // 如果没有当前段落，在当前位置插入新段落
-      editor.chain()
-        .focus()
-        .setTextSelection(insertPosition)
-        .insertContent('\n\n' + continuedText)
-        .run()
-    }
+    // 在当前顶层块之后插入续写内容（作为新块，避免在段落内破坏 markdown 解析）
+    const afterBlockPos = $pos.depth >= 1 ? $pos.after(1) : state.doc.content.size
+    editor.chain()
+      .focus()
+      .insertContentAt(afterBlockPos, continuedText, { contentType: 'markdown' })
+      .run()
   } catch (error: any) {
     console.error('AI continue error:', error)
     alert(aiError.value || editorData.value?.aiContinueError || '续写失败，请稍后重试')
@@ -536,7 +516,7 @@ async function handleAIExpandSelected(editor: Editor) {
     editor.chain()
       .focus()
       .setTextSelection({ from, to })
-      .insertContent(expandedText)
+      .insertContent(expandedText, { contentType: 'markdown' })
       .run()
   } catch (error: any) {
     console.error('AI expand error:', error)
@@ -569,7 +549,7 @@ async function handleAIPolishSelected(editor: Editor) {
     editor.chain()
       .focus()
       .setTextSelection({ from, to })
-      .insertContent(polishedText)
+      .insertContent(polishedText, { contentType: 'markdown' })
       .run()
   } catch (error: any) {
     console.error('AI polish error:', error)
