@@ -19,6 +19,21 @@ const emit = defineEmits<{
 const toggleDocumentTree = () => {
   emit('toggleDocumentTree')
 }
+
+const { locale, locales } = useI18n()
+const switchLocalePath = useSwitchLocalePath()
+
+const languageItems = computed(() =>
+  locales.value.map(l => ({
+    label: l.name,
+    icon: locale.value === l.code ? 'i-lucide-check' : undefined,
+    onSelect: () => navigateTo(switchLocalePath(l.code))
+  }))
+)
+
+const currentLocaleLabel = computed(() =>
+  locales.value.find(l => l.code === locale.value)?.name || locale.value
+)
 </script>
 
 <template>
@@ -69,6 +84,17 @@ const toggleDocumentTree = () => {
         role="group"
         class="flex items-center gap-0.5"
       >
+        <UDropdownMenu
+          :items="languageItems"
+          :content="{ align: 'end' }"
+        >
+          <UButton
+            variant="ghost"
+            size="sm"
+            :label="currentLocaleLabel"
+            icon="i-lucide-languages"
+          />
+        </UDropdownMenu>
         <UColorModeButton size="sm" />
       </div>
     </template>
