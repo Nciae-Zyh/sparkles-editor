@@ -32,8 +32,9 @@ jobs:
         run: pnpm build
 
       # 部署 Worker 代码（必须在同步 secrets 之前，确保 Worker 已存在）
+      # 从项目根目录运行，wrangler 会通过 .wrangler/deploy/config.json 自动定位构建产物
       - name: Deploy to Cloudflare Workers
-        run: cd .output/server && npx wrangler deploy
+        run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
