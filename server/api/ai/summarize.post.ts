@@ -13,7 +13,7 @@ async function sha256(text: string): Promise<string> {
 }
 
 export default eventHandler(async (event) => {
-  const config = useRuntimeConfig()
+  const config = useRuntimeConfig(event)
   const body = await readBody(event).catch((e) => {
     logAiError(ENDPOINT, e, { phase: 'readBody' })
     throw createError({ statusCode: 400, message: 'Invalid request body' })

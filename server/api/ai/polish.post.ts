@@ -3,7 +3,7 @@ import { logAiConfig, logAiError, logAiRequest, logAiSuccess, logAiUpstream, log
 const ENDPOINT = 'polish'
 
 export default eventHandler(async (event) => {
-  const config = useRuntimeConfig()
+  const config = useRuntimeConfig(event)
   const body = await readBody(event).catch((e) => {
     logAiError(ENDPOINT, e, { phase: 'readBody' })
     throw createError({ statusCode: 400, message: 'Invalid request body' })
