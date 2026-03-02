@@ -1,4 +1,4 @@
-import { getDB, initDB } from '../../utils/db'
+import { getDBWithMigration, initDB } from '../../utils/db'
 import { hashPassword, createSession, generateUserId } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -15,15 +15,7 @@ export default eventHandler(async (event) => {
       })
     }
 
-    const db = getDB(event)
-    if (!db) {
-      console.error('[Register] Database not available')
-      throw createError({
-        statusCode: 500,
-        message: 'Database not available. Please check D1 database configuration.'
-      })
-    }
-
+    const db = await getDBWithMigration(event)
     console.log('[Register] Database connection established')
 
     // 初始化数据库
@@ -96,7 +88,7 @@ export default eventHandler(async (event) => {
 
     setCookie(event, 'user_id', userId, {
       httpOnly: true,
-      secure: true,
+      secure: !import.meta.dev,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30
     })

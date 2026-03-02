@@ -26,14 +26,18 @@ const switchLocalePath = useSwitchLocalePath()
 const languageItems = computed(() =>
   locales.value.map(l => ({
     label: l.name,
-    icon: locale.value === l.code ? 'i-lucide-check' : undefined,
+    suffix: locale.value === l.code ? 'i-lucide-check' : undefined,
+    class: locale.value === l.code ? 'font-medium' : '',
     onSelect: () => navigateTo(switchLocalePath(l.code))
   }))
 )
 
-const currentLocaleLabel = computed(() =>
-  locales.value.find(l => l.code === locale.value)?.name || locale.value
-)
+// 显示当前语言的简短代码，如 EN / 中
+const currentLocaleCode = computed(() => {
+  const code = locale.value
+  if (code === 'zh') return '中文'
+  return code.toUpperCase()
+})
 </script>
 
 <template>
@@ -91,8 +95,8 @@ const currentLocaleLabel = computed(() =>
           <UButton
             variant="ghost"
             size="sm"
-            :label="currentLocaleLabel"
-            icon="i-lucide-languages"
+            :ui="{ label: 'font-medium tracking-wide text-xs' }"
+            :label="currentLocaleCode"
           />
         </UDropdownMenu>
         <UColorModeButton size="sm" />

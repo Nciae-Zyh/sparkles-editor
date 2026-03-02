@@ -58,16 +58,13 @@ export default eventHandler(async (event) => {
     }
   }
 
-  // 只在明确传入 content 时才更新 R2（避免仅重命名时清空内容）
+  // 只在明确传入 content 时才更新存储（避免仅重命名时清空内容）
   if (content !== undefined && existing.type === 'document') {
     const r2 = getR2Bucket(event)
-    if (!r2) {
-      throw createError({ statusCode: 500, message: 'R2 storage not available' })
-    }
     try {
       r2Key = await saveDocumentToR2(r2, user.id, id, content)
     } catch (error: any) {
-      console.error('[PUT /api/documents/[id]] Failed to update R2:', { documentId: id, message: error?.message })
+      console.error('[PUT /api/documents/[id]] Failed to update storage:', { documentId: id, message: error?.message })
       throw createError({ statusCode: 500, message: `Failed to update document in storage: ${error?.message || 'Unknown error'}` })
     }
   }

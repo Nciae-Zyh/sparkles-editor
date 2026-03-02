@@ -66,10 +66,10 @@ export default eventHandler(async (event) => {
     WHERE id = ?
   `).bind(now, id).run()
 
-  // 获取文档内容
+  // 获取文档内容（生产使用 R2，本地使用 Nitro storage）
   const r2 = getR2Bucket(event)
   let content = null
-  if (r2 && share.r2_key) {
+  if (share.r2_key) {
     content = await getDocumentFromR2(r2, share.r2_key)
   }
 

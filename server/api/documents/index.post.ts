@@ -1,6 +1,6 @@
 import { getDBWithMigration } from '../../utils/db'
 import { getCurrentUser, generateDocumentId } from '../../utils/auth'
-import { getR2Bucket, saveDocumentToR2 } from '../../utils/r2'
+import { getR2Bucket, saveDocumentToR2, deleteDocumentFromR2 } from '../../utils/r2'
 import { parseFilePath, ensureFolderPath } from '../../utils/path'
 
 export default eventHandler(async (event) => {
@@ -198,29 +198,21 @@ export default eventHandler(async (event) => {
       })
     }
 
-    // 9. 保存到 R2（如果是文档）
+    // 9. 保存到存储（如果是文档）
     let r2Key = ''
     if (type === 'document') {
-      console.log(`[POST /api/documents] [${requestId}] 步骤9: 保存到R2存储`)
+      console.log(`[POST /api/documents] [${requestId}] 步骤9: 保存到存储`)
       try {
         const r2 = getR2Bucket(event)
-        if (!r2) {
-          console.error(`[POST /api/documents] [${requestId}] R2存储不可用`)
-          throw createError({
-            statusCode: 500,
-            message: 'R2 storage not available'
-          })
-        }
-
         const contentToSave = content || ''
-        console.log(`[POST /api/documents] [${requestId}] 准备保存内容到R2: contentLength=${contentToSave.length}`)
+        console.log(`[POST /api/documents] [${requestId}] 准备保存内容: contentLength=${contentToSave.length}`)
         r2Key = await saveDocumentToR2(r2, user.id, documentId, contentToSave)
-        console.log(`[POST /api/documents] [${requestId}] R2保存成功: r2Key=${r2Key}`)
+        console.log(`[POST /api/documents] [${requestId}] 存储保存成功: r2Key=${r2Key}`)
       } catch (error: any) {
         if (error.statusCode) {
           throw error
         }
-        console.error(`[POST /api/documents] [${requestId}] 保存到R2时出错:`, {
+        console.error(`[POST /api/documents] [${requestId}] 保存到存储时出错:`, {
           message: error?.message,
           stack: error?.stack,
           userId: user.id,
@@ -232,7 +224,7 @@ export default eventHandler(async (event) => {
         })
       }
     } else {
-      console.log(`[POST /api/documents] [${requestId}] 步骤8: 跳过R2存储（文件夹类型）`)
+      console.log(`[POST /api/documents] [${requestId}] 步骤9: 跳过存储（文件夹类型）`)
       r2Key = ''
     }
 
@@ -271,12 +263,10 @@ export default eventHandler(async (event) => {
         try {
           console.log(`[POST /api/documents] [${requestId}] 尝试清理R2中的文件: r2Key=${r2Key}`)
           const r2 = getR2Bucket(event)
-          if (r2) {
-            await r2.delete(r2Key)
-            console.log(`[POST /api/documents] [${requestId}] R2清理成功`)
-          }
+          await deleteDocumentFromR2(r2, r2Key)
+          console.log(`[POST /api/documents] [${requestId}] 存储清理成功`)
         } catch (cleanupError: any) {
-          console.error(`[POST /api/documents] [${requestId}] R2清理失败:`, cleanupError?.message)
+          console.error(`[POST /api/documents] [${requestId}] 存储清理失败:`, cleanupError?.message)
         }
       }
 

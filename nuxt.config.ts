@@ -1,7 +1,19 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import { generateI18n } from './scripts/generateI18n'
+import {generateI18n} from './scripts/generateI18n'
 
 export default defineNuxtConfig({
+  vite: {
+    optimizeDeps: {
+      include: [
+        '@nuxt/ui > prosemirror-state',
+        '@nuxt/ui > prosemirror-transform',
+        '@nuxt/ui > prosemirror-model',
+        '@nuxt/ui > prosemirror-view',
+        '@nuxt/ui > prosemirror-gapcursor'
+      ],
+      exclude: ['@nuxtjs/mdc']
+    }
+  },
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
@@ -56,7 +68,7 @@ export default defineNuxtConfig({
     cloudflare: {
       deployConfig: true,
       wrangler: {
-        name: 'sparkles-editor',
+        name: 'nciae-zyh-sparkles-editor',
         d1_databases: [
           {
             binding: 'DB',
@@ -105,6 +117,18 @@ export default defineNuxtConfig({
         console.log(`✔ generate i18n config success`)
       } catch (error) {
         console.log('update previewProducts.ts failed!', error)
+      }
+    },
+    'imports:extend'(imports) {
+      for (let i = imports.length - 1; i >= 0; i--) {
+        const e = imports[i]
+        if (
+          e?.name === 'options' &&
+          typeof e.from === 'string' &&
+          e.from.includes('@nuxt/ui/dist/runtime/composables/useResizable')
+        ) {
+          imports.splice(i, 1)
+        }
       }
     }
   },

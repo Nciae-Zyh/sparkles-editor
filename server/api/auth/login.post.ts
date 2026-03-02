@@ -1,4 +1,4 @@
-import { getDB } from '../../utils/db'
+import { getDBWithMigration } from '../../utils/db'
 import { verifyPassword, createSession } from '../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -12,13 +12,7 @@ export default eventHandler(async (event) => {
     })
   }
 
-  const db = getDB(event)
-  if (!db) {
-    throw createError({
-      statusCode: 500,
-      message: 'Database not available'
-    })
-  }
+  const db = await getDBWithMigration(event)
 
   // 查找用户
   const user = await db.prepare('SELECT id, email, name, password_hash, avatar_url FROM users WHERE email = ?')
@@ -46,7 +40,7 @@ export default eventHandler(async (event) => {
 
   setCookie(event, 'user_id', user.id, {
     httpOnly: true,
-    secure: true,
+    secure: !import.meta.dev,
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 30
   })

@@ -1,4 +1,4 @@
-import { getDB, initDB } from '../../../utils/db'
+import { getDBWithMigration, initDB } from '../../../utils/db'
 import { createSession, generateUserId } from '../../../utils/auth'
 
 export default eventHandler(async (event) => {
@@ -12,14 +12,7 @@ export default eventHandler(async (event) => {
     })
   }
 
-  const db = getDB(event)
-  if (!db) {
-    throw createError({
-      statusCode: 500,
-      message: 'Database not available'
-    })
-  }
-
+  const db = await getDBWithMigration(event)
   await initDB(db)
 
   const config = useRuntimeConfig(event)
@@ -129,7 +122,7 @@ export default eventHandler(async (event) => {
 
   setCookie(event, 'user_id', user.id, {
     httpOnly: true,
-    secure: true,
+    secure: !import.meta.dev,
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 30
   })

@@ -41,12 +41,10 @@ export default eventHandler(async (event) => {
           .first() as any
 
         if (childDoc) {
-          // 删除 R2 内容（如果是文档）
+          // 删除存储内容（如果是文档）
           if (childDoc.type === 'document' && childDoc.r2_key) {
             const r2 = getR2Bucket(event)
-            if (r2) {
-              await deleteDocumentFromR2(r2, childDoc.r2_key)
-            }
+            await deleteDocumentFromR2(r2, childDoc.r2_key)
           }
 
           // 删除子项
@@ -58,12 +56,10 @@ export default eventHandler(async (event) => {
     }
   }
 
-  // 从 R2 删除（如果是文档）
+  // 从存储删除（如果是文档）
   if (document.type === 'document' && document.r2_key) {
     const r2 = getR2Bucket(event)
-    if (r2) {
-      await deleteDocumentFromR2(r2, document.r2_key)
-    }
+    await deleteDocumentFromR2(r2, document.r2_key)
   }
 
   // 从数据库删除（级联删除会处理子项，但我们已经手动处理了）

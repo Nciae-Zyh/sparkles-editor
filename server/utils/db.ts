@@ -1,28 +1,80 @@
 import type { CloudflareEnv } from '../../types'
 
-export function getDB(event: any) {
-  const env = event.context.cloudflare?.env as CloudflareEnv
+// 模块级缓存：同一进程内只执行一次迁移
+const _migrationDone = new Set<string>()
+
+// 本地 SQLite 实例缓存（仅开发环境使用）
+let _localDb: D1Database | null = null
+
+/**
+ * 原始方式：从 Cloudflare 环境获取 D1 绑定
+ * 保持与原始代码的向后兼容性
+ */
+export function getDB(event: any): D1Database | undefined {
+  const env = event?.context?.cloudflare?.env as CloudflareEnv
   return env?.DB
 }
 
-// 模块级缓存：同一 Worker 实例内只执行一次迁移
-const _migrationDone = new Set<string>()
+/**
+ * 将 better-sqlite3 实例封装成 D1 兼容接口（仅本地开发）
+ * 生产环境构建时，import.meta.dev === false，此函数被 Rollup tree-shaking 完全移除
+ */
+async function createLocalD1(): Promise<D1Database> {
+  if (_localDb) return _localDb
+
+  // 使用动态 import() 替代 require()，兼容 ESM 上下文
+  // 此代码块受 import.meta.dev 保护，生产环境 Rollup 会移除
+  const { mkdirSync } = await import('node:fs')
+  const { default: Database } = await import('better-sqlite3')
+
+  mkdirSync('.data', { recursive: true })
+  const sqlite = new Database('.data/local.sqlite')
+
+  // 构建 D1 兼容的 prepare().bind().first()/all()/run() 接口
+  const makeStmt = (sql: string, params: unknown[] = []) => ({
+    bind: (...p: unknown[]) => makeStmt(sql, p),
+    async first() {
+      return (sqlite.prepare(sql).get(...params) ?? null) as any
+    },
+    async all() {
+      return { results: sqlite.prepare(sql).all(...params), success: true, meta: {} } as any
+    },
+    async run() {
+      const r = sqlite.prepare(sql).run(...params)
+      return { success: true, meta: { changes: r.changes, last_row_id: r.lastInsertRowid } } as any
+    }
+  })
+
+  _localDb = { prepare: (sql: string) => makeStmt(sql) as any } as D1Database
+  return _localDb
+}
 
 /**
- * 获取数据库并确保迁移已完成（每个 Worker 实例只执行一次）
+ * 获取数据库并确保迁移已完成
+ * - 优先使用 Cloudflare D1 绑定（生产环境）
+ * - 若无 D1 绑定（本地开发），自动回退到本地 SQLite
  */
-export async function getDBWithMigration(event: any): Promise<D1Database> {
-  const db = getDB(event)
+export async function getDBWithMigration(event?: any): Promise<D1Database> {
+  // 1. 优先使用 D1 绑定
+  const d1 = getDB(event)
+  let db: D1Database | null = d1 ?? null
+
+  // 2. 本地开发回退：使用 better-sqlite3
   if (!db) {
-    throw new Error('Database not available')
+    if (import.meta.dev) {
+      db = await createLocalD1()
+    } else {
+      throw createError({ statusCode: 500, message: 'Database not available' })
+    }
   }
 
+  // 3. 确保每个进程只初始化/迁移一次
   if (!_migrationDone.has('default')) {
     try {
-      await migrateDB(db)
+      await initDB(db)  // initDB 内部已包含 migrateDB，会创建表并补齐缺失列
       _migrationDone.add('default')
     } catch (error: any) {
-      console.warn('[getDBWithMigration] Migration check failed:', error?.message)
+      console.warn('[getDBWithMigration] DB init failed:', error?.message)
     }
   }
 
@@ -33,53 +85,107 @@ export async function initDB(db: D1Database) {
   try {
     console.log('[initDB] Starting database initialization')
 
-    // 创建用户表 - 使用 prepare().run() 而不是 exec()
-    try {
-      await db.prepare(`
-        CREATE TABLE IF NOT EXISTS users (
-          id TEXT PRIMARY KEY,
-          email TEXT UNIQUE NOT NULL,
-          name TEXT,
-          password_hash TEXT,
-          google_id TEXT UNIQUE,
-          avatar_url TEXT,
-          created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-          updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-        )
-      `).run()
-      console.log('[initDB] Users table created/verified')
-    } catch (error: any) {
-      console.error('[initDB] Failed to create users table:', error)
-      throw new Error(`Failed to create users table: ${error?.message || 'Unknown error'}`)
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        name TEXT,
+        password_hash TEXT,
+        google_id TEXT UNIQUE,
+        avatar_url TEXT,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      )
+    `).run()
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS documents (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT,
+        r2_key TEXT NOT NULL DEFAULT '',
+        parent_id TEXT,
+        type TEXT NOT NULL DEFAULT 'document',
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (parent_id) REFERENCES documents(id) ON DELETE CASCADE
+      )
+    `).run()
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS shares (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        password_hash TEXT,
+        expires_at INTEGER,
+        view_count INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `).run()
+
+    await migrateDB(db)
+
+    for (const sql of [
+      'CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_documents_parent_id ON documents(parent_id)',
+      'CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type)',
+      'CREATE INDEX IF NOT EXISTS idx_documents_user_parent ON documents(user_id, parent_id)',
+      'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+      'CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)',
+      'CREATE INDEX IF NOT EXISTS idx_shares_document_id ON shares(document_id)',
+      'CREATE INDEX IF NOT EXISTS idx_shares_user_id ON shares(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_shares_created_at ON shares(created_at DESC)'
+    ]) {
+      await db.prepare(sql).run().catch((e: any) =>
+        console.warn('[initDB] Index skipped:', e?.message)
+      )
     }
 
-    // 创建文档表（支持目录结构）
-    // 新结构：移除 path 字段，只保留核心字段
-    // 路径通过 parent_id 递归计算，避免数据不一致
-    try {
-      await db.prepare(`
-        CREATE TABLE IF NOT EXISTS documents (
-          id TEXT PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          title TEXT NOT NULL,
-          content TEXT,
-          r2_key TEXT NOT NULL DEFAULT '',
-          parent_id TEXT,
-          type TEXT NOT NULL DEFAULT 'document',
-          created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-          updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
-          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-          FOREIGN KEY (parent_id) REFERENCES documents(id) ON DELETE CASCADE
-        )
-      `).run()
-      console.log('[initDB] Documents table created/verified')
-    } catch (error: any) {
-      console.error('[initDB] Failed to create documents table:', error)
-      throw new Error(`Failed to create documents table: ${error?.message || 'Unknown error'}`)
+    console.log('[initDB] Database initialization completed')
+  } catch (error: any) {
+    console.error('[initDB] Failed:', error?.message)
+    throw error
+  }
+}
+
+/**
+ * 数据库迁移：检查并添加缺失的列
+ */
+export async function migrateDB(db: D1Database) {
+  try {
+    const tableInfo = await db.prepare(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='documents'`
+    ).first()
+
+    if (!tableInfo) return
+
+    const columns = await db.prepare(`PRAGMA table_info(documents)`).all()
+    const columnNames = (columns.results as any[]).map((col: any) => col.name)
+
+    const migrations: Array<{ name: string, sql: string }> = []
+    if (!columnNames.includes('parent_id')) {
+      migrations.push({ name: 'add_parent_id', sql: `ALTER TABLE documents ADD COLUMN parent_id TEXT` })
+    }
+    if (!columnNames.includes('type')) {
+      migrations.push({
+        name: 'add_type',
+        sql: `ALTER TABLE documents ADD COLUMN type TEXT NOT NULL DEFAULT 'document'`
+      })
     }
 
-    // 创建分享表
-    try {
+    // 检查并创建 shares 表
+    const sharesExists = await db.prepare(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='shares'`
+    ).first()
+
+    if (!sharesExists) {
       await db.prepare(`
         CREATE TABLE IF NOT EXISTS shares (
           id TEXT PRIMARY KEY,
@@ -94,187 +200,23 @@ export async function initDB(db: D1Database) {
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `).run()
-      console.log('[initDB] Shares table created/verified')
-    } catch (error: any) {
-      console.error('[initDB] Failed to create shares table:', error)
-      throw new Error(`Failed to create shares table: ${error?.message || 'Unknown error'}`)
     }
 
-    // 数据库迁移：检查并添加缺失的列
-    await migrateDB(db)
-
-    // 创建索引 - 分别执行每个索引创建语句
-    // 移除 path 索引，因为不再使用 path 字段
-    const indexStatements = [
-      'CREATE INDEX IF NOT EXISTS idx_documents_user_id ON documents(user_id)',
-      'CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at DESC)',
-      'CREATE INDEX IF NOT EXISTS idx_documents_parent_id ON documents(parent_id)',
-      'CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type)',
-      'CREATE INDEX IF NOT EXISTS idx_documents_user_parent ON documents(user_id, parent_id)',
-      'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
-      'CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)',
-      'CREATE INDEX IF NOT EXISTS idx_shares_document_id ON shares(document_id)',
-      'CREATE INDEX IF NOT EXISTS idx_shares_user_id ON shares(user_id)',
-      'CREATE INDEX IF NOT EXISTS idx_shares_created_at ON shares(created_at DESC)'
-    ]
-
-    for (const statement of indexStatements) {
-      try {
-        await db.prepare(statement).run()
-        console.log(`[initDB] Index created: ${statement}`)
-      } catch (error: any) {
-        // 索引创建失败不应该阻止初始化，只记录错误
-        console.warn(`[initDB] Failed to create index: ${statement}`, error?.message)
-      }
-    }
-
-    console.log('[initDB] Database initialization completed successfully')
-  } catch (error: any) {
-    console.error('[initDB] Database initialization failed:', {
-      message: error?.message,
-      stack: error?.stack,
-      error: error
-    })
-    throw error
-  }
-}
-
-/**
- * 数据库迁移：检查并添加缺失的列
- */
-export async function migrateDB(db: D1Database) {
-  try {
-    console.log('[migrateDB] Starting database migration')
-
-    // 检查表是否存在
-    const tableInfo = await db.prepare(`
-      SELECT name FROM sqlite_master
-      WHERE type='table' AND name='documents'
-    `).first()
-
-    if (!tableInfo) {
-      console.log('[migrateDB] Documents table does not exist, skipping migration')
-      return
-    }
-
-    // 获取现有列信息
-    const columns = await db.prepare(`PRAGMA table_info(documents)`).all()
-    const columnNames = (columns.results as any[]).map((col: any) => col.name)
-    console.log('[migrateDB] Existing columns:', columnNames)
-
-    const migrations: Array<{ name: string, sql: string }> = []
-
-    // 检查并添加 parent_id 列
-    if (!columnNames.includes('parent_id')) {
-      migrations.push({
-        name: 'add_parent_id',
-        sql: `ALTER TABLE documents ADD COLUMN parent_id TEXT`
-      })
-    }
-
-    // 检查并添加 type 列
-    if (!columnNames.includes('type')) {
-      migrations.push({
-        name: 'add_type',
-        sql: `ALTER TABLE documents ADD COLUMN type TEXT NOT NULL DEFAULT 'document'`
-      })
-    }
-
-    // 检查并移除 path 列（如果存在）
-    // 注意：SQLite 不支持直接删除列，需要通过重建表的方式
-    // 这里我们标记需要迁移，实际迁移在 migrateRemovePath 中处理
-    if (columnNames.includes('path')) {
-      console.log('[migrateDB] path 列存在，将在下次迁移时移除')
-    }
-
-    // 检查 shares 表是否存在，如果不存在则创建
-    const sharesTableInfo = await db.prepare(`
-      SELECT name FROM sqlite_master
-      WHERE type='table' AND name='shares'
-    `).first()
-
-    if (!sharesTableInfo) {
-      try {
-        await db.prepare(`
-          CREATE TABLE IF NOT EXISTS shares (
-            id TEXT PRIMARY KEY,
-            document_id TEXT NOT NULL,
-            user_id TEXT NOT NULL,
-            password_hash TEXT,
-            expires_at INTEGER,
-            view_count INTEGER NOT NULL DEFAULT 0,
-            created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-            updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
-            FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-          )
-        `).run()
-        console.log('[migrateDB] Shares table created')
-
-        // 创建 shares 表的索引
-        const shareIndexStatements = [
-          'CREATE INDEX IF NOT EXISTS idx_shares_document_id ON shares(document_id)',
-          'CREATE INDEX IF NOT EXISTS idx_shares_user_id ON shares(user_id)',
-          'CREATE INDEX IF NOT EXISTS idx_shares_created_at ON shares(created_at DESC)'
-        ]
-        for (const statement of shareIndexStatements) {
-          try {
-            await db.prepare(statement).run()
-            console.log(`[migrateDB] Share index created: ${statement}`)
-          } catch (error: any) {
-            console.warn(`[migrateDB] Failed to create share index: ${statement}`, error?.message)
-          }
-        }
-      } catch (error: any) {
-        console.error('[migrateDB] Failed to create shares table:', error)
-      }
-    }
-
-    // 执行迁移
     for (const migration of migrations) {
-      try {
-        console.log(`[migrateDB] Executing migration: ${migration.name}`)
-        await db.prepare(migration.sql).run()
-        console.log(`[migrateDB] Migration ${migration.name} completed successfully`)
-      } catch (error: any) {
-        // 如果列已存在（可能由其他迁移添加），忽略错误
-        if (error?.message?.includes('duplicate column') || error?.message?.includes('already exists')) {
-          console.log(`[migrateDB] Migration ${migration.name} skipped (column may already exist)`)
-        } else {
-          console.error(`[migrateDB] Migration ${migration.name} failed:`, error?.message)
-          throw error
+      await db.prepare(migration.sql).run().catch((e: any) => {
+        if (!e?.message?.includes('duplicate column') && !e?.message?.includes('already exists')) {
+          throw e
         }
-      }
+      })
     }
 
-    // 迁移现有数据：为旧数据添加默认类型
-    try {
-      const updateResult = await db.prepare(`
-        UPDATE documents
-        SET type = CASE
-          WHEN type IS NULL OR type = '' THEN 'document'
-          ELSE type
-        END,
-        parent_id = CASE
-          WHEN parent_id IS NULL OR parent_id = '' THEN NULL
-          ELSE parent_id
-        END
-        WHERE type IS NULL OR type = ''
-      `).run()
-      console.log(`[migrateDB] Migrated ${updateResult.meta.changes || 0} existing documents`)
-    } catch (migrateError: any) {
-      // 迁移失败不影响初始化，可能是新数据库或已迁移
-      console.log('[migrateDB] Data migration skipped or failed:', migrateError?.message)
-    }
+    // 修复旧数据
+    await db.prepare(
+      `UPDATE documents SET type = 'document' WHERE type IS NULL OR type = ''`
+    ).run().catch(() => {})
 
-    console.log('[migrateDB] Database migration completed successfully')
+    console.log('[migrateDB] Migration completed')
   } catch (error: any) {
-    console.error('[migrateDB] Database migration failed:', {
-      message: error?.message,
-      stack: error?.stack,
-      error: error
-    })
-    // 迁移失败不应该阻止应用启动，只记录错误
-    console.warn('[migrateDB] Continuing despite migration errors')
+    console.warn('[migrateDB] Migration error (non-fatal):', error?.message)
   }
 }

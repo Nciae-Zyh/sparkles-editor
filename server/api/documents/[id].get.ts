@@ -28,10 +28,10 @@ export default eventHandler(async (event) => {
     })
   }
 
-  // 从 R2 获取内容
+  // 从存储获取内容（生产使用 R2，本地使用 Nitro storage）
   const r2 = getR2Bucket(event)
   let content = null
-  if (r2 && document.r2_key) {
+  if (document.r2_key) {
     content = await getDocumentFromR2(r2, document.r2_key)
   }
 
