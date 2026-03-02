@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 
+const { tm: $tm, t } = useI18n()
+
 definePageMeta({
   layout: 'documents'
 })
@@ -14,19 +16,30 @@ const currentFolderId = computed(() => route.query.folder as string | undefined)
 
 <template>
   <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <div class="flex items-center gap-4 mb-6">
+    <div class="flex items-center justify-between gap-4 mb-6">
+      <div class="flex items-center gap-4">
+        <UButton
+          v-if="currentFolderId"
+          icon="i-lucide-arrow-left"
+          size="sm"
+          variant="ghost"
+          @click="navigateTo(safeLocalePath('/documents'))"
+        >
+          {{ documentsData?.back || t('documents.back') }}
+        </UButton>
+        <h1 class="text-2xl font-bold">
+          {{ documentsData?.myDocuments || t('documents.myDocuments') }}
+        </h1>
+      </div>
       <UButton
-        v-if="currentFolderId"
-        icon="i-lucide-arrow-left"
+        :to="safeLocalePath('/documents/trash')"
+        icon="i-lucide-trash-2"
         size="sm"
-        variant="ghost"
-        @click="navigateTo(safeLocalePath('/documents'))"
+        variant="soft"
+        color="warning"
       >
-        {{ documentsData?.back || '返回' }}
+        {{ documentsData?.trash || t('documents.trash') }}
       </UButton>
-      <h1 class="text-2xl font-bold">
-        {{ documentsData?.myDocuments || '我的文档' }}
-      </h1>
     </div>
     <DocumentsDocumentTreeWithDragDrop />
   </div>

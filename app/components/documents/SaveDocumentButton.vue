@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import { useDocuments } from '~/composables/useDocuments'
 import { useAuth } from '~/composables/useAuth'
-import type { Document } from '~/types'
+
+const { tm: $tm, t } = useI18n()
 
 interface Props {
   title: string
@@ -24,18 +25,28 @@ const isOpen = ref(false)
 const pathInput = ref(props.title)
 const saving = ref(false)
 
+const getErrorMessage = (error: unknown) => {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string') {
+      return message
+    }
+  }
+  return ''
+}
+
 watch(() => props.title, (newTitle) => {
   pathInput.value = newTitle
 })
 
 const handleSave = async () => {
   if (!user.value) {
-    alert(actionsData.value?.pleaseLogin || '请先登录')
+    alert(actionsData.value?.pleaseLogin || t('actions.pleaseLogin'))
     return
   }
 
   if (!pathInput.value.trim()) {
-    alert(actionsData.value?.pleaseEnterPath || '请输入存储路径')
+    alert(actionsData.value?.pleaseEnterPath || t('actions.pleaseEnterPath'))
     return
   }
 
@@ -57,12 +68,12 @@ const handleSave = async () => {
     // 传递文档ID和用户设置的标题（pathInput.value，这是用户手动输入的标题）
     emit('saved', document.id, pathInput.value.trim())
     isOpen.value = false
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[SaveDocumentButton] 保存文档失败:', {
-      message: error?.message,
-      error: error
+      message: getErrorMessage(error),
+      error
     })
-    alert(error.message || actionsData.value?.saveFailed || '保存失败，请稍后重试')
+    alert(getErrorMessage(error) || actionsData.value?.saveFailed || t('actions.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -72,8 +83,8 @@ const handleSave = async () => {
 <template>
   <div>
     <UTooltip
-      v-if="(actionsData?.saveDocument || '保存文档').length > 10"
-      :text="actionsData?.saveDocument || '保存文档'"
+      v-if="(actionsData?.saveDocument || t('actions.saveDocument')).length > 10"
+      :text="actionsData?.saveDocument || t('actions.saveDocument')"
     >
       <UButton
         :loading="loading"
@@ -87,29 +98,29 @@ const handleSave = async () => {
       icon="i-lucide-save"
       @click="isOpen = true"
     >
-      {{ actionsData?.saveDocument || '保存文档' }}
+      {{ actionsData?.saveDocument || t('actions.saveDocument') }}
     </UButton>
 
     <UModal
       v-model:open="isOpen"
-      :title="documentId ? (actionsData?.updateDocument || '更新文档') : (actionsData?.saveDocument || '保存文档')"
+      :title="documentId ? (actionsData?.updateDocument || t('actions.updateDocument')) : (actionsData?.saveDocument || t('actions.saveDocument'))"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <div class="space-y-4">
           <UFormField
-            :label="actionsData?.storagePath || '存储路径'"
+            :label="actionsData?.storagePath || t('actions.storagePath')"
             name="path"
             required
           >
             <UInput
               v-model="pathInput"
-              :placeholder="actionsData?.pathPlaceholder || '例如: folder/subfolder/file.md'"
+              :placeholder="actionsData?.pathPlaceholder || t('actions.pathPlaceholder')"
               required
             />
             <template #description>
               <div class="text-xs text-muted mt-1">
-                {{ actionsData?.pathDescription || '输入文件路径，系统会自动创建文件夹结构。例如: project/docs/readme.md' }}
+                {{ actionsData?.pathDescription || t('actions.pathDescription') }}
               </div>
             </template>
           </UFormField>
@@ -122,13 +133,13 @@ const handleSave = async () => {
           variant="ghost"
           @click="close"
         >
-          {{ actionsData?.cancel || '取消' }}
+          {{ actionsData?.cancel || t('actions.cancel') }}
         </UButton>
         <UButton
           :loading="saving"
           @click="handleSave"
         >
-          {{ actionsData?.save || '保存' }}
+          {{ actionsData?.save || t('actions.save') }}
         </UButton>
       </template>
     </UModal>

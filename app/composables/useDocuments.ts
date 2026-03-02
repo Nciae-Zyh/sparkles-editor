@@ -1,9 +1,25 @@
 import type { Document } from '~/types'
 
+interface ApiErrorLike {
+  statusCode?: number
+  status?: number
+  message?: string
+  data?: {
+    message?: string
+  }
+}
+
 export const useDocuments = () => {
   const { t } = useI18n()
   const documents = ref<Document[]>([])
   const loading = ref(false)
+
+  const getErrorInfo = (error: unknown): ApiErrorLike => {
+    if (!error || typeof error !== 'object') {
+      return {}
+    }
+    return error as ApiErrorLike
+  }
 
   const fetchDocuments = async (parentId?: string) => {
     try {
@@ -52,8 +68,9 @@ export const useDocuments = () => {
       })
       documents.value.unshift(data.folder)
       return data.folder
-    } catch (error: any) {
-      throw new Error(error.data?.message || 'Failed to create folder')
+    } catch (error: unknown) {
+      const errorInfo = getErrorInfo(error)
+      throw new Error(errorInfo.data?.message || t('documents.createFolderFailed'))
     } finally {
       loading.value = false
     }
@@ -68,8 +85,9 @@ export const useDocuments = () => {
       })
       documents.value.unshift(data.document)
       return data.document
-    } catch (error: any) {
-      throw new Error(error.data?.message || 'Failed to create document')
+    } catch (error: unknown) {
+      const errorInfo = getErrorInfo(error)
+      throw new Error(errorInfo.data?.message || t('documents.createDocumentFailed'))
     } finally {
       loading.value = false
     }
@@ -104,8 +122,9 @@ export const useDocuments = () => {
             documents.value[index] = { ...documents.value[index], ...data.document }
           }
           return data.document
-        } catch (error: any) {
-          if (error?.statusCode === 404 || error?.status === 404) {
+        } catch (error: unknown) {
+          const errorInfo = getErrorInfo(error)
+          if (errorInfo.statusCode === 404 || errorInfo.status === 404) {
             const data = await $fetch<{ success: boolean, document: Document }>('/api/documents', {
               method: 'POST',
               body: { title, content, type: 'document', id: documentId }
@@ -123,18 +142,19 @@ export const useDocuments = () => {
         documents.value.unshift(data.document)
         return data.document
       }
-    } catch (error: any) {
-      let errorMessage = t('actions.saveFailed') || '保存文档失败'
-      if (error?.data?.message) {
-        errorMessage = error.data.message
-      } else if (error?.message) {
-        errorMessage = error.message
-      } else if (error?.statusCode === 500) {
-        errorMessage = t('actions.serverError') || '服务器内部错误，请稍后重试'
-      } else if (error?.statusCode === 401) {
-        errorMessage = t('actions.pleaseLogin') || '请先登录'
-      } else if (error?.statusCode === 400) {
-        errorMessage = t('actions.invalidRequest') || '请求参数错误'
+    } catch (error: unknown) {
+      const errorInfo = getErrorInfo(error)
+      let errorMessage = t('actions.saveFailed')
+      if (errorInfo.data?.message) {
+        errorMessage = errorInfo.data.message
+      } else if (errorInfo.message) {
+        errorMessage = errorInfo.message
+      } else if (errorInfo.statusCode === 500) {
+        errorMessage = t('actions.serverError')
+      } else if (errorInfo.statusCode === 401) {
+        errorMessage = t('actions.pleaseLogin')
+      } else if (errorInfo.statusCode === 400) {
+        errorMessage = t('actions.invalidRequest')
       }
 
       throw new Error(errorMessage)
@@ -150,8 +170,9 @@ export const useDocuments = () => {
         method: 'DELETE'
       })
       documents.value = documents.value.filter(d => d.id !== id)
-    } catch (error: any) {
-      throw new Error(error.data?.message || 'Failed to delete document')
+    } catch (error: unknown) {
+      const errorInfo = getErrorInfo(error)
+      throw new Error(errorInfo.data?.message || t('documents.deleteFailed'))
     } finally {
       loading.value = false
     }
@@ -170,8 +191,9 @@ export const useDocuments = () => {
         documents.value[index] = { ...documents.value[index], ...data.document }
       }
       return data.document
-    } catch (error: any) {
-      throw new Error(error.data?.message || error.message || '重命名文档失败')
+    } catch (error: unknown) {
+      const errorInfo = getErrorInfo(error)
+      throw new Error(errorInfo.data?.message || errorInfo.message || t('documents.renameFailedRetry'))
     } finally {
       loading.value = false
     }
@@ -190,13 +212,14 @@ export const useDocuments = () => {
         documents.value[index] = { ...documents.value[index], ...data.document }
       }
       return data.document
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorInfo = getErrorInfo(error)
       console.error('[useDocuments] 移动文档失败:', {
-        message: error?.message,
-        statusCode: error?.statusCode,
-        data: error?.data
+        message: errorInfo.message,
+        statusCode: errorInfo.statusCode,
+        data: errorInfo.data
       })
-      throw new Error(error.data?.message || error.message || '移动文档失败')
+      throw new Error(errorInfo.data?.message || errorInfo.message || t('documents.moveFailed'))
     } finally {
       loading.value = false
     }
@@ -215,6 +238,110 @@ export const useDocuments = () => {
     }
   }
 
+  const toggleFavorite = async (id: string, isFavorite?: boolean) => {
+    const data = await $fetch<{ is_favorite: number }>(`/api/documents/${id}/favorite`, {
+      method: 'POST',
+      body: typeof isFavorite === 'boolean' ? { isFavorite } : {}
+    })
+    return data.is_favorite
+  }
+
+  const togglePin = async (id: string, isPinned?: boolean) => {
+    const data = await $fetch<{ is_pinned: number }>(`/api/documents/${id}/pin`, {
+      method: 'POST',
+      body: typeof isPinned === 'boolean' ? { isPinned } : {}
+    })
+    return data.is_pinned
+  }
+
+  const updateTags = async (id: string, tags: string[]) => {
+    const data = await $fetch<{ tags: string[] }>(`/api/documents/${id}/tags`, {
+      method: 'PUT',
+      body: { tags }
+    })
+    return data.tags
+  }
+
+  const fetchTrash = async () => {
+    const data = await $fetch<{ items: Document[] }>('/api/documents/trash')
+    return data.items || []
+  }
+
+  const restoreDocument = async (id: string, parentId?: string | null) => {
+    await $fetch(`/api/documents/${id}/restore`, {
+      method: 'POST',
+      body: { parentId }
+    })
+  }
+
+  const permanentDeleteDocument = async (id: string) => {
+    await $fetch(`/api/documents/${id}/permanent-delete`, { method: 'DELETE' })
+  }
+
+  const emptyTrash = async () => {
+    await $fetch('/api/documents/trash', { method: 'DELETE' })
+  }
+
+  const searchDocuments = async (q: string, tag?: string) => {
+    const data = await $fetch<{ items: Document[] }>('/api/documents/search', {
+      params: { q, tag }
+    })
+    return data.items || []
+  }
+
+  const fetchRecentDocuments = async () => {
+    const data = await $fetch<{ items: Document[] }>('/api/documents/recent')
+    return data.items || []
+  }
+
+  const fetchVersions = async (id: string) => {
+    const data = await $fetch<{ versions: unknown[] }>(`/api/documents/${id}/versions`)
+    return data.versions || []
+  }
+
+  const createVersion = async (id: string, content?: string, title?: string) => {
+    const data = await $fetch<{ version: unknown }>(`/api/documents/${id}/versions`, {
+      method: 'POST',
+      body: { content, title }
+    })
+    return data.version
+  }
+
+  const restoreVersion = async (id: string, versionId: string) => {
+    return await $fetch<{ document: Document }>(`/api/documents/${id}/versions/${versionId}/restore`, {
+      method: 'POST'
+    })
+  }
+
+  const fetchComments = async (id: string) => {
+    const data = await $fetch<{ comments: unknown[] }>(`/api/documents/${id}/comments`)
+    return data.comments || []
+  }
+
+  const createComment = async (id: string, comment: string, selectedText = '') => {
+    const data = await $fetch<{ comment: unknown }>(`/api/documents/${id}/comments`, {
+      method: 'POST',
+      body: { comment, selectedText }
+    })
+    return data.comment
+  }
+
+  const addCommentReply = async (id: string, commentId: string, content: string) => {
+    const data = await $fetch<{ reply: unknown }>(`/api/documents/${id}/comments/${commentId}/replies`, {
+      method: 'POST',
+      body: { content }
+    })
+    return data.reply
+  }
+
+  const resolveComment = async (id: string, commentId: string, resolved = true) => {
+    const data = await $fetch<{ status: string }>(`/api/documents/${id}/comments/${commentId}/resolve`, {
+      method: 'POST',
+      body: { resolved }
+    })
+    return data.status
+  }
+
   return {
     documents: readonly(documents),
     loading: readonly(loading),
@@ -228,6 +355,22 @@ export const useDocuments = () => {
     createFolder,
     createEmptyDocument,
     renameDocument,
-    moveDocument
+    moveDocument,
+    toggleFavorite,
+    togglePin,
+    updateTags,
+    fetchTrash,
+    restoreDocument,
+    permanentDeleteDocument,
+    emptyTrash,
+    searchDocuments,
+    fetchRecentDocuments,
+    fetchVersions,
+    createVersion,
+    restoreVersion,
+    fetchComments,
+    createComment,
+    addCommentReply,
+    resolveComment
   }
 }

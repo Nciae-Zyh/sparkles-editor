@@ -14,10 +14,10 @@ export default eventHandler(async (event) => {
 
   // 获取所有文件夹（用于选择保存位置）
   const folders = await db.prepare(`
-    SELECT id, title, parent_id, path
+    SELECT id, title, parent_id
     FROM documents
-    WHERE user_id = ? AND type = 'folder'
-    ORDER BY path
+    WHERE user_id = ? AND type = 'folder' AND deleted_at IS NULL
+    ORDER BY title ASC
   `).bind(user.id).all()
 
   return {

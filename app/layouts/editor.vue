@@ -4,11 +4,12 @@ import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import { useMediaQuery, useLocalStorage } from '@vueuse/core'
 import { useDocuments } from '~/composables/useDocuments'
 
+const { tm: $tm, t } = useI18n()
+
 const appData = computed(() => $tm('app') as Record<string, string> | undefined)
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
 const { user, fetchUser, logout, authInitialized } = useAuth()
-const router = useRouter()
 const safeLocalePath = useSafeLocalePath()
 const { createEmptyDocument } = useDocuments()
 
@@ -33,7 +34,7 @@ const createNewDocument = () => {
 // 处理创建文档
 const handleCreateDocument = async () => {
   if (!newDocumentName.value.trim()) {
-    alert(documentsData.value?.enterDocumentName || '请输入文档名称')
+    alert(documentsData.value?.enterDocumentName || t('documents.enterDocumentName'))
     return
   }
 
@@ -42,11 +43,12 @@ const handleCreateDocument = async () => {
     const document = await createEmptyDocument(newDocumentName.value.trim())
     newDocumentName.value = ''
     showCreateDocument.value = false
-    
+
     // 跳转到新创建的文档编辑页面
     await navigateTo(`${safeLocalePath('/documents')}/${document.id}`)
-  } catch (error: any) {
-    alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
+  } catch (error: unknown) {
+    const message = error && typeof error === 'object' && 'message' in error ? String((error as { message: unknown }).message || '') : ''
+    alert(message || documentsData.value?.createDocumentFailed || t('documents.createDocumentFailed'))
   } finally {
     creatingDocument.value = false
   }
@@ -61,11 +63,6 @@ const toggleDocumentTree = () => {
     // 桌面端：切换侧边栏折叠状态
     isDocumentTreeCollapsed.value = !isDocumentTreeCollapsed.value
   }
-}
-
-// 关闭移动端 Slideover
-const closeSlideover = () => {
-  isDocumentTreeOpen.value = false
 }
 
 onMounted(async () => {
@@ -87,7 +84,7 @@ onMounted(async () => {
             variant="soft"
             size="sm"
           >
-            {{ documentsData?.back || '返回' }}
+            {{ documentsData?.back || t('documents.back') }}
           </UButton>
           <UButton
             icon="i-lucide-plus"
@@ -95,7 +92,7 @@ onMounted(async () => {
             size="sm"
             @click="createNewDocument"
           >
-            {{ documentsData?.newDocument || '新建文档' }}
+            {{ documentsData?.newDocument || t('documents.newDocument') }}
           </UButton>
           <template v-if="authInitialized">
             <UButton
@@ -115,7 +112,7 @@ onMounted(async () => {
               size="sm"
               @click="async () => { await logout(); await navigateTo(safeLocalePath('/')) }"
             >
-              {{ appData?.logout || '退出' }}
+              {{ appData?.logout || t('app.logout') }}
             </UButton>
           </template>
           <div
@@ -145,7 +142,7 @@ onMounted(async () => {
       <USlideover
         v-model:open="isDocumentTreeOpen"
         side="left"
-        :title="documentsData?.documentTree || '文档树'"
+        :title="documentsData?.documentTree || t('documents.documentTree')"
         class="lg:hidden"
       >
         <template #body>
@@ -164,18 +161,18 @@ onMounted(async () => {
     <!-- 创建文档模态框 -->
     <UModal
       v-model:open="showCreateDocument"
-      :title="documentsData?.newDocument || '新建文档'"
+      :title="documentsData?.newDocument || t('documents.newDocument')"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UFormField
-          :label="documentsData?.documentName || '文档名称'"
+          :label="documentsData?.documentName || t('documents.documentName')"
           name="documentName"
           required
         >
           <UInput
             v-model="newDocumentName"
-            :placeholder="documentsData?.enterDocumentName || '请输入文档名称'"
+            :placeholder="documentsData?.enterDocumentName || t('documents.enterDocumentName')"
             @keyup.enter="handleCreateDocument"
           />
         </UFormField>
@@ -187,13 +184,13 @@ onMounted(async () => {
           variant="ghost"
           @click="close"
         >
-          {{ actionsData?.cancel || '取消' }}
+          {{ actionsData?.cancel || t('actions.cancel') }}
         </UButton>
         <UButton
           :loading="creatingDocument"
           @click="handleCreateDocument"
         >
-          {{ documentsData?.create || '创建' }}
+          {{ documentsData?.create || t('documents.create') }}
         </UButton>
       </template>
     </UModal>

@@ -50,7 +50,7 @@ export async function ensureFolderPath(
     // 先检查是否已存在同名文件夹（在同一父文件夹下）
     const existingFolder = await db.prepare(`
       SELECT id FROM documents 
-      WHERE user_id = ? AND parent_id = ? AND title = ? AND type = 'folder'
+      WHERE user_id = ? AND parent_id = ? AND title = ? AND type = 'folder' AND deleted_at IS NULL
     `).bind(
       userId,
       currentParentId || null,

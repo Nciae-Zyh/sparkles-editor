@@ -8,13 +8,15 @@ import { CellSelection } from 'prosemirror-tables'
 import { CodeBlockShiki } from 'tiptap-extension-code-block-shiki'
 import { ImageUpload } from '~/components/editor/ImageUploadExtension'
 
+const { tm: $tm, t } = useI18n()
+
 interface Props {
   modelValue?: string
   placeholder?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  placeholder: '开始写作，输入 \'/\' 查看命令...'
+  placeholder: ''
 })
 
 const editorRef = useTemplateRef('editorRef')
@@ -57,74 +59,11 @@ const {
 } = useEditorToolbar(customHandlers)
 
 const content = defineModel({
-  default: `# 欢迎使用编辑器
-
-这是一个功能丰富的富文本编辑器，支持多种格式和功能。
-
-## 富文本编辑
-
-支持 **粗体**、*斜体*、<u>下划线</u>、~~删除线~~ 和 \`行内代码\`。
-
-![图片占位符](/placeholder.jpeg)
-
-### 代码块
-
-代码块支持语法高亮。
-
-\`\`\`typescript
-const greeting = 'Hello, World!'
-console.log(greeting)
-\`\`\`
-
-### 列表
-
-1. 有序列表
-2. 自动编号
-
-- 无序列表
-  - 支持嵌套
-  - 多级嵌套
-
-- [ ] 任务列表
-- [x] 已完成任务
-
-### 表格
-
-插入和编辑表格，支持行列操作。
-
-| 功能 | 描述 | 状态 |
-| ------- | ----------- | ------ |
-| 表格 | 完整表格支持 | ✅ |
-| Markdown | 内容序列化 | ✅ |
-
----
-
-## 功能特性
-
-### 工具栏
-
-选择文本查看气泡工具栏，顶部固定工具栏提供快速访问常用操作。
-
-### 拖拽手柄
-
-使用左侧的拖拽手柄可以重新排序、复制、删除或转换块类型。
-
-### 斜杠命令
-
-输入 \`/\` 可以快速插入标题、列表、代码块、表格、图片等。
-
-### 图片上传
-
-支持自定义图片上传节点。
-
-### 表情
-
-使用 \`:\` 添加表情 🚀
-`,
+  default: () => t('editor.defaultContent'),
   type: 'string'
 })
 
-function onCreate({ editor: _editor}: { editor: Editor }) {
+function onCreate({ editor: _editor }: { editor: Editor }) {
   // Editor created
 }
 
@@ -149,12 +88,18 @@ const extensions = computed(() => [
 ])
 
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
+const placeholder = computed(() => {
+  if (props.placeholder?.trim()) {
+    return props.placeholder
+  }
+  return editorData.value?.placeholder || t('editor.placeholder')
+})
 
 // 导入Markdown内容
 function importMarkdown(markdown: string) {
   const editor = editorRef.value?.editor
   if (!editor) {
-    console.warn(editorData.value?.editorNotReady || 'Editor not ready')
+    console.warn(editorData.value?.editorNotReady || t('editor.editorNotReady'))
     return
   }
 
@@ -166,7 +111,7 @@ function importMarkdown(markdown: string) {
 function exportMarkdown(): string {
   const editor = editorRef.value?.editor
   if (!editor) {
-    console.warn(editorData.value?.editorNotReady || 'Editor not ready')
+    console.warn(editorData.value?.editorNotReady || t('editor.editorNotReady'))
     return content.value || ''
   }
 

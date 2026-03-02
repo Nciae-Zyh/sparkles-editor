@@ -18,10 +18,10 @@ export default eventHandler(async (event) => {
 
   // 验证文件夹是否存在且属于当前用户
   const folder = await db.prepare(`
-    SELECT id, type FROM documents WHERE id = ? AND user_id = ?
+    SELECT id, type, deleted_at FROM documents WHERE id = ? AND user_id = ?
   `).bind(id, user.id).first() as any
 
-  if (!folder) {
+  if (!folder || folder.deleted_at) {
     throw createError({
       statusCode: 404,
       message: 'Folder not found'
@@ -37,10 +37,10 @@ export default eventHandler(async (event) => {
 
   // 获取文件夹的直接子项
   const children = await db.prepare(`
-    SELECT id, title, type, parent_id, created_at, updated_at
+    SELECT id, title, type, parent_id, is_favorite, is_pinned, tags, created_at, updated_at
     FROM documents
-    WHERE user_id = ? AND parent_id = ?
-    ORDER BY type DESC, title ASC
+    WHERE user_id = ? AND parent_id = ? AND deleted_at IS NULL
+    ORDER BY is_pinned DESC, is_favorite DESC, type DESC, title ASC
   `).bind(user.id, id).all()
 
   return {

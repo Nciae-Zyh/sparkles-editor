@@ -14,12 +14,14 @@ export default eventHandler(async (event) => {
     SELECT 
       s.id,
       s.document_id,
+      s.permission,
       s.password_hash,
       s.expires_at,
       s.view_count,
       s.created_at,
       d.title as document_title,
-      d.r2_key
+      d.r2_key,
+      d.deleted_at
     FROM shares s
     JOIN documents d ON s.document_id = d.id
     WHERE s.id = ?
@@ -29,6 +31,13 @@ export default eventHandler(async (event) => {
     throw createError({
       statusCode: 404,
       message: 'Share not found'
+    })
+  }
+
+  if (share.deleted_at) {
+    throw createError({
+      statusCode: 404,
+      message: 'Document not found'
     })
   }
 
@@ -78,6 +87,7 @@ export default eventHandler(async (event) => {
       id: share.id,
       document_id: share.document_id,
       document_title: share.document_title,
+      permission: share.permission || 'read',
       content,
       view_count: (share.view_count || 0) + 1,
       created_at: share.created_at

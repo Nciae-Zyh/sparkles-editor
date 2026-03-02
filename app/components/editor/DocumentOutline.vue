@@ -11,6 +11,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { tm: $tm, t } = useI18n()
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
 
 interface Heading {
@@ -60,13 +61,13 @@ const indentClass: Record<number, string> = {
 <template>
   <div class="p-3">
     <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2 px-1">
-      {{ editorData?.outline || '文档大纲' }}
+      {{ editorData?.outline || t('editor.outline') }}
     </p>
     <div
       v-if="headings.length === 0"
       class="text-xs text-dimmed px-1"
     >
-      {{ editorData?.outlineEmpty || '暂无标题' }}
+      {{ editorData?.outlineEmpty || t('editor.outlineEmpty') }}
     </div>
     <ul
       v-else

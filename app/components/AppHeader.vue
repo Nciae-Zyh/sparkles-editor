@@ -34,9 +34,8 @@ const languageItems = computed(() =>
 
 // 显示当前语言的简短代码，如 EN / 中
 const currentLocaleCode = computed(() => {
-  const code = locale.value
-  if (code === 'zh') return '中文'
-  return code.toUpperCase()
+  const currentLocale = locales.value.find(item => item.code === locale.value)
+  return currentLocale?.name || locale.value.toUpperCase()
 })
 </script>
 

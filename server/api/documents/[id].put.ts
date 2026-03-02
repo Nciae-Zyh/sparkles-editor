@@ -1,5 +1,5 @@
 import { getDBWithMigration } from '../../utils/db'
-import { getCurrentUser } from '../../utils/auth'
+import { getCurrentUser, generateDocumentId } from '../../utils/auth'
 import { getR2Bucket, saveDocumentToR2 } from '../../utils/r2'
 import { parseFilePath, ensureFolderPath } from '../../utils/path'
 
@@ -23,16 +23,17 @@ export default eventHandler(async (event) => {
   const db = await getDBWithMigration(event)
 
   const existing = await db.prepare(`
-    SELECT id, r2_key, type, parent_id, title FROM documents WHERE id = ? AND user_id = ?
+    SELECT id, r2_key, type, parent_id, title, content_preview, deleted_at FROM documents WHERE id = ? AND user_id = ?
   `).bind(id, user.id).first() as any
 
-  if (!existing) {
+  if (!existing || existing.deleted_at) {
     throw createError({ statusCode: 404, message: 'Document not found' })
   }
 
   const now = Math.floor(Date.now() / 1000)
   let r2Key = existing.r2_key
   let newParentId = existing.parent_id
+  let contentPreview = existing.content_preview || ''
 
   // 如果标题改变，解析新路径并更新
   if (title !== undefined && title.trim() !== existing.title) {
@@ -50,7 +51,7 @@ export default eventHandler(async (event) => {
 
     const nameConflict = await db.prepare(`
       SELECT id FROM documents
-      WHERE user_id = ? AND parent_id = ? AND title = ? AND id != ?
+      WHERE user_id = ? AND parent_id = ? AND title = ? AND id != ? AND deleted_at IS NULL
     `).bind(user.id, newParentId || null, finalTitle, id).first()
 
     if (nameConflict) {
@@ -63,6 +64,7 @@ export default eventHandler(async (event) => {
     const r2 = getR2Bucket(event)
     try {
       r2Key = await saveDocumentToR2(r2, user.id, id, content)
+      contentPreview = String(content || '').slice(0, 2000)
     } catch (error: any) {
       console.error('[PUT /api/documents/[id]] Failed to update storage:', { documentId: id, message: error?.message })
       throw createError({ statusCode: 500, message: `Failed to update document in storage: ${error?.message || 'Unknown error'}` })
@@ -78,12 +80,19 @@ export default eventHandler(async (event) => {
   try {
     await db.prepare(`
       UPDATE documents
-      SET title = ?, r2_key = ?, parent_id = ?, updated_at = ?
+      SET title = ?, r2_key = ?, parent_id = ?, content_preview = ?, updated_at = ?
       WHERE id = ? AND user_id = ?
-    `).bind(finalTitle, r2Key, newParentId, now, id, user.id).run()
+    `).bind(finalTitle, r2Key, newParentId, contentPreview, now, id, user.id).run()
   } catch (error: any) {
     console.error('[PUT /api/documents/[id]] Failed to update DB:', { documentId: id, message: error?.message })
     throw createError({ statusCode: 500, message: `Failed to update document in database: ${error?.message || 'Unknown error'}` })
+  }
+
+  if (content !== undefined && existing.type === 'document') {
+    await db.prepare(`
+      INSERT INTO document_versions (id, document_id, user_id, title, content, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(generateDocumentId(), id, user.id, finalTitle, content, now).run().catch(() => {})
   }
 
   return {

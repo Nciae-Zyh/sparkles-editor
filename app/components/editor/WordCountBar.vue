@@ -4,6 +4,7 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const { tm: $tm, t } = useI18n()
 const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
 
 const stats = computed(() => {
@@ -42,19 +43,19 @@ const stats = computed(() => {
 const wordCountText = computed(() => {
   const tmpl = editorData.value?.wordCountWords
   if (tmpl) return tmpl.replace('{n}', String(stats.value.words)).replace('{0}', String(stats.value.words))
-  return `${stats.value.words} 词`
+  return t('editor.wordCountWords', { n: stats.value.words })
 })
 
 const charCountText = computed(() => {
   const tmpl = editorData.value?.wordCountChars
   if (tmpl) return tmpl.replace('{n}', String(stats.value.chars)).replace('{0}', String(stats.value.chars))
-  return `${stats.value.chars} 字符`
+  return t('editor.wordCountChars', { n: stats.value.chars })
 })
 
 const readingText = computed(() => {
   const tmpl = editorData.value?.wordCountReading
   if (tmpl) return tmpl.replace('{n}', String(stats.value.readingMinutes)).replace('{0}', String(stats.value.readingMinutes))
-  return `约 ${stats.value.readingMinutes} 分钟阅读`
+  return t('editor.wordCountReading', { n: stats.value.readingMinutes })
 })
 </script>
 

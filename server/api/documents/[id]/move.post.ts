@@ -1,6 +1,6 @@
 import { getDBWithMigration } from '../../../utils/db'
 import { getCurrentUser } from '../../../utils/auth'
-import { isDescendant, getAllDescendants } from '../../../utils/path-helper'
+import { isDescendant } from '../../../utils/path-helper'
 import type { Document } from '~/types'
 
 export default eventHandler(async (event) => {
@@ -27,10 +27,10 @@ export default eventHandler(async (event) => {
 
   // 检查要移动的文档/文件夹是否存在且属于当前用户
   const item = await db.prepare(`
-    SELECT id, title, type, parent_id FROM documents WHERE id = ? AND user_id = ?
+    SELECT id, title, type, parent_id, deleted_at FROM documents WHERE id = ? AND user_id = ?
   `).bind(id, user.id).first() as any
 
-  if (!item) {
+  if (!item || item.deleted_at) {
     throw createError({
       statusCode: 404,
       message: 'Document or folder not found'
@@ -40,10 +40,10 @@ export default eventHandler(async (event) => {
   // 如果指定了 parentId，验证父文件夹是否存在
   if (parentId) {
     const parent = await db.prepare(`
-      SELECT id, type FROM documents WHERE id = ? AND user_id = ?
+      SELECT id, type, deleted_at FROM documents WHERE id = ? AND user_id = ?
     `).bind(parentId, user.id).first() as any
 
-    if (!parent) {
+    if (!parent || parent.deleted_at) {
       throw createError({
         statusCode: 404,
         message: 'Parent folder not found'
@@ -72,7 +72,7 @@ export default eventHandler(async (event) => {
   // 检查目标位置是否已存在同名项（在同一父文件夹下）
   const existing = await db.prepare(`
     SELECT id FROM documents 
-    WHERE user_id = ? AND parent_id = ? AND title = ? AND id != ?
+    WHERE user_id = ? AND parent_id = ? AND title = ? AND id != ? AND deleted_at IS NULL
   `).bind(user.id, parentId || null, item.title, id).first()
 
   if (existing) {

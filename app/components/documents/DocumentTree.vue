@@ -4,13 +4,14 @@ import { useDocumentContextMenu } from '~/composables/useDocumentContextMenu'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import type { Document } from '~/types'
 
+const { tm: $tm, t } = useI18n()
+
 interface DocumentTreeNode extends Document {
   children?: DocumentTreeNode[]
 }
 
 const { fetchDocumentTree, deleteDocument, createFolder, createEmptyDocument, getDocument, renameDocument } = useDocuments()
-const { downloadAsZip, isDownloading } = useDownloadZip()
-const router = useRouter()
+const { downloadAsZip } = useDownloadZip()
 const route = useRoute()
 const safeLocalePath = useSafeLocalePath()
 
@@ -44,6 +45,16 @@ const newDocumentName = ref('')
 const creatingDocument = ref(false)
 const createDocumentParentId = ref<string | null>(null)
 
+const getErrorMessage = (error: unknown) => {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string') {
+      return message
+    }
+  }
+  return ''
+}
+
 // 加载文档树
 const loadTree = async () => {
   try {
@@ -51,7 +62,7 @@ const loadTree = async () => {
     const data = await fetchDocumentTree()
     tree.value = data.tree as DocumentTreeNode[]
     flat.value = data.flat
-    
+
     // 如果有当前文档ID，展开到该文档；否则展开所有文件夹
     if (currentDocumentId.value) {
       expandToDocument(currentDocumentId.value)
@@ -121,9 +132,9 @@ const collapseAll = () => {
 const handleDelete = async (id: string, event: Event) => {
   event.stopPropagation()
   const item = flat.value.find(d => d.id === id)
-  const itemType = item?.type === 'folder' ? (documentsData.value?.folder || '文件夹') : (documentsData.value?.document || '文档')
-  const deleteConfirm = documentsData.value?.deleteConfirm?.replace('{type}', itemType) || `确定要删除这个${itemType}吗？`
-  const deleteWarning = item?.type === 'folder' ? (documentsData.value?.deleteFolderWarning || '文件夹内的所有内容也会被删除。') : ''
+  const itemType = item?.type === 'folder' ? (documentsData.value?.folder || t('documents.folder')) : (documentsData.value?.document || t('documents.document'))
+  const deleteConfirm = documentsData.value?.deleteConfirm?.replace('{type}', itemType) || t('documents.deleteConfirm', { type: itemType })
+  const deleteWarning = item?.type === 'folder' ? (documentsData.value?.deleteFolderWarning || t('documents.deleteFolderWarning')) : ''
 
   if (!confirm(`${deleteConfirm}${deleteWarning}`)) {
     return
@@ -134,8 +145,8 @@ const handleDelete = async (id: string, event: Event) => {
     await deleteDocument(id)
     // 重新加载树
     await loadTree()
-  } catch (error: any) {
-    alert(error.message || documentsData.value?.deleteFailed || '删除失败')
+  } catch (error: unknown) {
+    alert(getErrorMessage(error) || documentsData.value?.deleteFailed || t('documents.deleteFailed'))
   } finally {
     deletingId.value = null
   }
@@ -144,7 +155,7 @@ const handleDelete = async (id: string, event: Event) => {
 // 处理创建文件夹
 const handleCreateFolder = async () => {
   if (!newFolderName.value.trim()) {
-    alert(documentsData.value?.enterFolderName || '请输入文件夹名称')
+    alert(documentsData.value?.enterFolderName || t('documents.enterFolderName'))
     return
   }
 
@@ -157,8 +168,8 @@ const handleCreateFolder = async () => {
     showCreateFolder.value = false
     // 重新加载树
     await loadTree()
-  } catch (error: any) {
-    alert(error.message || documentsData.value?.createFolderFailed || '创建文件夹失败')
+  } catch (error: unknown) {
+    alert(getErrorMessage(error) || documentsData.value?.createFolderFailed || t('documents.createFolderFailed'))
   } finally {
     creatingFolder.value = false
   }
@@ -173,7 +184,7 @@ const handleDownload = async (id: string, event: Event) => {
     // 获取文档内容
     const document = await getDocument(id)
     if (!document.content) {
-      alert(actionsData.value?.documentEmpty || '文档内容为空')
+      alert(actionsData.value?.documentEmpty || t('actions.documentEmpty'))
       return
     }
 
@@ -184,9 +195,9 @@ const handleDownload = async (id: string, event: Event) => {
 
     // 下载为 ZIP
     await downloadAsZip(document.content, filename)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Download failed:', error)
-    alert(error.message || actionsData.value?.downloadFailed || '下载失败，请稍后重试')
+    alert(getErrorMessage(error) || actionsData.value?.downloadFailed || t('actions.downloadFailed'))
   } finally {
     downloadingId.value = null
   }
@@ -209,35 +220,29 @@ const handleCreateSubFolder = (folderId: string, event: Event) => {
 }
 
 // 处理在文件夹内创建文档（空文档）
-const handleCreateDocument = async () => {
+const handleCreateDocument = async (parentId?: string | null) => {
   if (!newDocumentName.value.trim()) {
-    alert(documentsData.value?.enterDocumentName || '请输入文档名称')
+    alert(documentsData.value?.enterDocumentName || t('documents.enterDocumentName'))
     return
   }
 
   try {
     creatingDocument.value = true
-    const document = await createEmptyDocument(newDocumentName.value.trim(), createDocumentParentId.value || undefined)
+    const targetParentId = parentId === undefined ? createDocumentParentId.value : parentId
+    const document = await createEmptyDocument(newDocumentName.value.trim(), targetParentId || undefined)
     newDocumentName.value = ''
     createDocumentParentId.value = null
     showCreateDocument.value = false
     // 重新加载树
     await loadTree()
-    
+
     // 跳转到新创建的文档编辑页面
     await navigateTo(`${safeLocalePath('/documents')}/${document.id}`)
-  } catch (error: any) {
-    alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
+  } catch (error: unknown) {
+    alert(getErrorMessage(error) || documentsData.value?.createDocumentFailed || t('documents.createDocumentFailed'))
   } finally {
     creatingDocument.value = false
   }
-}
-
-// 打开创建文档模态框
-const openCreateDocumentModal = (parentId?: string | null) => {
-  createDocumentParentId.value = parentId || null
-  newDocumentName.value = ''
-  showCreateDocument.value = true
 }
 
 // 处理开始重命名
@@ -258,16 +263,16 @@ const handleCancelRename = () => {
 // 处理重命名
 const handleRename = async () => {
   if (!renamingId.value || !renameInput.value.trim()) {
-    alert(documentsData.value?.pleaseEnterTitle || '请输入名称')
+    alert(documentsData.value?.pleaseEnterTitle || t('documents.pleaseEnterTitle'))
     return
   }
 
   const id = renamingId.value
   const newTitle = renameInput.value.trim()
-  
+
   // 验证标题不能包含路径分隔符
   if (newTitle.includes('/') || newTitle.includes('\\')) {
-    alert(documentsData.value?.titleCannotContainPath || '标题不能包含路径分隔符（/ 或 \\）')
+    alert(documentsData.value?.titleCannotContainPath || t('documents.titleCannotContainPath'))
     return
   }
 
@@ -277,7 +282,7 @@ const handleRename = async () => {
     // 重新加载树
     await loadTree()
     handleCancelRename()
-    
+
     // 发布重命名通知，通知编辑页面更新
     const nuxtApp = useNuxtApp()
     if (nuxtApp.$publishNotification) {
@@ -286,39 +291,13 @@ const handleRename = async () => {
         title: newTitle
       })
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('重命名失败:', error)
-    alert(error.message || documentsData.value?.renameFailedRetry || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+    alert(getErrorMessage(error) || documentsData.value?.renameFailedRetry || documentsData.value?.renameFailed || t('documents.renameFailed'))
   } finally {
     renamingLoadingId.value = null
   }
 }
-
-// 使用右键菜单 composable（用于文件夹和文档节点）
-const { getFolderMenuItems, getDocumentMenuItems } = useDocumentContextMenu({
-  onOpen: (item: Document) => {
-    handleNodeClick(item as DocumentTreeNode)
-  },
-  onRename: (item: Document) => {
-    handleStartRename(item.id)
-  },
-  onDelete: (item: Document, event: Event) => {
-    handleDelete(item.id, event)
-  },
-  onCreateDocument: (parentId?: string | null) => {
-    openCreateDocumentModal(parentId)
-  },
-  onCreateFolder: (parentId?: string | null) => {
-    // 如果提供了 parentId，使用它；否则保持当前的 selectedParentId（可能是 null）
-    selectedParentId.value = parentId !== undefined ? parentId : null
-    showCreateFolder.value = true
-  },
-  onDownload: (item: Document, event: Event) => {
-    if (item.type === 'document') {
-      handleDownload(item.id, event)
-    }
-  }
-})
 
 // 使用右键菜单 composable（用于空白区域）
 const { getEmptyAreaMenuItems } = useDocumentContextMenu({
@@ -332,14 +311,9 @@ const { getEmptyAreaMenuItems } = useDocumentContextMenu({
   currentParentId: () => null
 })
 
-// 获取树节点的菜单项
-const getTreeNodeMenuItems = (node: DocumentTreeNode) => {
-  return node.type === 'folder' ? getFolderMenuItems(node) : getDocumentMenuItems(node)
-}
-
 onMounted(() => {
   loadTree()
-  
+
   // 订阅编辑页面的重命名通知
   const nuxtApp = useNuxtApp()
   if (nuxtApp.$subscribeNotification) {
@@ -361,7 +335,7 @@ onMounted(() => {
         updateNodeTitle(tree.value)
       }
     })
-    
+
     // 组件卸载时取消订阅
     onUnmounted(() => {
       unsubscribe()
@@ -381,7 +355,7 @@ watch(currentDocumentId, async (newId) => {
   <div class="space-y-4">
     <div class="flex items-center justify-between gap-4">
       <h2 class="text-xl font-semibold">
-        {{ documentsData?.documentTree || '文档树' }}
+        {{ documentsData?.documentTree || t('documents.documentTree') }}
       </h2>
       <div class="flex gap-2">
         <UButton
@@ -390,14 +364,14 @@ watch(currentDocumentId, async (newId) => {
           size="sm"
           variant="soft"
         >
-          {{ documentsData?.newDocument || '新建文档' }}
+          {{ documentsData?.newDocument || t('documents.newDocument') }}
         </UButton>
         <UButton
           icon="i-lucide-folder-plus"
           size="sm"
           @click="() => { selectedParentId = null; showCreateFolder = true }"
         >
-          {{ documentsData?.newFolder || '新建文件夹' }}
+          {{ documentsData?.newFolder || t('documents.newFolder') }}
         </UButton>
         <UButton
           icon="i-lucide-chevrons-down-up"
@@ -405,7 +379,7 @@ watch(currentDocumentId, async (newId) => {
           variant="ghost"
           @click="expandAll"
         >
-          {{ documentsData?.expandAll || '展开全部' }}
+          {{ documentsData?.expandAll || t('documents.expandAll') }}
         </UButton>
         <UButton
           icon="i-lucide-chevrons-up-down"
@@ -413,7 +387,7 @@ watch(currentDocumentId, async (newId) => {
           variant="ghost"
           @click="collapseAll"
         >
-          {{ documentsData?.collapseAll || '折叠全部' }}
+          {{ documentsData?.collapseAll || t('documents.collapseAll') }}
         </UButton>
       </div>
     </div>
@@ -421,18 +395,18 @@ watch(currentDocumentId, async (newId) => {
     <!-- 创建文档模态框 -->
     <UModal
       v-model:open="showCreateDocument"
-      :title="documentsData?.newDocument || '新建文档'"
+      :title="documentsData?.newDocument || t('documents.newDocument')"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UFormField
-          :label="documentsData?.documentName || '文档名称'"
+          :label="documentsData?.documentName || t('documents.documentName')"
           name="documentName"
           required
         >
           <UInput
             v-model="newDocumentName"
-            :placeholder="documentsData?.enterDocumentName || '请输入文档名称'"
+            :placeholder="documentsData?.enterDocumentName || t('documents.enterDocumentName')"
             @keyup.enter="handleCreateDocument"
           />
         </UFormField>
@@ -440,7 +414,7 @@ watch(currentDocumentId, async (newId) => {
           v-if="createDocumentParentId"
           class="mt-2 text-sm text-muted"
         >
-          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+          {{ documentsData?.createInSelectedFolder || t('documents.createInSelectedFolder') }}
         </div>
       </template>
 
@@ -450,13 +424,13 @@ watch(currentDocumentId, async (newId) => {
           variant="ghost"
           @click="close"
         >
-          {{ actionsData?.cancel || '取消' }}
+          {{ actionsData?.cancel || t('actions.cancel') }}
         </UButton>
         <UButton
           :loading="creatingDocument"
           @click="handleCreateDocument"
         >
-          {{ documentsData?.create || '创建' }}
+          {{ documentsData?.create || t('documents.create') }}
         </UButton>
       </template>
     </UModal>
@@ -464,18 +438,18 @@ watch(currentDocumentId, async (newId) => {
     <!-- 创建文件夹模态框 -->
     <UModal
       v-model:open="showCreateFolder"
-      :title="documentsData?.newFolder || '新建文件夹'"
+      :title="documentsData?.newFolder || t('documents.newFolder')"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UFormField
-          :label="documentsData?.folderName || '文件夹名称'"
+          :label="documentsData?.folderName || t('documents.folderName')"
           name="folderName"
           required
         >
           <UInput
             v-model="newFolderName"
-            :placeholder="documentsData?.enterFolderName || '请输入文件夹名称'"
+            :placeholder="documentsData?.enterFolderName || t('documents.enterFolderName')"
             @keyup.enter="handleCreateFolder"
           />
         </UFormField>
@@ -483,7 +457,7 @@ watch(currentDocumentId, async (newId) => {
           v-if="selectedParentId"
           class="mt-2 text-sm text-muted"
         >
-          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+          {{ documentsData?.createInSelectedFolder || t('documents.createInSelectedFolder') }}
         </div>
       </template>
 
@@ -493,13 +467,13 @@ watch(currentDocumentId, async (newId) => {
           variant="ghost"
           @click="close"
         >
-          {{ actionsData?.cancel || '取消' }}
+          {{ actionsData?.cancel || t('actions.cancel') }}
         </UButton>
         <UButton
           :loading="creatingFolder"
           @click="handleCreateFolder"
         >
-          {{ documentsData?.create || '创建' }}
+          {{ documentsData?.create || t('documents.create') }}
         </UButton>
       </template>
     </UModal>
@@ -507,37 +481,37 @@ watch(currentDocumentId, async (newId) => {
     <!-- 重命名模态框 -->
     <UModal
       v-model:open="showRenameModal"
-      :title="documentsData?.rename || '重命名'"
+      :title="documentsData?.rename || t('documents.rename')"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UFormField
-          :label="documentsData?.name || '名称'"
+          :label="documentsData?.name || t('documents.name')"
           name="renameInput"
           required
         >
           <UInput
             v-model="renameInput"
-            :placeholder="documentsData?.pleaseEnterTitle || '请输入名称'"
+            :placeholder="documentsData?.pleaseEnterTitle || t('documents.pleaseEnterTitle')"
             autofocus
             @keyup.enter="handleRename"
           />
         </UFormField>
       </template>
 
-      <template #footer="{ close }">
+      <template #footer>
         <UButton
           color="neutral"
           variant="ghost"
           @click="handleCancelRename"
         >
-          {{ actionsData?.cancel || '取消' }}
+          {{ actionsData?.cancel || t('actions.cancel') }}
         </UButton>
         <UButton
           :loading="renamingLoadingId !== null"
           @click="handleRename"
         >
-          {{ documentsData?.save || '保存' }}
+          {{ documentsData?.save || t('documents.save') }}
         </UButton>
       </template>
     </UModal>
@@ -559,7 +533,7 @@ watch(currentDocumentId, async (newId) => {
       :items="getEmptyAreaMenuItems"
     >
       <div class="text-center py-12 text-muted cursor-context-menu">
-        {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
+        {{ documentsData?.noDocuments || t('documents.noDocuments') }}
       </div>
     </UContextMenu>
 

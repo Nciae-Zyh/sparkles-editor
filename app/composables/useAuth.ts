@@ -1,9 +1,20 @@
 import type { User } from '~~/types'
 
 export const useAuth = () => {
+  const { t } = useI18n()
   const user = useState<User | null>('auth.user', () => null)
   const loading = ref(false)
   const authInitialized = useState<boolean>('auth.initialized', () => false)
+
+  const getErrorMessage = (error: unknown) => {
+    if (error && typeof error === 'object' && 'message' in error) {
+      const message = (error as { message?: unknown }).message
+      if (typeof message === 'string') {
+        return message
+      }
+    }
+    return ''
+  }
 
   const fetchUser = async () => {
     try {
@@ -11,7 +22,7 @@ export const useAuth = () => {
       const data = await $fetch<{ user: User }>('/api/auth/me')
       user.value = data.user
       return data.user
-    } catch (error) {
+    } catch {
       user.value = null
       return null
     } finally {
@@ -30,8 +41,9 @@ export const useAuth = () => {
       user.value = data.user
       await navigateTo('/', { replace: true })
       return data.user
-    } catch (error: any) {
-      throw new Error(error.data?.message || 'Login failed')
+    } catch (error: unknown) {
+      const message = (error as { data?: { message?: string } })?.data?.message
+      throw new Error(message || getErrorMessage(error) || t('auth.operationFailed'))
     } finally {
       loading.value = false
     }
@@ -47,32 +59,35 @@ export const useAuth = () => {
       user.value = data.user
       await navigateTo('/', { replace: true })
       return data.user
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorData = (error as { data?: unknown })?.data
+      const errorStatusCode = (error as { statusCode?: unknown })?.statusCode
+      const errorStatusMessage = (error as { statusMessage?: unknown })?.statusMessage
       console.error('[useAuth] Registration error:', {
-        statusCode: error.statusCode,
-        statusMessage: error.statusMessage,
-        message: error.message,
-        data: error.data,
-        response: error.response,
-        error: error
+        statusCode: errorStatusCode,
+        statusMessage: errorStatusMessage,
+        message: getErrorMessage(error),
+        data: errorData,
+        response: (error as { response?: unknown })?.response,
+        error
       })
 
       // 提取详细错误信息
-      let errorMessage = 'Registration failed'
+      let errorMessage = t('auth.operationFailed')
 
-      if (error.data?.message) {
-        errorMessage = error.data.message
-      } else if (error.message) {
-        errorMessage = error.message
-      } else if (error.statusMessage) {
-        errorMessage = `${error.statusMessage} (${error.statusCode || 'Unknown'})`
+      if (typeof (error as { data?: { message?: unknown } })?.data?.message === 'string') {
+        errorMessage = (error as { data: { message: string } }).data.message
+      } else if (getErrorMessage(error)) {
+        errorMessage = getErrorMessage(error)
+      } else if (typeof errorStatusMessage === 'string') {
+        errorMessage = `${errorStatusMessage} (${errorStatusCode || t('actions.unknown')})`
       }
 
       // 如果是 500 错误，添加更多调试信息
-      if (error.statusCode === 500) {
+      if (errorStatusCode === 500) {
         errorMessage += '. Please check the server logs for more details.'
-        if (error.data) {
-          console.error('[useAuth] Error data:', error.data)
+        if (errorData) {
+          console.error('[useAuth] Error data:', errorData)
         }
       }
 
@@ -94,8 +109,9 @@ export const useAuth = () => {
       user.value = data.user
       await navigateTo('/', { replace: true })
       return data.user
-    } catch (error: any) {
-      throw new Error(error.data?.message || 'Google login failed')
+    } catch (error: unknown) {
+      const message = (error as { data?: { message?: string } })?.data?.message
+      throw new Error(message || getErrorMessage(error) || t('auth.googleLoginFailed'))
     } finally {
       loading.value = false
     }

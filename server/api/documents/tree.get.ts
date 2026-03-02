@@ -23,26 +23,26 @@ export default eventHandler(async (event) => {
     WITH RECURSIVE folder_tree AS (
       -- 根节点（parent_id IS NULL）
       SELECT 
-        id, title, type, parent_id, created_at, updated_at,
+        id, title, type, parent_id, is_favorite, is_pinned, tags, created_at, updated_at,
         0 as depth,
         CAST(id AS TEXT) as path_ids
       FROM documents
-      WHERE user_id = ? AND parent_id IS NULL
+      WHERE user_id = ? AND (parent_id IS NULL OR parent_id = '') AND deleted_at IS NULL
       
       UNION ALL
       
       -- 递归查询子节点
       SELECT 
-        d.id, d.title, d.type, d.parent_id, d.created_at, d.updated_at,
+        d.id, d.title, d.type, d.parent_id, d.is_favorite, d.is_pinned, d.tags, d.created_at, d.updated_at,
         ft.depth + 1 as depth,
         ft.path_ids || '/' || d.id as path_ids
       FROM documents d
       INNER JOIN folder_tree ft ON d.parent_id = ft.id
-      WHERE d.user_id = ? AND ft.depth < 100  -- 限制最大深度为100层
+      WHERE d.user_id = ? AND d.deleted_at IS NULL AND ft.depth < 100  -- 限制最大深度为100层
     )
-    SELECT id, title, type, parent_id, created_at, updated_at, depth
+    SELECT id, title, type, parent_id, is_favorite, is_pinned, tags, created_at, updated_at, depth
     FROM folder_tree
-    ORDER BY type DESC, title ASC
+    ORDER BY is_pinned DESC, is_favorite DESC, type DESC, title ASC
   `).bind(user.id, user.id).all() as { results: Document[] }
 
   const items = allItems.results || []

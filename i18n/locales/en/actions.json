@@ -8,17 +8,23 @@
     "updateDocument": "Update Document",
     "save": "Save",
     "cancel": "Cancel",
+    "close": "Close",
+    "refresh": "Refresh",
+    "clear": "Clear",
+    "delete": "Delete",
     "storagePath": "Storage Path",
     "pathPlaceholder": "e.g., folder/subfolder/file.md",
     "pathDescription": "Enter the file path, and the system will automatically create the folder structure. Example: project/docs/readme.md",
     "pleaseLogin": "Please login first",
     "pleaseEnterPath": "Please enter storage path",
+    "pleaseSaveFirst": "Please save the document first",
     "saveFailed": "Save failed, please try again later",
+    "loadFailed": "Load failed, please try again later",
     "serverError": "Internal server error, please try again later",
     "invalidRequest": "Invalid request parameters",
     "downloadDocument": "Download Document",
     "downloadFailed": "Download failed, please try again later",
     "documentEmpty": "Document content is empty",
-    "pleaseSaveFirst": "Please save the document first"
+    "unknown": "Unknown"
   }
 }

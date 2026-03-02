@@ -15,10 +15,10 @@ export default eventHandler(async (event) => {
 
   // 检查文档是否存在且属于当前用户
   const document = await db.prepare(`
-    SELECT id, parent_id FROM documents WHERE id = ? AND user_id = ?
+    SELECT id, parent_id, deleted_at FROM documents WHERE id = ? AND user_id = ?
   `).bind(id, user.id).first() as any
 
-  if (!document) {
+  if (!document || document.deleted_at) {
     throw createError({
       statusCode: 404,
       message: 'Document not found'
@@ -31,10 +31,10 @@ export default eventHandler(async (event) => {
 
   while (currentParentId) {
     const parentDoc = await db.prepare(`
-      SELECT id, parent_id FROM documents WHERE id = ? AND user_id = ?
+      SELECT id, parent_id, deleted_at FROM documents WHERE id = ? AND user_id = ?
     `).bind(currentParentId, user.id).first() as any
 
-    if (!parentDoc) {
+    if (!parentDoc || parentDoc.deleted_at) {
       break
     }
 

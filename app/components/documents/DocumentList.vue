@@ -4,6 +4,8 @@ import { useDocumentContextMenu } from '~/composables/useDocumentContextMenu'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import type { Document } from '~/types'
 
+const { tm: $tm, t } = useI18n()
+
 interface Props {
   parentId?: string
 }
@@ -11,11 +13,20 @@ interface Props {
 const props = defineProps<Props>()
 
 const { documents, loading, fetchDocuments, deleteDocument, createFolder, createEmptyDocument, renameDocument } = useDocuments()
-const router = useRouter()
 const safeLocalePath = useSafeLocalePath()
 
-const documentsData = computed(() => $tm('documents') as Record<string, any> | undefined)
+const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
+
+const getErrorMessage = (error: unknown) => {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string') {
+      return message
+    }
+  }
+  return ''
+}
 
 const deletingId = ref<string | null>(null)
 const currentParentId = ref(props.parentId)
@@ -51,9 +62,9 @@ onMounted(() => {
 const handleDelete = async (id: string, event: Event) => {
   event.stopPropagation()
   const item = documents.value.find(d => d.id === id)
-  const itemType = item?.type === 'folder' ? (documentsData.value?.folder || '文件夹') : (documentsData.value?.document || '文档')
-  const deleteConfirm = documentsData.value?.deleteConfirm?.replace('{type}', itemType) || `确定要删除这个${itemType}吗？`
-  const deleteWarning = item?.type === 'folder' ? (documentsData.value?.deleteFolderWarning || '文件夹内的所有内容也会被删除。') : ''
+  const itemType = item?.type === 'folder' ? (documentsData.value?.folder || t('documents.folder')) : (documentsData.value?.document || t('documents.document'))
+  const deleteConfirm = documentsData.value?.deleteConfirm?.replace('{type}', itemType) || t('documents.deleteConfirm', { type: itemType })
+  const deleteWarning = item?.type === 'folder' ? (documentsData.value?.deleteFolderWarning || t('documents.deleteFolderWarning')) : ''
 
   if (!confirm(`${deleteConfirm}${deleteWarning}`)) {
     return
@@ -62,8 +73,8 @@ const handleDelete = async (id: string, event: Event) => {
   try {
     deletingId.value = id
     await deleteDocument(id)
-  } catch (error: any) {
-    alert(error.message || documentsData.value?.deleteFailed || '删除失败')
+  } catch (error: unknown) {
+    alert(getErrorMessage(error) || documentsData.value?.deleteFailed || t('documents.deleteFailed'))
   } finally {
     deletingId.value = null
   }
@@ -71,7 +82,7 @@ const handleDelete = async (id: string, event: Event) => {
 
 const handleCreateFolder = async () => {
   if (!newFolderName.value.trim()) {
-    alert(documentsData.value?.enterFolderName || '请输入文件夹名称')
+    alert(documentsData.value?.enterFolderName || t('documents.enterFolderName'))
     return
   }
 
@@ -83,8 +94,8 @@ const handleCreateFolder = async () => {
     showCreateFolder.value = false
     // 刷新文档列表以显示新创建的文件夹
     await fetchDocuments(savedParentId)
-  } catch (error: any) {
-    alert(error.message || documentsData.value?.createFolderFailed || '创建文件夹失败')
+  } catch (error: unknown) {
+    alert(getErrorMessage(error) || documentsData.value?.createFolderFailed || t('documents.createFolderFailed'))
   } finally {
     creatingFolder.value = false
   }
@@ -108,7 +119,7 @@ const formatDate = (timestamp: number) => {
 // 处理重命名
 const handleRename = async () => {
   if (!renamingId.value || !renamingName.value.trim()) {
-    alert(documentsData.value?.enterNewName || '请输入新名称')
+    alert(documentsData.value?.enterNewName || t('documents.enterNewName'))
     return
   }
 
@@ -118,8 +129,8 @@ const handleRename = async () => {
     renamingId.value = null
     renamingName.value = ''
     showRenameModal.value = false
-  } catch (error: any) {
-    alert(error.message || documentsData.value?.renameFailed || '重命名失败')
+  } catch (error: unknown) {
+    alert(getErrorMessage(error) || documentsData.value?.renameFailed || t('documents.renameFailed'))
   } finally {
     renaming.value = false
   }
@@ -136,7 +147,7 @@ const openRenameModal = (item: Document) => {
 // 创建新文档（空文档）
 const handleCreateDocument = async () => {
   if (!newDocumentName.value.trim()) {
-    alert(documentsData.value?.enterDocumentName || '请输入文档名称')
+    alert(documentsData.value?.enterDocumentName || t('documents.enterDocumentName'))
     return
   }
 
@@ -152,8 +163,8 @@ const handleCreateDocument = async () => {
 
     // 跳转到新创建的文档编辑页面
     await navigateTo(`${safeLocalePath('/documents')}/${document.id}`)
-  } catch (error: any) {
-    alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
+  } catch (error: unknown) {
+    alert(getErrorMessage(error) || documentsData.value?.createDocumentFailed || t('documents.createDocumentFailed'))
   } finally {
     creatingDocument.value = false
   }
@@ -207,12 +218,12 @@ const createNewDocument = () => {
   <div class="space-y-4">
     <div class="flex items-center justify-between gap-4">
       <h2 class="text-xl font-semibold">
-        {{ documentsData?.documentList || '文档列表' }}
+        {{ documentsData?.documentList || t('documents.documentList') }}
       </h2>
       <div class="flex gap-2">
         <UTooltip
-          v-if="(documentsData?.newDocument || '新建文档').length > 10"
-          :text="documentsData?.newDocument || '新建文档'"
+          v-if="(documentsData?.newDocument || t('documents.newDocument')).length > 10"
+          :text="documentsData?.newDocument || t('documents.newDocument')"
         >
           <UButton
             icon="i-lucide-file-plus"
@@ -228,11 +239,11 @@ const createNewDocument = () => {
           variant="soft"
           @click="createNewDocument"
         >
-          {{ documentsData?.newDocument || '新建文档' }}
+          {{ documentsData?.newDocument || t('documents.newDocument') }}
         </UButton>
         <UTooltip
-          v-if="(documentsData?.newFolder || '新建文件夹').length > 10"
-          :text="documentsData?.newFolder || '新建文件夹'"
+          v-if="(documentsData?.newFolder || t('documents.newFolder')).length > 10"
+          :text="documentsData?.newFolder || t('documents.newFolder')"
         >
           <UButton
             icon="i-lucide-folder-plus"
@@ -246,25 +257,25 @@ const createNewDocument = () => {
           size="sm"
           @click="showCreateFolder = true"
         >
-          {{ documentsData?.newFolder || '新建文件夹' }}
+          {{ documentsData?.newFolder || t('documents.newFolder') }}
         </UButton>
       </div>
     </div>
 
     <UModal
       v-model:open="showCreateFolder"
-      :title="documentsData?.newFolder || '新建文件夹'"
+      :title="documentsData?.newFolder || t('documents.newFolder')"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UFormField
-          :label="documentsData?.folderName || '文件夹名称'"
+          :label="documentsData?.folderName || t('documents.folderName')"
           name="folderName"
           required
         >
           <UInput
             v-model="newFolderName"
-            :placeholder="documentsData?.enterFolderName || '请输入文件夹名称'"
+            :placeholder="documentsData?.enterFolderName || t('documents.enterFolderName')"
             @keyup.enter="handleCreateFolder"
           />
         </UFormField>
@@ -276,31 +287,31 @@ const createNewDocument = () => {
           variant="ghost"
           @click="close"
         >
-          {{ actionsData?.cancel || '取消' }}
+          {{ actionsData?.cancel || t('actions.cancel') }}
         </UButton>
         <UButton
           :loading="creatingFolder"
           @click="handleCreateFolder"
         >
-          {{ documentsData?.create || '创建' }}
+          {{ documentsData?.create || t('documents.create') }}
         </UButton>
       </template>
     </UModal>
 
     <UModal
       v-model:open="showCreateDocument"
-      :title="documentsData?.newDocument || '新建文档'"
+      :title="documentsData?.newDocument || t('documents.newDocument')"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UFormField
-          :label="documentsData?.documentName || '文档名称'"
+          :label="documentsData?.documentName || t('documents.documentName')"
           name="documentName"
           required
         >
           <UInput
             v-model="newDocumentName"
-            :placeholder="documentsData?.enterDocumentName || '请输入文档名称'"
+            :placeholder="documentsData?.enterDocumentName || t('documents.enterDocumentName')"
             @keyup.enter="handleCreateDocument"
           />
         </UFormField>
@@ -308,7 +319,7 @@ const createNewDocument = () => {
           v-if="createDocumentParentId"
           class="mt-2 text-sm text-muted"
         >
-          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+          {{ documentsData?.createInSelectedFolder || t('documents.createInSelectedFolder') }}
         </div>
       </template>
 
@@ -318,31 +329,31 @@ const createNewDocument = () => {
           variant="ghost"
           @click="close"
         >
-          {{ actionsData?.cancel || '取消' }}
+          {{ actionsData?.cancel || t('actions.cancel') }}
         </UButton>
         <UButton
           :loading="creatingDocument"
           @click="handleCreateDocument"
         >
-          {{ documentsData?.create || '创建' }}
+          {{ documentsData?.create || t('documents.create') }}
         </UButton>
       </template>
     </UModal>
 
     <UModal
       v-model:open="showRenameModal"
-      :title="renamingType === 'folder' ? (documentsData?.renameFolder || '重命名文件夹') : (documentsData?.renameDocument || '重命名文档')"
+      :title="renamingType === 'folder' ? (documentsData?.renameFolder || t('documents.renameFolder')) : (documentsData?.renameDocument || t('documents.renameDocument'))"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UFormField
-          :label="documentsData?.enterNewName || '请输入新名称'"
+          :label="documentsData?.enterNewName || t('documents.enterNewName')"
           name="newName"
           required
         >
           <UInput
             v-model="renamingName"
-            :placeholder="documentsData?.enterNewName || '请输入新名称'"
+            :placeholder="documentsData?.enterNewName || t('documents.enterNewName')"
             @keyup.enter="handleRename"
           />
         </UFormField>
@@ -354,13 +365,13 @@ const createNewDocument = () => {
           variant="ghost"
           @click="close"
         >
-          {{ actionsData?.cancel || '取消' }}
+          {{ actionsData?.cancel || t('actions.cancel') }}
         </UButton>
         <UButton
           :loading="renaming"
           @click="handleRename"
         >
-          {{ actionsData?.save || '保存' }}
+          {{ actionsData?.save || t('actions.save') }}
         </UButton>
       </template>
     </UModal>
@@ -380,7 +391,7 @@ const createNewDocument = () => {
       :items="getEmptyAreaMenuItems"
     >
       <div class="text-center py-12 text-muted cursor-context-menu">
-        {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
+        {{ documentsData?.noDocuments || t('documents.noDocuments') }}
       </div>
     </UContextMenu>
 
@@ -426,7 +437,7 @@ const createNewDocument = () => {
               </template>
 
               <div class="text-sm text-muted">
-                {{ documentsData?.folder || '文件夹' }}
+                {{ documentsData?.folder || t('documents.folder') }}
               </div>
             </UCard>
           </UContextMenu>
@@ -454,7 +465,7 @@ const createNewDocument = () => {
                       class="w-5 h-5 text-primary"
                     />
                     <h3 class="font-semibold text-lg truncate">
-                      {{ doc.title || (documentsData?.untitledDocument || '未命名文档') }}
+                      {{ doc.title || (documentsData?.untitledDocument || t('documents.untitledDocument')) }}
                     </h3>
                   </div>
                   <UButton
@@ -470,10 +481,10 @@ const createNewDocument = () => {
 
               <div class="text-sm text-muted space-y-1">
                 <div>
-                  {{ documentsData?.createdAt || '创建时间' }}：{{ formatDate(doc.created_at) }}
+                  {{ documentsData?.createdAt || t('documents.createdAt') }}：{{ formatDate(doc.created_at) }}
                 </div>
                 <div>
-                  {{ documentsData?.updatedAt || '更新时间' }}：{{ formatDate(doc.updated_at) }}
+                  {{ documentsData?.updatedAt || t('documents.updatedAt') }}：{{ formatDate(doc.updated_at) }}
                 </div>
               </div>
             </UCard>

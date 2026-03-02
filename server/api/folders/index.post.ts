@@ -49,7 +49,7 @@ export default eventHandler(async (event) => {
   // 检查同一父文件夹下是否已存在同名文件夹
   const existing = await db.prepare(`
     SELECT id FROM documents 
-    WHERE user_id = ? AND parent_id = ? AND title = ? AND type = 'folder'
+    WHERE user_id = ? AND parent_id = ? AND title = ? AND type = 'folder' AND deleted_at IS NULL
   `).bind(user.id, parentId || null, title).first()
 
   if (existing) {

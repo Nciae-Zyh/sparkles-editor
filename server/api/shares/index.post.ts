@@ -11,7 +11,8 @@ export default eventHandler(async (event) => {
   }
 
   const body = await readBody(event)
-  const { document_id, password, expires_at } = body
+  const { document_id, password, expires_at, permission } = body
+  const sharePermission = ['read', 'comment', 'edit'].includes(permission) ? permission : 'read'
 
   if (!document_id) {
     throw createError({
@@ -24,10 +25,10 @@ export default eventHandler(async (event) => {
 
   // 检查文档是否存在且属于当前用户
   const document = await db.prepare(`
-    SELECT id, title, type FROM documents WHERE id = ? AND user_id = ?
+    SELECT id, title, type, deleted_at FROM documents WHERE id = ? AND user_id = ?
   `).bind(document_id, user.id).first() as any
 
-  if (!document) {
+  if (!document || document.deleted_at) {
     throw createError({
       statusCode: 404,
       message: 'Document not found'
@@ -67,9 +68,9 @@ export default eventHandler(async (event) => {
   // 创建分享记录
   const now = Math.floor(Date.now() / 1000)
   await db.prepare(`
-    INSERT INTO shares (id, document_id, user_id, password_hash, expires_at, view_count, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, 0, ?, ?)
-  `).bind(shareId, document_id, user.id, passwordHash, expiresAt, now, now).run()
+    INSERT INTO shares (id, document_id, user_id, permission, password_hash, expires_at, view_count, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+  `).bind(shareId, document_id, user.id, sharePermission, passwordHash, expiresAt, now, now).run()
 
   return {
     success: true,
@@ -77,6 +78,7 @@ export default eventHandler(async (event) => {
       id: shareId,
       document_id,
       document_title: document.title,
+      permission: sharePermission,
       expires_at: expiresAt,
       has_password: !!passwordHash,
       view_count: 0,

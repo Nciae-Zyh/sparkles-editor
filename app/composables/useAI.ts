@@ -9,7 +9,25 @@ function logClientError(action: string, err: unknown, meta?: Record<string, unkn
   console.error(AI_LOG_PREFIX, action, 'error', err, meta ?? '')
 }
 
+const getErrorMeta = (err: unknown) => {
+  if (!err || typeof err !== 'object') {
+    return { statusCode: undefined, message: undefined, data: undefined }
+  }
+
+  const statusCode = (err as { statusCode?: unknown, status?: unknown }).statusCode
+    ?? (err as { statusCode?: unknown, status?: unknown }).status
+  const message = (err as { message?: unknown }).message
+  const data = (err as { data?: unknown }).data
+
+  return {
+    statusCode: typeof statusCode === 'number' ? statusCode : undefined,
+    message: typeof message === 'string' ? message : undefined,
+    data
+  }
+}
+
 export function useAI() {
+  const { t } = useI18n()
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -58,15 +76,14 @@ export function useAI() {
       }
 
       return response.content
-    } catch (err: any) {
-      const statusCode = err?.statusCode ?? err?.status
-      const data = err?.data ?? err?.data
+    } catch (err: unknown) {
+      const { statusCode, message, data } = getErrorMeta(err)
       logClientError('continue', err, {
         statusCode,
-        message: err?.message,
+        message,
         data: data != null ? (typeof data === 'object' ? JSON.stringify(data).slice(0, 300) : String(data)) : undefined
       })
-      error.value = err.message || '续写失败，请稍后重试'
+      error.value = message || t('editor.aiContinueError')
       throw err
     } finally {
       loading.value = false
@@ -116,15 +133,14 @@ export function useAI() {
       }
 
       return response.content
-    } catch (err: any) {
-      const statusCode = err?.statusCode ?? err?.status
-      const data = err?.data ?? err?.data
+    } catch (err: unknown) {
+      const { statusCode, message, data } = getErrorMeta(err)
       logClientError('expand', err, {
         statusCode,
-        message: err?.message,
+        message,
         data: data != null ? (typeof data === 'object' ? JSON.stringify(data).slice(0, 300) : String(data)) : undefined
       })
-      error.value = err.message || '扩写失败，请稍后重试'
+      error.value = message || t('editor.aiExpandError')
       throw err
     } finally {
       loading.value = false
@@ -174,15 +190,14 @@ export function useAI() {
       }
 
       return response.content
-    } catch (err: any) {
-      const statusCode = err?.statusCode ?? err?.status
-      const data = err?.data ?? err?.data
+    } catch (err: unknown) {
+      const { statusCode, message, data } = getErrorMeta(err)
       logClientError('polish', err, {
         statusCode,
-        message: err?.message,
+        message,
         data: data != null ? (typeof data === 'object' ? JSON.stringify(data).slice(0, 300) : String(data)) : undefined
       })
-      error.value = err.message || '润色失败，请稍后重试'
+      error.value = message || t('editor.aiPolishError')
       throw err
     } finally {
       loading.value = false
@@ -231,15 +246,63 @@ export function useAI() {
         content: response.content,
         cached: response.cached || false
       }
-    } catch (err: any) {
-      const statusCode = err?.statusCode ?? err?.status
-      const data = err?.data ?? err?.data
+    } catch (err: unknown) {
+      const { statusCode, message, data } = getErrorMeta(err)
       logClientError('summarize', err, {
         statusCode,
-        message: err?.message,
+        message,
         data: data != null ? (typeof data === 'object' ? JSON.stringify(data).slice(0, 300) : String(data)) : undefined
       })
-      error.value = err.message || '总结失败，请稍后重试'
+      error.value = message || t('actions.loadFailed')
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const assist = async (
+    action: 'rewrite' | 'translate' | 'title' | 'action_items',
+    text: string,
+    options?: {
+      context?: string
+      tone?: string
+      targetLang?: string
+      maxTokens?: number
+    }
+  ): Promise<string> => {
+    loading.value = true
+    error.value = null
+
+    logClient('assist request', {
+      action,
+      textLength: text?.length ?? 0,
+      contextLength: options?.context?.length ?? 0,
+      tone: options?.tone,
+      targetLang: options?.targetLang
+    })
+
+    try {
+      const response = await $fetch<{ success: boolean, content: string }>('/api/ai/assist', {
+        method: 'POST',
+        body: {
+          action,
+          text,
+          context: options?.context,
+          tone: options?.tone,
+          targetLang: options?.targetLang,
+          maxTokens: options?.maxTokens ?? 700
+        }
+      })
+
+      if (!response.success || !response.content) {
+        throw new Error('Failed to process AI request')
+      }
+
+      return response.content
+    } catch (err: unknown) {
+      const { message } = getErrorMeta(err)
+      logClientError('assist', err, { action })
+      error.value = message || t('actions.serverError')
       throw err
     } finally {
       loading.value = false
@@ -252,6 +315,11 @@ export function useAI() {
     continueWriting,
     expandSelected,
     polishSelected,
-    summarize
+    summarize,
+    assist,
+    rewriteTone: (text: string, context?: string, tone?: string) => assist('rewrite', text, { context, tone }),
+    translateText: (text: string, targetLang = 'English') => assist('translate', text, { targetLang }),
+    generateTitles: (text: string, context?: string) => assist('title', text, { context }),
+    extractActionItems: (text: string, context?: string) => assist('action_items', text, { context })
   }
 }

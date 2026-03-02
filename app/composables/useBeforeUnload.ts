@@ -1,5 +1,5 @@
 export function useBeforeUnload(enabled: Ref<boolean> | (() => boolean) = () => true) {
-  const { tm: $tm } = useNuxtApp().$i18n
+  const { tm: $tm, t } = useNuxtApp().$i18n
   const beforeunloadData = computed(() => $tm('beforeunload') as Record<string, string> | undefined)
 
   const isEnabled = computed(() => {
@@ -14,7 +14,7 @@ export function useBeforeUnload(enabled: Ref<boolean> | (() => boolean) = () => 
 
       // 现代浏览器会忽略自定义消息，但仍需要设置 returnValue
       e.preventDefault()
-      const message = beforeunloadData.value?.message || '您有未保存的更改，确定要离开吗？'
+      const message = beforeunloadData.value?.message || t('beforeunload.message')
       e.returnValue = message
       return message
     }

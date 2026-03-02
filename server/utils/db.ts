@@ -107,6 +107,11 @@ export async function initDB(db: D1Database) {
         r2_key TEXT NOT NULL DEFAULT '',
         parent_id TEXT,
         type TEXT NOT NULL DEFAULT 'document',
+        is_favorite INTEGER NOT NULL DEFAULT 0,
+        is_pinned INTEGER NOT NULL DEFAULT 0,
+        tags TEXT NOT NULL DEFAULT '[]',
+        content_preview TEXT NOT NULL DEFAULT '',
+        deleted_at INTEGER,
         created_at INTEGER NOT NULL DEFAULT (unixepoch()),
         updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -119,12 +124,54 @@ export async function initDB(db: D1Database) {
         id TEXT PRIMARY KEY,
         document_id TEXT NOT NULL,
         user_id TEXT NOT NULL,
+        permission TEXT NOT NULL DEFAULT 'read',
         password_hash TEXT,
         expires_at INTEGER,
         view_count INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL DEFAULT (unixepoch()),
         updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
         FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `).run()
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS document_versions (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `).run()
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS document_comments (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        selected_text TEXT NOT NULL DEFAULT '',
+        comment TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'open',
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `).run()
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS document_comment_replies (
+        id TEXT PRIMARY KEY,
+        comment_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (comment_id) REFERENCES document_comments(id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       )
     `).run()
@@ -137,11 +184,17 @@ export async function initDB(db: D1Database) {
       'CREATE INDEX IF NOT EXISTS idx_documents_parent_id ON documents(parent_id)',
       'CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(type)',
       'CREATE INDEX IF NOT EXISTS idx_documents_user_parent ON documents(user_id, parent_id)',
+      'CREATE INDEX IF NOT EXISTS idx_documents_deleted_at ON documents(deleted_at)',
+      'CREATE INDEX IF NOT EXISTS idx_documents_pinned ON documents(is_pinned, updated_at DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_documents_favorite ON documents(is_favorite, updated_at DESC)',
       'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
       'CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)',
       'CREATE INDEX IF NOT EXISTS idx_shares_document_id ON shares(document_id)',
       'CREATE INDEX IF NOT EXISTS idx_shares_user_id ON shares(user_id)',
-      'CREATE INDEX IF NOT EXISTS idx_shares_created_at ON shares(created_at DESC)'
+      'CREATE INDEX IF NOT EXISTS idx_shares_created_at ON shares(created_at DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_document_versions_document ON document_versions(document_id, created_at DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_document_comments_document ON document_comments(document_id, created_at DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_document_comment_replies_comment ON document_comment_replies(comment_id, created_at ASC)'
     ]) {
       await db.prepare(sql).run().catch((e: any) =>
         console.warn('[initDB] Index skipped:', e?.message)
@@ -179,6 +232,36 @@ export async function migrateDB(db: D1Database) {
         sql: `ALTER TABLE documents ADD COLUMN type TEXT NOT NULL DEFAULT 'document'`
       })
     }
+    if (!columnNames.includes('is_favorite')) {
+      migrations.push({
+        name: 'add_is_favorite',
+        sql: `ALTER TABLE documents ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0`
+      })
+    }
+    if (!columnNames.includes('is_pinned')) {
+      migrations.push({
+        name: 'add_is_pinned',
+        sql: `ALTER TABLE documents ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`
+      })
+    }
+    if (!columnNames.includes('tags')) {
+      migrations.push({
+        name: 'add_tags',
+        sql: `ALTER TABLE documents ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'`
+      })
+    }
+    if (!columnNames.includes('content_preview')) {
+      migrations.push({
+        name: 'add_content_preview',
+        sql: `ALTER TABLE documents ADD COLUMN content_preview TEXT NOT NULL DEFAULT ''`
+      })
+    }
+    if (!columnNames.includes('deleted_at')) {
+      migrations.push({
+        name: 'add_deleted_at',
+        sql: `ALTER TABLE documents ADD COLUMN deleted_at INTEGER`
+      })
+    }
 
     // 检查并创建 shares 表
     const sharesExists = await db.prepare(
@@ -191,6 +274,7 @@ export async function migrateDB(db: D1Database) {
           id TEXT PRIMARY KEY,
           document_id TEXT NOT NULL,
           user_id TEXT NOT NULL,
+          permission TEXT NOT NULL DEFAULT 'read',
           password_hash TEXT,
           expires_at INTEGER,
           view_count INTEGER NOT NULL DEFAULT 0,
@@ -201,6 +285,52 @@ export async function migrateDB(db: D1Database) {
         )
       `).run()
     }
+    const shareColumns = await db.prepare(`PRAGMA table_info(shares)`).all().catch(() => ({ results: [] as any[] }))
+    const shareColumnNames = (shareColumns.results as any[]).map((col: any) => col.name)
+    if (!shareColumnNames.includes('permission')) {
+      await db.prepare(`ALTER TABLE shares ADD COLUMN permission TEXT NOT NULL DEFAULT 'read'`).run().catch(() => {})
+    }
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS document_versions (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `).run().catch(() => {})
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS document_comments (
+        id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        selected_text TEXT NOT NULL DEFAULT '',
+        comment TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'open',
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `).run().catch(() => {})
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS document_comment_replies (
+        id TEXT PRIMARY KEY,
+        comment_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (comment_id) REFERENCES document_comments(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `).run().catch(() => {})
 
     for (const migration of migrations) {
       await db.prepare(migration.sql).run().catch((e: any) => {

@@ -3,6 +3,7 @@ import type { NodeViewProps } from '@tiptap/vue-3'
 import { NodeViewWrapper } from '@tiptap/vue-3'
 
 const props = defineProps<NodeViewProps>()
+const { tm: $tm, t } = useI18n()
 
 const imageData = computed(() => $tm('image') as Record<string, string> | undefined)
 
@@ -38,7 +39,7 @@ async function onFileChange() {
     showAltDialog.value = true
   } catch (e) {
     console.log(e)
-    error.value = (e as Error & { data: { message: string } }).data.message || (imageData.value?.uploadFailed || '上传失败')
+    error.value = (e as Error & { data: { message: string } }).data.message || (imageData.value?.uploadFailed || t('image.uploadFailed'))
   } finally {
     loading.value = false
   }
@@ -118,7 +119,7 @@ function cancelImage() {
         </div>
       </template>
 
-      <template #footer="{ close }">
+      <template #footer>
         <UButton
           color="neutral"
           variant="ghost"

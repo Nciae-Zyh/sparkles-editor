@@ -1,9 +1,11 @@
 <script lang="ts" setup>
-import {useNotificationStore} from "~/store/notification";
+import { useNotificationStore } from '~/store/notification'
 
 const {
   locale,
-  locales
+  locales,
+  tm: $tm,
+  t
 } = useI18n()
 const route = useRoute()
 
@@ -27,8 +29,8 @@ useHead({
   }
 })
 
-const title = computed(() => appData.value?.title || 'Sparkles Editor')
-const description = computed(() => appData.value?.description || '')
+const title = computed(() => appData.value?.title || t('app.title'))
+const description = computed(() => appData.value?.description || t('app.description'))
 
 useSeoMeta({
   title,
@@ -68,7 +70,6 @@ onBeforeMount(() => {
   nuxtApp.$subscribeNotification = subscribeNotification
   nuxtApp.$clearAllSubscribe = clearAllSubscribe
   nuxtApp.$publishNotification = publishNotification
-
 })
 </script>
 

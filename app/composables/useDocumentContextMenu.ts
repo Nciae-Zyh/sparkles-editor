@@ -47,9 +47,9 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     onDownload,
     currentParentId = null
   } = options
-  const { tm: $tm } = useNuxtApp().$i18n
+  const { tm: $tm, t } = useNuxtApp().$i18n
 
-  const documentsData = computed(() => $tm('documents') as Record<string, any> | undefined)
+  const documentsData = computed(() => $tm('documents') as Record<string, unknown> | undefined)
   const contextMenuData = computed(() => documentsData.value?.contextMenu || {})
 
   /**
@@ -62,7 +62,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     if (onOpen) {
       items.push([
         {
-          label: contextMenuData.value.open || '打开',
+          label: contextMenuData.value.open || t('documents.contextMenu.open'),
           icon: 'i-lucide-folder-open',
           onSelect: () => onOpen(folder)
         }
@@ -73,7 +73,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     if (onRename) {
       items.push([
         {
-          label: contextMenuData.value.rename || '重命名',
+          label: contextMenuData.value.rename || t('documents.contextMenu.rename'),
           icon: 'i-lucide-pencil',
           onSelect: () => onRename(folder)
         }
@@ -84,14 +84,14 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     const createItems: ContextMenuItem[] = []
     if (onCreateDocument) {
       createItems.push({
-        label: contextMenuData.value.newDocument || '新建文档',
+        label: contextMenuData.value.newDocument || t('documents.contextMenu.newDocument'),
         icon: 'i-lucide-file-plus',
         onSelect: () => onCreateDocument(folder.id)
       })
     }
     if (onCreateFolder) {
       createItems.push({
-        label: contextMenuData.value.newFolder || '新建文件夹',
+        label: contextMenuData.value.newFolder || t('documents.contextMenu.newFolder'),
         icon: 'i-lucide-folder-plus',
         onSelect: () => onCreateFolder(folder.id)
       })
@@ -104,7 +104,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     if (onDelete) {
       items.push([
         {
-          label: contextMenuData.value.delete || '删除',
+          label: contextMenuData.value.delete || t('documents.contextMenu.delete'),
           icon: 'i-lucide-trash-2',
           color: 'error' as const,
           onSelect: (e: Event) => onDelete(folder, e)
@@ -125,7 +125,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     if (onOpen) {
       items.push([
         {
-          label: contextMenuData.value.open || '打开',
+          label: contextMenuData.value.open || t('documents.contextMenu.open'),
           icon: 'i-lucide-file-text',
           onSelect: () => onOpen(doc)
         }
@@ -136,7 +136,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     if (onRename) {
       items.push([
         {
-          label: contextMenuData.value.rename || '重命名',
+          label: contextMenuData.value.rename || t('documents.contextMenu.rename'),
           icon: 'i-lucide-pencil',
           onSelect: () => onRename(doc)
         }
@@ -147,7 +147,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     if (onDownload && doc.type === 'document') {
       items.push([
         {
-          label: contextMenuData.value.download || '下载',
+          label: contextMenuData.value.download || t('documents.contextMenu.download'),
           icon: 'i-lucide-download',
           onSelect: (e: Event) => onDownload(doc, e)
         }
@@ -158,7 +158,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     if (onDelete) {
       items.push([
         {
-          label: contextMenuData.value.delete || '删除',
+          label: contextMenuData.value.delete || t('documents.contextMenu.delete'),
           icon: 'i-lucide-trash-2',
           color: 'error' as const,
           onSelect: (e: Event) => onDelete(doc, e)
@@ -180,7 +180,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     if (onCreateDocument) {
       items.push([
         {
-          label: contextMenuData.value.newDocument || '新建文档',
+          label: contextMenuData.value.newDocument || t('documents.contextMenu.newDocument'),
           icon: 'i-lucide-file-plus',
           onSelect: () => onCreateDocument(parentId)
         }
@@ -191,7 +191,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     if (onCreateFolder) {
       items.push([
         {
-          label: contextMenuData.value.newFolder || '新建文件夹',
+          label: contextMenuData.value.newFolder || t('documents.contextMenu.newFolder'),
           icon: 'i-lucide-folder-plus',
           onSelect: () => onCreateFolder(parentId)
         }

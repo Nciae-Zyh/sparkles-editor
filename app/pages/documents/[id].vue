@@ -2,21 +2,23 @@
 import { useDocuments } from '~/composables/useDocuments'
 import { useAuth } from '~/composables/useAuth'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
+import type { Document } from '~/types'
+
+const { tm: $tm, t } = useI18n()
 
 definePageMeta({
   layout: 'editor'
 })
 
 const route = useRoute()
-const router = useRouter()
-const { user, fetchUser, loading: authLoading } = useAuth()
+const { user, fetchUser } = useAuth()
 const { getDocument, renameDocument } = useDocuments()
 const safeLocalePath = useSafeLocalePath()
 
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 
 const documentId = computed(() => route.params.id as string)
-const document = ref<any>(null)
+const document = ref<(Document & { content?: string }) | null>(null)
 const content = ref('')
 const pageLoading = ref(true)
 const documentTitle = ref('')
@@ -40,7 +42,7 @@ onMounted(async () => {
     const doc = await getDocument(documentId.value)
     document.value = doc
     content.value = doc.content || ''
-    documentTitle.value = doc.title || (documentsData.value?.untitledDocument || '未命名文档')
+    documentTitle.value = doc.title || (documentsData.value?.untitledDocument || t('documents.untitledDocument'))
 
     // 检查文档是否属于当前用户
     if (doc.user_id && user.value && doc.user_id !== user.value.id) {
@@ -73,7 +75,7 @@ onMounted(async () => {
         }
       }
     })
-    
+
     // 组件卸载时取消订阅
     onUnmounted(() => {
       unsubscribe()
@@ -97,7 +99,7 @@ const cancelRename = () => {
 // 保存重命名
 const saveRename = async () => {
   if (!renameInput.value.trim()) {
-    alert(documentsData.value?.pleaseEnterTitle || '请输入文档名称')
+    alert(documentsData.value?.pleaseEnterTitle || t('documents.pleaseEnterTitle'))
     return
   }
 
@@ -107,10 +109,10 @@ const saveRename = async () => {
   }
 
   const newTitle = renameInput.value.trim()
-  
+
   // 验证标题不能包含路径分隔符
   if (newTitle.includes('/') || newTitle.includes('\\')) {
-    alert(documentsData.value?.titleCannotContainPath || '标题不能包含路径分隔符（/ 或 \\）')
+    alert(documentsData.value?.titleCannotContainPath || t('documents.titleCannotContainPath'))
     return
   }
 
@@ -123,7 +125,7 @@ const saveRename = async () => {
       document.value.title = newTitle
     }
     cancelRename()
-    
+
     // 发布重命名通知，通知文档树更新
     const nuxtApp = useNuxtApp()
     if (nuxtApp.$publishNotification) {
@@ -133,9 +135,10 @@ const saveRename = async () => {
       })
     }
     // 注意：重命名后，originalDocumentTitle 会在 MarkdownEditor 中通过 watch 自动更新
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('重命名失败:', error)
-    alert(error.message || documentsData.value?.renameFailedRetry || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+    const message = error && typeof error === 'object' && 'message' in error ? String((error as { message: unknown }).message || '') : ''
+    alert(message || documentsData.value?.renameFailedRetry || documentsData.value?.renameFailed || t('documents.renameFailed'))
   } finally {
     isRenamingLoading.value = false
   }

@@ -87,11 +87,11 @@ export default eventHandler(async (event) => {
     if (clientParentId) {
       console.log(`[POST /api/documents] [${requestId}] 使用客户端提供的 parentId: ${clientParentId}`)
       // 验证父文件夹是否存在且属于当前用户
-      const parent = await db.prepare('SELECT id, type FROM documents WHERE id = ? AND user_id = ?')
+      const parent = await db.prepare('SELECT id, type, deleted_at FROM documents WHERE id = ? AND user_id = ?')
         .bind(clientParentId, user.id)
         .first() as any
 
-      if (!parent) {
+      if (!parent || parent.deleted_at) {
         throw createError({
           statusCode: 404,
           message: 'Parent folder not found'
@@ -173,7 +173,7 @@ export default eventHandler(async (event) => {
     try {
       const existing = await db.prepare(`
         SELECT id FROM documents 
-        WHERE user_id = ? AND parent_id = ? AND title = ? AND type = ?
+        WHERE user_id = ? AND parent_id = ? AND title = ? AND type = ? AND deleted_at IS NULL
       `).bind(user.id, finalParentId || null, finalTitle, type).first()
 
       if (existing) {
@@ -231,9 +231,10 @@ export default eventHandler(async (event) => {
     // 10. 保存到数据库
     console.log(`[POST /api/documents] [${requestId}] 步骤10: 保存到数据库`)
     try {
+      const contentPreview = type === 'document' ? String(content || '').slice(0, 2000) : ''
       const result = await db.prepare(`
-        INSERT INTO documents (id, user_id, title, r2_key, parent_id, type, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO documents (id, user_id, title, r2_key, parent_id, type, content_preview, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         documentId,
         user.id,
@@ -241,6 +242,7 @@ export default eventHandler(async (event) => {
         r2Key,
         finalParentId,
         type,
+        contentPreview,
         now,
         now
       ).run()

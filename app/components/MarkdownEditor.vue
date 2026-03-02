@@ -11,6 +11,8 @@ import { useAuth } from '~/composables/useAuth'
 import { useDocuments } from '~/composables/useDocuments'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 
+const { tm: $tm, t } = useI18n()
+
 interface Props {
   placeholder?: string
   enableBeforeUnload?: boolean
@@ -34,7 +36,7 @@ const emit = defineEmits<{
 }>()
 
 const props = withDefaults(defineProps<Props>(), {
-  placeholder: '开始写作，输入 \'/\' 查看命令...',
+  placeholder: '',
   enableBeforeUnload: false,
   showImportExport: true,
   documentId: undefined,
@@ -49,16 +51,32 @@ const props = withDefaults(defineProps<Props>(), {
 const content = defineModel<string>()
 
 const { user } = useAuth()
-const { saveDocument, getDocument } = useDocuments()
+const {
+  saveDocument,
+  getDocument,
+  fetchVersions,
+  createVersion,
+  restoreVersion
+} = useDocuments()
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
 const appData = computed(() => $tm('app') as Record<string, string> | undefined)
 const sharesData = computed(() => $tm('shares') as Record<string, string> | undefined)
-const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || '未命名文档'))
+const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || t('documents.untitledDocument')))
 const showShareModal = ref(false)
 const showOutline = ref(false)
 const safeLocalePath = useSafeLocalePath()
 // 保存原始文档标题，用于自动保存（沿用用户设置的标题，不从内容提取）
 const originalDocumentTitle = ref<string | null>(null)
+
+const getErrorStatus = (error: unknown) => {
+  if (error && typeof error === 'object') {
+    const statusCode = (error as { statusCode?: unknown }).statusCode
+    const status = (error as { status?: unknown }).status
+    if (typeof statusCode === 'number') return statusCode
+    if (typeof status === 'number') return status
+  }
+  return null
+}
 
 // 监听 props.documentTitle 的变化，更新显示标题和原始标题
 watch(() => props.documentTitle, (newTitle) => {
@@ -93,9 +111,9 @@ const checkDocumentExists = async (id: string) => {
       // 同时更新 documentTitle 显示
       documentTitle.value = doc.title
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 如果获取失败（404），说明是新文档，还未保存
-    if (error?.statusCode === 404 || error?.status === 404) {
+    if (getErrorStatus(error) === 404) {
       hasBeenSaved.value = false
       originalDocumentTitle.value = null
     } else {
@@ -147,10 +165,10 @@ const actionsData = computed(() => $tm('actions') as Record<string, string> | un
 
 // 使用 computed 来获取实际的 placeholder，如果 props.placeholder 是默认值则使用翻译
 const placeholder = computed(() => {
-  if (props.placeholder === '开始写作，输入 \'/\' 查看命令...') {
-    return editorData.value?.placeholder || props.placeholder
+  if (props.placeholder?.trim()) {
+    return props.placeholder
   }
-  return props.placeholder
+  return editorData.value?.placeholder || t('editor.placeholder')
 })
 
 const editorRef = ref<Editor | null>(null)
@@ -159,7 +177,52 @@ const editorRef = ref<Editor | null>(null)
 const autoSaveTimer = ref<NodeJS.Timeout | null>(null)
 const isAutoSaving = ref(false)
 const lastSavedAt = ref<Date | null>(null)
+const lastSaveError = ref<string | null>(null)
 const AUTO_SAVE_DELAY = 3000 // 3秒后自动保存
+
+const saveStatus = computed(() => {
+  if (isAutoSaving.value) {
+    return {
+      icon: 'i-lucide-loader-2',
+      text: editorData.value?.autoSaving || t('editor.autoSaving'),
+      class: 'text-xs text-muted',
+      spin: true
+    }
+  }
+
+  if (lastSaveError.value) {
+    return {
+      icon: 'i-lucide-circle-alert',
+      text: lastSaveError.value,
+      class: 'text-xs text-error',
+      spin: false
+    }
+  }
+
+  if (lastSavedAt.value) {
+    return {
+      icon: 'i-lucide-check',
+      text: `${editorData.value?.saved || t('editor.saved')} ${lastSavedAt.value.toLocaleTimeString()}`,
+      class: 'text-xs text-dimmed',
+      spin: false
+    }
+  }
+
+  return null
+})
+
+interface DocumentVersionItem {
+  id: string
+  title: string
+  content_length: number
+  created_at: number
+}
+
+const showVersionHistory = ref(false)
+const versionLoading = ref(false)
+const creatingVersion = ref(false)
+const restoringVersionId = ref<string | null>(null)
+const versions = ref<DocumentVersionItem[]>([])
 
 // 自动保存逻辑（只对已保存到服务器的文档且允许保存时）
 watch([
@@ -210,9 +273,11 @@ watch([
       const titleToSave = originalDocumentTitle.value || documentTitle.value
       await saveDocument(titleToSave, content.value, documentId.value)
       lastSavedAt.value = new Date()
+      lastSaveError.value = null
     } catch (error) {
       // 自动保存失败不显示错误提示，避免打扰用户
       console.error('Auto save failed:', error)
+      lastSaveError.value = actionsData.value?.saveFailed || t('actions.saveFailed')
     } finally {
       isAutoSaving.value = false
     }
@@ -227,7 +292,7 @@ async function handleAIContinueAtPosition(editor: Editor, pos?: number) {
 
   const currentContent = content.value
   if (!currentContent.trim()) {
-    alert(editorData.value?.aiContinueError || '请先输入一些内容')
+    alert(editorData.value?.aiContinueError || t('editor.aiContinueError'))
     return
   }
 
@@ -261,9 +326,9 @@ async function handleAIContinueAtPosition(editor: Editor, pos?: number) {
       .focus()
       .insertContentAt(afterBlockPos, continuedText, { contentType: 'markdown' })
       .run()
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('AI continue error:', error)
-    alert(aiError.value || editorData.value?.aiContinueError || '续写失败，请稍后重试')
+    alert(aiError.value || editorData.value?.aiContinueError || t('editor.aiContinueError'))
   } finally {
     isAIContinuing.value = false
   }
@@ -292,7 +357,7 @@ const customHandlers = {
     isDisabled: undefined
   },
   aiContinue: {
-    canExecute: (editor: Editor) => !!content.value && content.value.trim().length > 0,
+    canExecute: (_editor: Editor) => !!content.value && content.value.trim().length > 0,
     execute: (editor: Editor, options?: { pos?: number }) => {
       handleAIContinueAtPosition(editor, options?.pos)
     },
@@ -315,7 +380,7 @@ const {
 } = useEditorToolbar(customHandlers)
 
 // AI 功能
-const { continueWriting, expandSelected, polishSelected, loading: aiLoading, error: aiError } = useAI()
+const { continueWriting, expandSelected, polishSelected, error: aiError } = useAI()
 const isAIContinuing = ref(false)
 const isAIExpanding = ref(false)
 const isAIPolishing = ref(false)
@@ -333,7 +398,7 @@ onUnmounted(() => {
 
 // 移除了监听语言变化的逻辑，因为多语言不会在页面内切换
 
-function onCreate({ editor: _editor}: { editor: Editor }) {
+function onCreate({ editor: _editor }: { editor: Editor }) {
   // Editor created
   // 如果是只读模式，禁用编辑器编辑
   if (props.readonly) {
@@ -372,7 +437,7 @@ const extensions = computed(() => [
 function importMarkdown(markdown: string) {
   const editor = editorRef.value?.editor
   if (!editor) {
-    console.warn(editorData.value?.editorNotReady || 'Editor not ready')
+    console.warn(editorData.value?.editorNotReady || t('editor.editorNotReady'))
     return
   }
 
@@ -384,7 +449,7 @@ function importMarkdown(markdown: string) {
 function exportMarkdown(): string {
   const editor = editorRef.value?.editor
   if (!editor) {
-    console.warn(editorData.value?.editorNotReady || 'Editor not ready')
+    console.warn(editorData.value?.editorNotReady || t('editor.editorNotReady'))
     return content.value || ''
   }
 
@@ -450,7 +515,7 @@ async function handleFileImport(event: Event) {
       emit('imported', text)
     }
   } catch (error) {
-    console.error(editorData.value?.importFileFailed || '导入文件失败:', error)
+    console.error(editorData.value?.importFileFailed || t('editor.importFileFailed'), error)
     alert(actionsData.value?.importFailed)
   } finally {
     isImporting.value = false
@@ -472,16 +537,93 @@ const handleSave = async () => {
       await saveDocument(titleToSave, content.value || '', documentId.value)
       hasBeenSaved.value = true
       lastSavedAt.value = new Date()
+      lastSaveError.value = null
     } catch (error) {
       console.error('Save failed:', error)
-      alert(actionsData.value?.saveFailed || '保存失败，请稍后重试')
+      lastSaveError.value = actionsData.value?.saveFailed || t('actions.saveFailed')
+      alert(actionsData.value?.saveFailed || t('actions.saveFailed'))
     }
   } else {
     // 如果没有 documentId，触发保存按钮的点击（打开保存对话框）
     // 这里需要触发 SaveDocumentButton 的保存流程
     // 由于 SaveDocumentButton 是独立的组件，我们需要通过事件来触发
     // 暂时先提示用户
-    alert(actionsData.value?.pleaseSaveFirst || '请先保存文档')
+    alert(actionsData.value?.pleaseSaveFirst || t('actions.pleaseSaveFirst'))
+  }
+}
+
+const loadVersions = async () => {
+  if (!documentId.value || !hasBeenSaved.value || props.readonly) {
+    versions.value = []
+    return
+  }
+
+  versionLoading.value = true
+  try {
+    const data = await fetchVersions(documentId.value)
+    versions.value = data as DocumentVersionItem[]
+  } catch (error) {
+    console.error('Load versions failed:', error)
+    alert(actionsData.value?.loadFailed || t('actions.loadFailed'))
+  } finally {
+    versionLoading.value = false
+  }
+}
+
+const openVersionHistory = async () => {
+  showVersionHistory.value = true
+  await loadVersions()
+}
+
+const createVersionSnapshot = async () => {
+  if (!documentId.value || props.readonly) {
+    return
+  }
+
+  creatingVersion.value = true
+  try {
+    await createVersion(documentId.value, content.value || '', originalDocumentTitle.value || documentTitle.value)
+    await loadVersions()
+  } catch (error) {
+    console.error('Create version failed:', error)
+    alert(actionsData.value?.saveFailed || t('actions.saveFailed'))
+  } finally {
+    creatingVersion.value = false
+  }
+}
+
+const restoreVersionById = async (versionId: string) => {
+  if (!documentId.value || props.readonly) {
+    return
+  }
+
+  const restoreConfirm = confirm(documentsData.value?.restoreVersionConfirm || t('documents.restoreVersionConfirm'))
+  if (!restoreConfirm) {
+    return
+  }
+
+  restoringVersionId.value = versionId
+  try {
+    const result = await restoreVersion(documentId.value, versionId)
+    if (result?.document?.title) {
+      documentTitle.value = result.document.title
+      originalDocumentTitle.value = result.document.title
+    }
+
+    const latestDocument = await getDocument(documentId.value)
+    const latestContent = latestDocument.content || ''
+    importMarkdown(latestContent)
+
+    hasBeenSaved.value = true
+    lastSavedAt.value = new Date()
+    lastSaveError.value = null
+
+    await loadVersions()
+  } catch (error) {
+    console.error('Restore version failed:', error)
+    alert(actionsData.value?.saveFailed || t('actions.saveFailed'))
+  } finally {
+    restoringVersionId.value = null
   }
 }
 
@@ -501,12 +643,12 @@ async function handleAIExpandSelected(editor: Editor) {
   const { state } = editor
   const { from, to } = state.selection
   if (from === to) {
-    alert(editorData.value?.aiExpandNoSelection || '请先选中要扩写的文本')
+    alert(editorData.value?.aiExpandNoSelection || t('editor.aiExpandNoSelection'))
     return
   }
   const selectedText = state.doc.textBetween(from, to, ' ')
   if (!selectedText.trim()) {
-    alert(editorData.value?.aiExpandNoSelection || '请先选中要扩写的文本')
+    alert(editorData.value?.aiExpandNoSelection || t('editor.aiExpandNoSelection'))
     return
   }
   try {
@@ -518,9 +660,9 @@ async function handleAIExpandSelected(editor: Editor) {
       .setTextSelection({ from, to })
       .insertContent(expandedText, { contentType: 'markdown' })
       .run()
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('AI expand error:', error)
-    alert(aiError.value || editorData.value?.aiExpandError || '扩写失败，请稍后重试')
+    alert(aiError.value || editorData.value?.aiExpandError || t('editor.aiExpandError'))
   } finally {
     isAIExpanding.value = false
   }
@@ -534,12 +676,12 @@ async function handleAIPolishSelected(editor: Editor) {
   const { state } = editor
   const { from, to } = state.selection
   if (from === to) {
-    alert(editorData.value?.aiPolishNoSelection || '请先选中要润色的文本')
+    alert(editorData.value?.aiPolishNoSelection || t('editor.aiPolishNoSelection'))
     return
   }
   const selectedText = state.doc.textBetween(from, to, ' ')
   if (!selectedText.trim()) {
-    alert(editorData.value?.aiPolishNoSelection || '请先选中要润色的文本')
+    alert(editorData.value?.aiPolishNoSelection || t('editor.aiPolishNoSelection'))
     return
   }
   try {
@@ -551,9 +693,9 @@ async function handleAIPolishSelected(editor: Editor) {
       .setTextSelection({ from, to })
       .insertContent(polishedText, { contentType: 'markdown' })
       .run()
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('AI polish error:', error)
-    alert(aiError.value || editorData.value?.aiPolishError || '润色失败，请稍后重试')
+    alert(aiError.value || editorData.value?.aiPolishError || t('editor.aiPolishError'))
   } finally {
     isAIPolishing.value = false
   }
@@ -565,14 +707,14 @@ function getAIBubbleItems(editor: Editor) {
   return [[
     {
       icon: 'i-lucide-sparkles',
-      label: data?.aiExpand || '选中扩写',
-      tooltip: { text: data?.aiExpandDesc || '使用 AI 扩写选中内容' },
+      label: data?.aiExpand || t('editor.aiExpand'),
+      tooltip: { text: data?.aiExpandDesc || t('editor.aiExpandDesc') },
       onClick: () => handleAIExpandSelected(editor)
     },
     {
       icon: 'i-lucide-wand-2',
-      label: data?.aiPolish || '润色',
-      tooltip: { text: data?.aiPolishDesc || '使用 AI 润色选中内容' },
+      label: data?.aiPolish || t('editor.aiPolish'),
+      tooltip: { text: data?.aiPolishDesc || t('editor.aiPolishDesc') },
       onClick: () => handleAIPolishSelected(editor)
     }
   ]]
@@ -620,331 +762,345 @@ defineExpose({
   <div class="editor-container h-full flex flex-col overflow-hidden">
     <div class="flex-1 min-h-0 flex overflow-hidden">
       <div class="flex-1 overflow-y-auto flex flex-col">
-      <UEditor
-        ref="editorRef"
-        v-slot="{ editor, handlers }"
-        :extensions="extensions"
-        :handlers="customHandlers"
-        :model-value="content"
-        :placeholder="placeholder"
-        :ui="{
-          base: 'p-4 sm:p-6 lg:p-12',
-          content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'
-        }"
-        :autofocus="!readonly"
-        class="editor-wrapper"
-        content-type="markdown"
-        @create="onCreate"
-        @update:model-value="onUpdate"
-      >
-        <div
-          class="sticky top-0 z-50 flex items-center bg-default/80 backdrop-blur-md border-b border-default shadow-sm"
+        <UEditor
+          ref="editorRef"
+          v-slot="{ editor, handlers }"
+          :extensions="extensions"
+          :handlers="customHandlers"
+          :model-value="content"
+          :placeholder="placeholder"
+          :ui="{
+            base: 'p-4 sm:p-6 lg:p-12',
+            content: 'max-w-4xl mx-auto prose prose-sm sm:prose-base lg:prose-lg dark:prose-invert prose-headings:font-semibold prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border'
+          }"
+          :autofocus="!readonly"
+          class="editor-wrapper"
+          content-type="markdown"
+          @create="onCreate"
+          @update:model-value="onUpdate"
         >
-          <div class="container mx-auto px-4 sm:px-6 lg:px-14">
-            <div class="flex items-center justify-between gap-4 py-3">
-              <div class="flex items-center gap-4 flex-1 min-w-0">
-                <!-- 文档标题显示和重命名（在工具栏左侧） -->
-                <div
-                  v-if="documentId && documentTitle"
-                  class="flex items-center gap-2 min-w-0 flex-shrink-0"
-                >
+          <div
+            class="sticky top-0 z-50 flex items-center bg-default/80 backdrop-blur-md border-b border-default shadow-sm"
+          >
+            <div class="container mx-auto px-4 sm:px-6 lg:px-14">
+              <div class="flex items-center justify-between gap-4 py-3">
+                <div class="flex items-center gap-4 flex-1 min-w-0">
+                  <!-- 文档标题显示和重命名（在工具栏左侧） -->
                   <div
-                    v-if="!props.isRenaming"
-                    class="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/20 bg-primary/5 dark:bg-primary/10"
+                    v-if="documentId && documentTitle"
+                    class="flex items-center gap-2 min-w-0 flex-shrink-0"
                   >
-                    <span class="text-sm font-medium truncate max-w-[200px]">
-                      {{ documentTitle }}
-                    </span>
+                    <div
+                      v-if="!props.isRenaming"
+                      class="flex items-center gap-2 px-3 py-1.5 rounded-md border border-primary/20 bg-primary/5 dark:bg-primary/10"
+                    >
+                      <span class="text-sm font-medium truncate max-w-[200px]">
+                        {{ documentTitle }}
+                      </span>
+                      <UButton
+                        v-if="!readonly"
+                        icon="i-lucide-pencil"
+                        size="xs"
+                        variant="ghost"
+                        @click="$emit('start-rename')"
+                      />
+                    </div>
+                    <div
+                      v-else
+                      class="flex items-center gap-1 px-3 py-1.5 rounded-md border border-primary/20 bg-primary/5 dark:bg-primary/10"
+                    >
+                      <UInput
+                        :model-value="props.renameInput"
+                        size="xs"
+                        class="w-48"
+                        autofocus
+                        @update:model-value="(val) => emit('update:renameInput', val)"
+                        @keyup.enter="$emit('save-rename')"
+                        @keyup.esc="$emit('cancel-rename')"
+                      />
+                      <UButton
+                        icon="i-lucide-check"
+                        size="xs"
+                        color="primary"
+                        :loading="props.renameLoading"
+                        @click="$emit('save-rename')"
+                      />
+                      <UButton
+                        icon="i-lucide-x"
+                        size="xs"
+                        variant="ghost"
+                        @click="$emit('cancel-rename')"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- 工具栏 -->
+                  <div
+                    v-if="!readonly"
+                    class="flex-1 overflow-x-auto flex items-center gap-2"
+                  >
+                    <UEditorToolbar
+                      :editor="editor"
+                      :items="toolbarItems"
+                    />
+                    <!-- 文章续写按钮 -->
+                    <UButton
+                      :loading="isAIContinuing"
+                      :disabled="!content || !content.trim()"
+                      color="primary"
+                      icon="i-lucide-sparkles"
+                      size="sm"
+                      variant="soft"
+                      @click="handleAIContinue"
+                    >
+                      <span v-if="!$device.isMobile">
+                        {{ editorData?.aiContinue || t('editor.aiContinue') }}
+                      </span>
+                    </UButton>
+                  </div>
+                </div>
+                <div class="hidden lg:flex shrink-0 items-center">
+                  <UTooltip :text="editorData?.outline || t('editor.outline')">
                     <UButton
                       v-if="!readonly"
-                      icon="i-lucide-pencil"
-                      size="xs"
-                      variant="ghost"
-                      @click="$emit('start-rename')"
-                    />
-                  </div>
-                  <div
-                    v-else
-                    class="flex items-center gap-1 px-3 py-1.5 rounded-md border border-primary/20 bg-primary/5 dark:bg-primary/10"
-                  >
-                    <UInput
-                      :model-value="props.renameInput"
-                      size="xs"
-                      class="w-48"
-                      autofocus
-                      @update:model-value="(val) => emit('update:renameInput', val)"
-                      @keyup.enter="$emit('save-rename')"
-                      @keyup.esc="$emit('cancel-rename')"
-                    />
-                    <UButton
-                      icon="i-lucide-check"
-                      size="xs"
+                      icon="i-lucide-list-tree"
+                      size="sm"
+                      :variant="showOutline ? 'solid' : 'soft'"
                       color="primary"
-                      :loading="props.renameLoading"
-                      @click="$emit('save-rename')"
+                      @click="showOutline = !showOutline"
                     />
-                    <UButton
-                      icon="i-lucide-x"
-                      size="xs"
-                      variant="ghost"
-                      @click="$emit('cancel-rename')"
-                    />
-                  </div>
+                  </UTooltip>
                 </div>
-
-                <!-- 工具栏 -->
                 <div
-                  v-if="!readonly"
-                  class="flex-1 overflow-x-auto flex items-center gap-2"
+                  v-if="showImportExport"
+                  class="flex gap-2 flex-wrap shrink-0 items-center"
                 >
-                  <UEditorToolbar
-                    :editor="editor"
-                    :items="toolbarItems"
-                  />
-                  <!-- 文章续写按钮 -->
-                  <UButton
-                    :loading="isAIContinuing"
-                    :disabled="!content || !content.trim()"
-                    color="primary"
-                    icon="i-lucide-sparkles"
-                    size="sm"
-                    variant="soft"
-                    @click="handleAIContinue"
+                  <input
+                    ref="fileInputRef"
+                    accept=".md,.markdown"
+                    class="hidden"
+                    type="file"
+                    @change="handleFileImport"
                   >
-                    <span v-if="!$device.isMobile">
-                      {{ editorData?.aiContinue || '文章续写' }}
-                    </span>
-                  </UButton>
-                </div>
-              </div>
-              <div class="hidden lg:flex shrink-0 items-center">
-                <UTooltip :text="editorData?.outline || '文档大纲'">
+                  <UTooltip
+                    v-if="actionsData?.importMarkdown && actionsData.importMarkdown.length > 10"
+                    :text="actionsData.importMarkdown"
+                  >
+                    <UButton
+                      :loading="isImporting"
+                      color="primary"
+                      icon="i-lucide-upload"
+                      size="sm"
+                      variant="soft"
+                      @click="handleImportClick"
+                    />
+                  </UTooltip>
                   <UButton
-                    v-if="!readonly"
-                    icon="i-lucide-list-tree"
-                    size="sm"
-                    :variant="showOutline ? 'solid' : 'soft'"
-                    color="primary"
-                    @click="showOutline = !showOutline"
-                  />
-                </UTooltip>
-              </div>
-              <div
-                v-if="showImportExport"
-                class="flex gap-2 flex-wrap shrink-0 items-center"
-              >
-                <input
-                  ref="fileInputRef"
-                  accept=".md,.markdown"
-                  class="hidden"
-                  type="file"
-                  @change="handleFileImport"
-                >
-                <UTooltip
-                  v-if="actionsData?.importMarkdown && actionsData.importMarkdown.length > 10"
-                  :text="actionsData.importMarkdown"
-                >
-                  <UButton
+                    v-else
                     :loading="isImporting"
                     color="primary"
                     icon="i-lucide-upload"
                     size="sm"
                     variant="soft"
                     @click="handleImportClick"
-                  />
-                </UTooltip>
-                <UButton
-                  v-else
-                  :loading="isImporting"
-                  color="primary"
-                  icon="i-lucide-upload"
-                  size="sm"
-                  variant="soft"
-                  @click="handleImportClick"
-                >
-                  <span v-if="!$device.isMobile">
-                    {{ actionsData?.importMarkdown }}
-                  </span>
-                </UButton>
-                <UTooltip
-                  v-if="actionsData?.downloadMarkdown && actionsData.downloadMarkdown.length > 10"
-                  :text="actionsData.downloadMarkdown"
-                >
+                  >
+                    <span v-if="!$device.isMobile">
+                      {{ actionsData?.importMarkdown }}
+                    </span>
+                  </UButton>
+                  <UTooltip
+                    v-if="actionsData?.downloadMarkdown && actionsData.downloadMarkdown.length > 10"
+                    :text="actionsData.downloadMarkdown"
+                  >
+                    <UButton
+                      :loading="isDownloading"
+                      color="primary"
+                      icon="i-lucide-download"
+                      size="sm"
+                      variant="soft"
+                      @click="handleDownload"
+                    />
+                  </UTooltip>
                   <UButton
+                    v-else
                     :loading="isDownloading"
                     color="primary"
                     icon="i-lucide-download"
                     size="sm"
                     variant="soft"
                     @click="handleDownload"
+                  >
+                    <span v-if="!$device.isMobile">
+                      {{ actionsData?.downloadMarkdown }}
+                    </span>
+                  </UButton>
+                  <UButton
+                    v-if="user && documentId && !readonly"
+                    icon="i-lucide-share-2"
+                    size="sm"
+                    variant="soft"
+                    color="primary"
+                    @click="showShareModal = true"
+                  >
+                    <span v-if="!$device.isMobile">{{ sharesData?.shareDocument || t('shares.shareDocument') }}</span>
+                  </UButton>
+                  <UButton
+                    v-if="user"
+                    :to="safeLocalePath('/shares')"
+                    icon="i-lucide-link"
+                    size="sm"
+                    variant="soft"
+                    color="primary"
+                  >
+                    <span v-if="!$device.isMobile">{{ appData?.myShares || t('app.myShares') }}</span>
+                  </UButton>
+                  <UButton
+                    v-if="user && documentId && hasBeenSaved && !readonly"
+                    icon="i-lucide-history"
+                    size="sm"
+                    variant="soft"
+                    color="primary"
+                    @click="openVersionHistory"
+                  >
+                    <span v-if="!$device.isMobile">{{ documentsData?.versionHistory || t('documents.versionHistory') }}</span>
+                  </UButton>
+                  <DocumentsSaveDocumentButton
+                    v-if="user && canSave"
+                    :content="content || ''"
+                    :document-id="documentId"
+                    :title="documentTitle"
+                    @saved="(id, savedTitle) => {
+                      documentId = id
+                      hasBeenSaved = true // 标记文档已保存，允许自动保存
+                      lastSavedAt.value = new Date()
+                      lastSaveError.value = null
+                      // 保存用户设置的标题作为原始标题，用于后续自动保存（沿用用户设置的标题，不从内容提取）
+                      // savedTitle 是用户在 SaveDocumentButton 中手动输入的 pathInput.value
+                      originalDocumentTitle.value = savedTitle
+                      documentTitle.value = savedTitle
+                      $emit('document-saved', id)
+                    }"
                   />
-                </UTooltip>
-                <UButton
-                  v-else
-                  :loading="isDownloading"
-                  color="primary"
-                  icon="i-lucide-download"
-                  size="sm"
-                  variant="soft"
-                  @click="handleDownload"
-                >
-                  <span v-if="!$device.isMobile">
-                    {{ actionsData?.downloadMarkdown }}
-                  </span>
-                </UButton>
-                <UButton
-                  v-if="user && documentId && !readonly"
-                  icon="i-lucide-share-2"
-                  size="sm"
-                  variant="soft"
-                  color="primary"
-                  @click="showShareModal = true"
-                >
-                  <span v-if="!$device.isMobile">{{ sharesData?.shareDocument || '分享' }}</span>
-                </UButton>
-                <UButton
-                  v-if="user"
-                  :to="safeLocalePath('/shares')"
-                  icon="i-lucide-link"
-                  size="sm"
-                  variant="soft"
-                  color="primary"
-                >
-                  <span v-if="!$device.isMobile">{{ appData?.myShares || '我的分享' }}</span>
-                </UButton>
-                <DocumentsSaveDocumentButton
-                  v-if="user && canSave"
-                  :content="content || ''"
-                  :document-id="documentId"
-                  :title="documentTitle"
-                  @saved="(id, savedTitle) => {
-                    documentId = id
-                    hasBeenSaved = true // 标记文档已保存，允许自动保存
-                    // 保存用户设置的标题作为原始标题，用于后续自动保存（沿用用户设置的标题，不从内容提取）
-                    // savedTitle 是用户在 SaveDocumentButton 中手动输入的 pathInput.value
-                    originalDocumentTitle.value = savedTitle
-                    documentTitle.value = savedTitle
-                    $emit('document-saved', id)
-                  }"
-                />
-                <div
-                  v-if="user && canSave && isAutoSaving"
-                  class="flex items-center gap-1 text-xs text-muted"
-                >
-                  <UIcon
-                    class="w-3 h-3 animate-spin"
-                    name="i-lucide-loader-2"
-                  />
-                  <span>{{ editorData?.autoSaving || '自动保存中...' }}</span>
-                </div>
-                <div
-                  v-if="user && canSave && lastSavedAt && !isAutoSaving"
-                  class="text-xs text-dimmed"
-                >
-                  {{ editorData?.saved || '已保存' }}
+                  <div
+                    v-if="user && canSave && saveStatus"
+                    class="flex items-center gap-1"
+                    :class="saveStatus.class"
+                  >
+                    <UIcon
+                      class="w-3 h-3"
+                      :class="{ 'animate-spin': saveStatus.spin }"
+                      :name="saveStatus.icon"
+                    />
+                    <span>{{ saveStatus.text }}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        <UEditorToolbar
-          v-if="!readonly"
-          :editor="editor"
-          :items="getMergedBubbleItems(editor)"
-          :should-show="({ editor, view, state }: any) => {
-            if (editor.isActive('imageUpload') || editor.isActive('image') || state.selection instanceof CellSelection) {
-              return false
-            }
-            const { selection } = state
-            return view.hasFocus() && !selection.empty
-          }"
-          layout="bubble"
-        >
-          <template #link>
-            <EditorLinkPopover :editor="editor" />
-          </template>
-        </UEditorToolbar>
-
-        <UEditorToolbar
-          v-if="!readonly"
-          :editor="editor"
-          :items="getImageToolbarItems(editor)"
-          :should-show="({ editor, view }: any) => {
-            return editor.isActive('image') && view.hasFocus()
-          }"
-          layout="bubble"
-        >
-          <template #imageAlt>
-            <EditorImageAltPopover :editor="editor" />
-          </template>
-        </UEditorToolbar>
-
-        <UEditorToolbar
-          v-if="!readonly"
-          :editor="editor"
-          :items="getTableToolbarItems(editor)"
-          :should-show="({ editor, view }: any) => {
-            return editor.state.selection instanceof CellSelection && view.hasFocus()
-          }"
-          layout="bubble"
-        />
-
-        <UEditorDragHandle
-          v-if="!readonly"
-          v-slot="{ ui, onClick }"
-          :editor="editor"
-          @node-change="onNodeChange"
-        >
-          <UButton
-            :class="ui.handle()"
-            color="neutral"
-            icon="i-lucide-plus"
-            size="sm"
-            variant="ghost"
-            @click="(e: MouseEvent) => {
-              e.stopPropagation()
-              const node = onClick()
-
-              handlers.suggestion?.execute(editor, { pos: node?.pos }).run()
+          <UEditorToolbar
+            v-if="!readonly"
+            :editor="editor"
+            :items="getMergedBubbleItems(editor)"
+            :should-show="({ editor, view, state }: any) => {
+              if (editor.isActive('imageUpload') || editor.isActive('image') || state.selection instanceof CellSelection) {
+                return false
+              }
+              const { selection } = state
+              return view.hasFocus() && !selection.empty
             }"
+            layout="bubble"
+          >
+            <template #link>
+              <EditorLinkPopover :editor="editor" />
+            </template>
+          </UEditorToolbar>
+
+          <UEditorToolbar
+            v-if="!readonly"
+            :editor="editor"
+            :items="getImageToolbarItems(editor)"
+            :should-show="({ editor, view }: any) => {
+              return editor.isActive('image') && view.hasFocus()
+            }"
+            layout="bubble"
+          >
+            <template #imageAlt>
+              <EditorImageAltPopover :editor="editor" />
+            </template>
+          </UEditorToolbar>
+
+          <UEditorToolbar
+            v-if="!readonly"
+            :editor="editor"
+            :items="getTableToolbarItems(editor)"
+            :should-show="({ editor, view }: any) => {
+              return editor.state.selection instanceof CellSelection && view.hasFocus()
+            }"
+            layout="bubble"
           />
 
-          <UDropdownMenu
-            v-slot="{ open }"
-            :content="{ side: 'left' }"
-            :items="getDragHandleItems(editor)"
-            :modal="false"
-            :ui="{ content: 'w-48', label: 'text-xs' }"
-            @update:open="editor.chain().setMeta('lockDragHandle', $event).run()"
+          <UEditorDragHandle
+            v-if="!readonly"
+            v-slot="{ ui, onClick }"
+            :editor="editor"
+            @node-change="onNodeChange"
           >
             <UButton
-              :active="open"
               :class="ui.handle()"
-              active-variant="soft"
               color="neutral"
-              icon="i-lucide-grip-vertical"
+              icon="i-lucide-plus"
               size="sm"
               variant="ghost"
-            />
-          </UDropdownMenu>
-        </UEditorDragHandle>
+              @click="(e: MouseEvent) => {
+                e.stopPropagation()
+                const node = onClick()
 
-        <UEditorEmojiMenu
-          :editor="editor"
-          :items="emojiItems"
+                handlers.suggestion?.execute(editor, { pos: node?.pos }).run()
+              }"
+            />
+
+            <UDropdownMenu
+              v-slot="{ open }"
+              :content="{ side: 'left' }"
+              :items="getDragHandleItems(editor)"
+              :modal="false"
+              :ui="{ content: 'w-48', label: 'text-xs' }"
+              @update:open="editor.chain().setMeta('lockDragHandle', $event).run()"
+            >
+              <UButton
+                :active="open"
+                :class="ui.handle()"
+                active-variant="soft"
+                color="neutral"
+                icon="i-lucide-grip-vertical"
+                size="sm"
+                variant="ghost"
+              />
+            </UDropdownMenu>
+          </UEditorDragHandle>
+
+          <UEditorEmojiMenu
+            :editor="editor"
+            :items="emojiItems"
+          />
+          <UEditorSuggestionMenu
+            :editor="editor"
+            :items="suggestionItems"
+          />
+        </UEditor>
+        <EditorWordCountBar
+          v-if="!readonly"
+          :content="content || ''"
         />
-        <UEditorSuggestionMenu
-          :editor="editor"
-          :items="suggestionItems"
-        />
-      </UEditor>
-      <EditorWordCountBar v-if="!readonly" :content="content || ''" />
       </div>
       <div
         v-show="showOutline && !readonly"
         class="hidden lg:flex flex-col w-48 border-l border-default overflow-y-auto shrink-0"
       >
-        <EditorDocumentOutline :content="content || ''" :editor-ref="editorRef" />
+        <EditorDocumentOutline
+          :content="content || ''"
+          :editor-ref="editorRef"
+        />
       </div>
     </div>
 
@@ -955,5 +1111,95 @@ defineExpose({
       :document-id="documentId"
       :document-title="documentTitle"
     />
+
+    <UModal
+      v-model:open="showVersionHistory"
+      :title="documentsData?.versionHistory || t('documents.versionHistory')"
+      :ui="{ footer: 'justify-between' }"
+    >
+      <template #body>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-sm text-muted">
+              {{ documentsData?.versionHistoryDesc || t('documents.versionHistoryDesc') }}
+            </p>
+            <UButton
+              :disabled="readonly || !documentId"
+              :loading="creatingVersion"
+              icon="i-lucide-camera"
+              size="xs"
+              @click="createVersionSnapshot"
+            >
+              {{ documentsData?.createSnapshot || t('documents.createSnapshot') }}
+            </UButton>
+          </div>
+
+          <div
+            v-if="versionLoading"
+            class="py-8 flex justify-center"
+          >
+            <UIcon
+              name="i-lucide-loader-2"
+              class="w-5 h-5 animate-spin"
+            />
+          </div>
+
+          <div
+            v-else-if="versions.length === 0"
+            class="text-sm text-muted py-8 text-center"
+          >
+            {{ documentsData?.noVersions || t('documents.noVersions') }}
+          </div>
+
+          <div
+            v-else
+            class="max-h-[360px] overflow-y-auto space-y-2"
+          >
+            <div
+              v-for="version in versions"
+              :key="version.id"
+              class="p-3 border border-default rounded-md flex items-center justify-between gap-3"
+            >
+              <div class="min-w-0">
+                <p class="text-sm font-medium truncate">
+                  {{ version.title || (documentsData?.untitledDocument || t('documents.untitledDocument')) }}
+                </p>
+                <p class="text-xs text-muted mt-1">
+                  {{ new Date(version.created_at * 1000).toLocaleString() }} · {{ version.content_length || 0 }} chars
+                </p>
+              </div>
+              <UButton
+                :loading="restoringVersionId === version.id"
+                :disabled="readonly"
+                color="warning"
+                icon="i-lucide-rotate-ccw"
+                size="xs"
+                variant="soft"
+                @click="restoreVersionById(version.id)"
+              >
+                {{ documentsData?.restore || t('documents.restore') }}
+              </UButton>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #footer="{ close }">
+        <UButton
+          variant="soft"
+          @click="close"
+        >
+          {{ actionsData?.close || t('actions.close') }}
+        </UButton>
+        <UButton
+          variant="ghost"
+          icon="i-lucide-refresh-cw"
+          :loading="versionLoading"
+          @click="loadVersions"
+        >
+          {{ actionsData?.refresh || t('actions.refresh') }}
+        </UButton>
+      </template>
+    </UModal>
   </div>
 </template>

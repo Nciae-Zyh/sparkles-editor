@@ -2,6 +2,8 @@
 import type { Document } from '~/types'
 import { useDocumentContextMenu } from '~/composables/useDocumentContextMenu'
 
+const { tm: $tm, t } = useI18n()
+
 interface DocumentTreeNode extends Document {
   children?: DocumentTreeNode[]
 }
@@ -132,7 +134,7 @@ const getMenuItems = computed(() => {
 
         <!-- 标题 -->
         <span class="flex-1 truncate text-sm">
-          {{ node.title || (documentsData?.untitled || '未命名') }}
+          {{ node.title || (documentsData?.untitled || t('documents.untitled')) }}
         </span>
 
         <!-- 操作按钮 -->

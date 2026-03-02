@@ -17,6 +17,7 @@ export default eventHandler(async (event) => {
     SELECT 
       s.id,
       s.document_id,
+      s.permission,
       s.password_hash,
       s.expires_at,
       s.view_count,
@@ -36,6 +37,7 @@ export default eventHandler(async (event) => {
       id: share.id,
       document_id: share.document_id,
       document_title: share.document_title,
+      permission: share.permission || 'read',
       has_password: !!share.password_hash,
       expires_at: share.expires_at,
       is_expired: share.expires_at ? share.expires_at < now : false,

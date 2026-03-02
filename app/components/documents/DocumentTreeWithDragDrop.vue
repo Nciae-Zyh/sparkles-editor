@@ -6,10 +6,16 @@ import { useDocumentContextMenu } from '~/composables/useDocumentContextMenu'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import { useDownloadZip } from '~/composables/useDownloadZip'
 
+const { tm: $tm, t } = useI18n()
+
 interface ExtendedTreeItem extends TreeItem {
   id: string
   type: 'document' | 'folder'
   children?: ExtendedTreeItem[]
+  isFavorite?: boolean
+  isPinned?: boolean
+  tags?: string[]
+  contentPreview?: string
   _loaded?: boolean // 标记是否已加载子项
 }
 
@@ -25,13 +31,15 @@ const {
   renameDocument,
   moveDocument,
   getDocument,
-  fetchFolderChildren
+  fetchFolderChildren,
+  toggleFavorite,
+  togglePin,
+  updateTags,
+  searchDocuments
 } = useDocuments()
 const {
-  downloadAsZip,
-  isDownloading
+  downloadAsZip
 } = useDownloadZip()
-const router = useRouter()
 const safeLocalePath = useSafeLocalePath()
 
 const actionsData = computed(() => $tm('actions') as Record<string, string> | undefined)
@@ -65,12 +73,77 @@ const dragOverItemId = ref<string | null>(null)
 const dragOverPosition = ref<'before' | 'after' | 'inside' | 'root' | null>(null)
 const dragOverRoot = ref(false) // 是否拖动到根目录区域
 
+const favoritingIds = ref<Set<string>>(new Set())
+const pinningIds = ref<Set<string>>(new Set())
+
+const searchKeyword = ref('')
+const searchTag = ref('')
+const searching = ref(false)
+const searchResults = ref<ExtendedTreeItem[]>([])
+const searchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+
+const showTagModal = ref(false)
+const tagInput = ref('')
+const editingTagItemId = ref<string | null>(null)
+const updatingTags = ref(false)
+
+const getErrorMessage = (error: unknown) => {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const value = (error as { message?: unknown }).message
+    if (typeof value === 'string') {
+      return value
+    }
+  }
+  return ''
+}
+
 // 将 Document 转换为 TreeItem 格式
+const parseTags = (value: unknown): string[] => {
+  if (!value) return []
+  if (Array.isArray(value)) {
+    return value.map(item => String(item)).filter(Boolean)
+  }
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      if (Array.isArray(parsed)) {
+        return parsed.map(item => String(item)).filter(Boolean)
+      }
+      return []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+const sortTreeItems = (items: ExtendedTreeItem[]) => {
+  items.sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1
+    if (!a.isPinned && b.isPinned) return 1
+    if (a.isFavorite && !b.isFavorite) return -1
+    if (!a.isFavorite && b.isFavorite) return 1
+    if (a.type === 'folder' && b.type !== 'folder') return -1
+    if (a.type !== 'folder' && b.type === 'folder') return 1
+    return String(a.label || '').localeCompare(String(b.label || ''))
+  })
+
+  for (const item of items) {
+    if (item.children?.length) {
+      sortTreeItems(item.children)
+    }
+  }
+}
+
 const convertToTreeItem = (doc: Document): ExtendedTreeItem => {
   const item: ExtendedTreeItem = {
     id: doc.id,
-    label: doc.title || (documentsData.value?.untitled || '未命名'),
+    label: doc.title || (documentsData.value?.untitled || t('documents.untitled')),
     type: doc.type,
+    isFavorite: !!doc.is_favorite,
+    isPinned: !!doc.is_pinned,
+    tags: parseTags(doc.tags),
+    contentPreview: doc.content_preview || '',
     icon: doc.type === 'folder' ? 'i-lucide-folder' : 'i-lucide-file-text',
     // 文件夹默认设置为空数组，这样 UTree 会显示展开图标
     // 文档不设置 children
@@ -86,6 +159,7 @@ const loadRootItems = async () => {
     loading.value = true
     const docs = await fetchDocuments() // 不传 parentId，获取根目录
     treeItems.value = docs.map(convertToTreeItem)
+    sortTreeItems(treeItems.value)
   } catch (error) {
     console.error('Failed to load root items:', error)
   } finally {
@@ -107,10 +181,13 @@ const loadFolderChildren = async (folderId: string, item: ExtendedTreeItem, forc
     // 更新树项的子项
     // 即使子项为空，也设置为空数组，这样会显示为空文件夹
     item.children = children.length > 0 ? children.map(convertToTreeItem) : []
+    if (item.children.length > 0) {
+      sortTreeItems(item.children)
+    }
     item._loaded = true
   } catch (error) {
     console.error('Failed to load folder children:', error)
-    alert(documentsData.value?.loadFolderFailed || '加载文件夹内容失败，请稍后重试')
+    alert(documentsData.value?.loadFolderFailed || t('documents.loadFolderFailed'))
     // 加载失败时，保持为空数组，这样用户仍然可以看到文件夹是可展开的
     item.children = []
     item._loaded = true
@@ -188,9 +265,9 @@ const collapseAll = () => {
 const handleDelete = async (id: string, event: Event) => {
   event.stopPropagation()
   const item = findItemInTree(treeItems.value, id)
-  const itemType = item?.type === 'folder' ? (documentsData.value?.folder || '文件夹') : (documentsData.value?.document || '文档')
-  const deleteConfirm = documentsData.value?.deleteConfirm?.replace('{type}', itemType) || `确定要删除这个${itemType}吗？`
-  const deleteWarning = item?.type === 'folder' ? (documentsData.value?.deleteFolderWarning || '文件夹内的所有内容也会被删除。') : ''
+  const itemType = item?.type === 'folder' ? (documentsData.value?.folder || t('documents.folder')) : (documentsData.value?.document || t('documents.document'))
+  const deleteConfirm = documentsData.value?.deleteConfirm?.replace('{type}', itemType) || t('documents.deleteConfirm', { type: itemType })
+  const deleteWarning = item?.type === 'folder' ? (documentsData.value?.deleteFolderWarning || t('documents.deleteFolderWarning')) : ''
 
   if (!confirm(`${deleteConfirm}${deleteWarning}`)) {
     return
@@ -201,8 +278,8 @@ const handleDelete = async (id: string, event: Event) => {
     await deleteDocument(id)
     // 从树中移除该项
     removeItemFromTree(treeItems.value, id)
-  } catch (error: any) {
-    alert(error.message || documentsData.value?.deleteFailed || '删除失败')
+  } catch (error: unknown) {
+    alert(getErrorMessage(error) || documentsData.value?.deleteFailed || t('documents.deleteFailed'))
   } finally {
     deletingId.value = null
   }
@@ -211,7 +288,7 @@ const handleDelete = async (id: string, event: Event) => {
 // 处理创建文档（空文档）
 const handleCreateDocument = async () => {
   if (!newDocumentName.value.trim()) {
-    alert(documentsData.value?.enterDocumentName || '请输入文档名称')
+    alert(documentsData.value?.enterDocumentName || t('documents.enterDocumentName'))
     return
   }
 
@@ -244,8 +321,8 @@ const handleCreateDocument = async () => {
 
     // 跳转到新创建的文档编辑页面
     await navigateTo(`${safeLocalePath('/documents')}/${document.id}`)
-  } catch (error: any) {
-    alert(error.message || documentsData.value?.createDocumentFailed || '创建文档失败')
+  } catch (error: unknown) {
+    alert(getErrorMessage(error) || documentsData.value?.createDocumentFailed || t('documents.createDocumentFailed'))
   } finally {
     creatingDocument.value = false
   }
@@ -261,7 +338,7 @@ const openCreateDocumentModal = (parentId?: string | null) => {
 // 处理创建文件夹
 const handleCreateFolder = async () => {
   if (!newFolderName.value.trim()) {
-    alert(documentsData.value?.enterFolderName || '请输入文件夹名称')
+    alert(documentsData.value?.enterFolderName || t('documents.enterFolderName'))
     return
   }
 
@@ -291,8 +368,8 @@ const handleCreateFolder = async () => {
         parentItem.children.push(convertToTreeItem(folder))
       }
     }
-  } catch (error: any) {
-    alert(error.message || documentsData.value?.createFolderFailed || '创建文件夹失败')
+  } catch (error: unknown) {
+    alert(getErrorMessage(error) || documentsData.value?.createFolderFailed || t('documents.createFolderFailed'))
   } finally {
     creatingFolder.value = false
   }
@@ -315,7 +392,7 @@ const handleCancelRename = () => {
 // 处理重命名
 const handleRename = async () => {
   if (!renamingId.value || !renameInput.value.trim()) {
-    alert(documentsData.value?.pleaseEnterTitle || '请输入名称')
+    alert(documentsData.value?.pleaseEnterTitle || t('documents.pleaseEnterTitle'))
     return
   }
 
@@ -324,7 +401,7 @@ const handleRename = async () => {
 
   // 验证标题不能包含路径分隔符
   if (newTitle.includes('/') || newTitle.includes('\\')) {
-    alert(documentsData.value?.titleCannotContainPath || '标题不能包含路径分隔符（/ 或 \\）')
+    alert(documentsData.value?.titleCannotContainPath || t('documents.titleCannotContainPath'))
     return
   }
 
@@ -348,9 +425,9 @@ const handleRename = async () => {
         title: newTitle
       })
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('重命名失败:', error)
-    alert(error.message || documentsData.value?.renameFailedRetry || documentsData.value?.renameFailed || '重命名失败，请稍后重试')
+    alert(getErrorMessage(error) || documentsData.value?.renameFailedRetry || documentsData.value?.renameFailed || t('documents.renameFailed'))
   } finally {
     renamingLoadingId.value = null
   }
@@ -365,7 +442,7 @@ const handleDownload = async (id: string, event: Event) => {
     // 获取文档内容
     const document = await getDocument(id)
     if (!document.content) {
-      alert(actionsData.value?.documentEmpty || '文档内容为空')
+      alert(actionsData.value?.documentEmpty || t('actions.documentEmpty'))
       return
     }
 
@@ -376,9 +453,9 @@ const handleDownload = async (id: string, event: Event) => {
 
     // 下载为 ZIP
     await downloadAsZip(document.content, filename)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Download failed:', error)
-    alert(error.message || actionsData.value?.downloadFailed || '下载失败，请稍后重试')
+    alert(getErrorMessage(error) || actionsData.value?.downloadFailed || t('actions.downloadFailed'))
   } finally {
     downloadingId.value = null
   }
@@ -412,6 +489,216 @@ const removeItemFromTree = (items: ExtendedTreeItem[], id: string): boolean => {
     }
   }
   return false
+}
+
+const updateTreeItem = (
+  items: ExtendedTreeItem[],
+  id: string,
+  updater: (item: ExtendedTreeItem) => void
+): boolean => {
+  for (const item of items) {
+    if (item.id === id) {
+      updater(item)
+      return true
+    }
+    if (item.children && updateTreeItem(item.children, id, updater)) {
+      return true
+    }
+  }
+  return false
+}
+
+const activeItems = computed(() => {
+  if (searchKeyword.value.trim() || searchTag.value) {
+    return searchResults.value
+  }
+  return treeItems.value
+})
+
+const allTags = computed(() => {
+  const tags = new Set<string>()
+  const walk = (items: ExtendedTreeItem[]) => {
+    for (const item of items) {
+      for (const tag of item.tags || []) {
+        tags.add(tag)
+      }
+      if (item.children?.length) {
+        walk(item.children)
+      }
+    }
+  }
+  walk(treeItems.value)
+  return Array.from(tags).sort((a, b) => a.localeCompare(b))
+})
+
+const doSearch = async () => {
+  const q = searchKeyword.value.trim()
+  const tag = searchTag.value.trim()
+  if (!q && !tag) {
+    searchResults.value = []
+    return
+  }
+
+  searching.value = true
+  try {
+    const results = await searchDocuments(q, tag || undefined)
+    searchResults.value = results.map(convertToTreeItem)
+  } catch (error) {
+    console.error('Search failed:', error)
+    searchResults.value = []
+  } finally {
+    searching.value = false
+  }
+}
+
+watch([searchKeyword, searchTag], () => {
+  if (searchTimer.value) {
+    clearTimeout(searchTimer.value)
+  }
+  searchTimer.value = setTimeout(() => {
+    doSearch()
+  }, 250)
+})
+
+onUnmounted(() => {
+  if (searchTimer.value) {
+    clearTimeout(searchTimer.value)
+    searchTimer.value = null
+  }
+})
+
+interface HighlightPart {
+  text: string
+  highlighted: boolean
+}
+
+const getHighlightedParts = (text: string, keyword: string): HighlightPart[] => {
+  const value = text || ''
+  const q = keyword.trim()
+  if (!q) {
+    return [{ text: value, highlighted: false }]
+  }
+
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(escaped, 'gi')
+  const parts: HighlightPart[] = []
+  let lastIndex = 0
+
+  for (const match of value.matchAll(regex)) {
+    const index = match.index ?? 0
+    if (index > lastIndex) {
+      parts.push({
+        text: value.slice(lastIndex, index),
+        highlighted: false
+      })
+    }
+
+    parts.push({
+      text: match[0],
+      highlighted: true
+    })
+    lastIndex = index + match[0].length
+  }
+
+  if (lastIndex < value.length) {
+    parts.push({
+      text: value.slice(lastIndex),
+      highlighted: false
+    })
+  }
+
+  return parts
+}
+
+const displayPreviewParts = (item: ExtendedTreeItem) => {
+  const preview = item.contentPreview || ''
+  const short = preview.length > 120 ? `${preview.slice(0, 120)}...` : preview
+  return getHighlightedParts(short, searchKeyword.value)
+}
+
+const displayTitleParts = (item: ExtendedTreeItem) => {
+  return getHighlightedParts(String(item.label || ''), searchKeyword.value)
+}
+
+const parseTagInput = (value: string) => {
+  return Array.from(new Set(
+    value
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean)
+      .slice(0, 12)
+  ))
+}
+
+const openTagModal = (item: ExtendedTreeItem, event: Event) => {
+  event.stopPropagation()
+  editingTagItemId.value = item.id
+  tagInput.value = (item.tags || []).join(', ')
+  showTagModal.value = true
+}
+
+const saveTagsForItem = async () => {
+  if (!editingTagItemId.value) return
+  const itemId = editingTagItemId.value
+  const tags = parseTagInput(tagInput.value)
+
+  updatingTags.value = true
+  try {
+    await updateTags(itemId, tags)
+    updateTreeItem(treeItems.value, itemId, (item) => {
+      item.tags = tags
+    })
+    const resultItem = searchResults.value.find(item => item.id === itemId)
+    if (resultItem) {
+      resultItem.tags = tags
+    }
+    showTagModal.value = false
+  } catch (error) {
+    console.error('Update tags failed:', error)
+    alert(documentsData.value?.saveFailed || t('documents.saveFailed'))
+  } finally {
+    updatingTags.value = false
+  }
+}
+
+const toggleFavoriteForItem = async (item: ExtendedTreeItem, event: Event) => {
+  event.stopPropagation()
+  if (favoritingIds.value.has(item.id)) return
+
+  favoritingIds.value.add(item.id)
+  try {
+    const isFavorite = await toggleFavorite(item.id, !item.isFavorite)
+    item.isFavorite = !!isFavorite
+    updateTreeItem(treeItems.value, item.id, (target) => {
+      target.isFavorite = !!isFavorite
+    })
+    sortTreeItems(treeItems.value)
+  } catch (error) {
+    console.error('Toggle favorite failed:', error)
+    alert(documentsData.value?.saveFailed || t('documents.saveFailed'))
+  } finally {
+    favoritingIds.value.delete(item.id)
+  }
+}
+
+const togglePinForItem = async (item: ExtendedTreeItem, event: Event) => {
+  event.stopPropagation()
+  if (pinningIds.value.has(item.id)) return
+
+  pinningIds.value.add(item.id)
+  try {
+    const isPinned = await togglePin(item.id, !item.isPinned)
+    item.isPinned = !!isPinned
+    updateTreeItem(treeItems.value, item.id, (target) => {
+      target.isPinned = !!isPinned
+    })
+    sortTreeItems(treeItems.value)
+  } catch (error) {
+    console.error('Toggle pin failed:', error)
+    alert(documentsData.value?.saveFailed || t('documents.saveFailed'))
+  } finally {
+    pinningIds.value.delete(item.id)
+  }
 }
 
 // 检查是否是子项（防止循环引用）
@@ -541,7 +828,7 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
   // 防止将文件夹移动到自己的子文件夹中
   if (draggedItemId.value) {
     if (draggedItemId.value === targetItem.id) {
-      alert(documentsData.value?.cannotMoveToSelf || '不能将项目移动到自己的位置')
+      alert(documentsData.value?.cannotMoveToSelf || t('documents.cannotMoveToSelf'))
       dragOverItemId.value = null
       dragOverPosition.value = null
       draggedItemId.value = null
@@ -549,7 +836,7 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
     }
 
     if (targetItem.type === 'folder' && isDescendant(draggedItemId.value, targetItem.id)) {
-      alert(documentsData.value?.cannotMoveIntoSubfolder || '不能将文件夹移动到自己的子文件夹中')
+      alert(documentsData.value?.cannotMoveIntoSubfolder || t('documents.cannotMoveIntoSubfolder'))
       dragOverItemId.value = null
       dragOverPosition.value = null
       draggedItemId.value = null
@@ -597,26 +884,6 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
       newParentId = targetItem.id
     }
 
-    // 记录移动前的父文件夹ID（用于刷新）
-    const oldParentId = draggedItem
-      ? (() => {
-          const findParent = (items: ExtendedTreeItem[], targetId: string, parent: ExtendedTreeItem | null = null): ExtendedTreeItem | null => {
-            for (const item of items) {
-              if (item.id === targetId) {
-                return parent
-              }
-              if (item.children) {
-                const found = findParent(item.children, targetId, item)
-                if (found !== null) return found
-              }
-            }
-            return null
-          }
-          const parent = findParent(treeItems.value, draggedItemId.value)
-          return parent?.id || null
-        })()
-      : null
-
     await moveDocument(draggedItemId.value, newParentId)
 
     // 更新树结构
@@ -642,9 +909,9 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
 
     // 刷新所有已展开的文件夹（包括原位置和新位置的父文件夹）
     await refreshExpandedFolders()
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('移动失败:', error)
-    alert(error.message || documentsData.value?.moveFailed || '移动失败，请稍后重试')
+    alert(getErrorMessage(error) || documentsData.value?.moveFailed || t('documents.moveFailed'))
   } finally {
     movingDocument.value = false
     dragOverItemId.value = null
@@ -688,26 +955,6 @@ const handleRootDrop = async (event: DragEvent) => {
 
   try {
     movingDocument.value = true
-    // 记录移动前的父文件夹ID（用于刷新）
-    const draggedItem = findItemInTree(treeItems.value, draggedItemId.value)
-    const oldParentId = draggedItem
-      ? (() => {
-          const findParent = (items: ExtendedTreeItem[], targetId: string, parent: ExtendedTreeItem | null = null): ExtendedTreeItem | null => {
-            for (const item of items) {
-              if (item.id === targetId) {
-                return parent
-              }
-              if (item.children) {
-                const found = findParent(item.children, targetId, item)
-                if (found !== null) return found
-              }
-            }
-            return null
-          }
-          const parent = findParent(treeItems.value, draggedItemId.value)
-          return parent?.id || null
-        })()
-      : null
 
     // 移动到根目录（parentId 为 null）
     await moveDocument(draggedItemId.value, null)
@@ -723,9 +970,9 @@ const handleRootDrop = async (event: DragEvent) => {
 
     // 刷新所有已展开的文件夹
     await refreshExpandedFolders()
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('移动到根目录失败:', error)
-    alert(error.message || documentsData.value?.moveToRootFailed || '移动到根目录失败，请稍后重试')
+    alert(getErrorMessage(error) || documentsData.value?.moveToRootFailed || t('documents.moveToRootFailed'))
   } finally {
     movingDocument.value = false
     dragOverItemId.value = null
@@ -738,7 +985,7 @@ const handleRootDrop = async (event: DragEvent) => {
 // 修复路径
 const fixingPaths = ref(false)
 const handleFixPaths = async () => {
-  if (!confirm(documentsData.value?.fixPathsConfirm || '确定要修复所有文档路径吗？这将重新计算所有文档和文件夹的路径，确保路径与文件夹结构一致。')) {
+  if (!confirm(documentsData.value?.fixPathsConfirm || t('documents.fixPathsConfirm'))) {
     return
   }
 
@@ -749,12 +996,12 @@ const handleFixPaths = async () => {
     })
 
     if (result.success) {
-      alert((documentsData.value?.fixPathsSuccess || '路径修复完成！修复了 {fixed} 个项目，{errors} 个错误。').replace('{fixed}', String(result.fixed)).replace('{errors}', String(result.errors)))
+      alert((documentsData.value?.fixPathsSuccess || t('documents.fixPathsSuccess')).replace('{fixed}', String(result.fixed)).replace('{errors}', String(result.errors)))
       await loadRootItems()
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('修复路径失败:', error)
-    alert(error.message || documentsData.value?.fixPathsFailed || '修复路径失败，请稍后重试')
+    alert(getErrorMessage(error) || documentsData.value?.fixPathsFailed || t('documents.fixPathsFailed'))
   } finally {
     fixingPaths.value = false
   }
@@ -780,7 +1027,7 @@ const { getFolderMenuItems, getDocumentMenuItems, getEmptyAreaMenuItems } = useD
       // 文件夹的展开/折叠，并加载子项
       const folderId = item.id
       const folderItem = findItemInTree(treeItems.value, folderId)
-      
+
       if (!expanded.value.includes(folderId)) {
         // 展开文件夹
         expanded.value.push(folderId)
@@ -830,17 +1077,17 @@ const getTreeItemMenuItems = (item: ExtendedTreeItem) => {
   return item.type === 'folder' ? getFolderMenuItems(doc) : getDocumentMenuItems(doc)
 }
 
-const onSelect = (e, item) => {
+const onSelect = (event: Event, item: TreeItem) => {
   // 处理文档点击，打开编辑页面
   const treeItem = item as ExtendedTreeItem
   if (treeItem.type === 'document' && renamingId.value !== treeItem.id) {
-    e.preventDefault()
+    event.preventDefault()
     navigateTo(`${safeLocalePath('/documents')}/${treeItem.id}`)
   }
   // 文件夹的点击让 UTree 自动处理展开/折叠
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   compact: false
 })
 
@@ -875,7 +1122,7 @@ const expandToDocument = async (documentId: string) => {
     // 从根目录开始，一层一层展开
     for (let i = 0; i < path.length; i++) {
       const folderId = path[i]
-      
+
       // 如果文件夹还未展开，先展开它
       if (!expanded.value.includes(folderId)) {
         expanded.value.push(folderId)
@@ -883,13 +1130,13 @@ const expandToDocument = async (documentId: string) => {
 
       // 找到文件夹项
       const folderItem = findItemInTree(treeItems.value, folderId)
-      
+
       if (folderItem && folderItem.type === 'folder') {
         // 如果文件夹还未加载，先加载子项
         if (!folderItem._loaded) {
           await loadFolderChildren(folderId, folderItem)
         }
-        
+
         // 等待一小段时间，确保 UI 更新
         await new Promise(resolve => setTimeout(resolve, 50))
       } else {
@@ -949,14 +1196,14 @@ const expandToDocument = async (documentId: string) => {
 // 下拉菜单项
 const dropdownItems = computed(() => [
   {
-    label: documentsData.value?.newDocument || '新建文档',
+    label: documentsData.value?.newDocument || t('documents.newDocument'),
     icon: 'i-lucide-file-plus',
     onSelect: () => {
       openCreateDocumentModal()
     }
   },
   {
-    label: documentsData.value?.newFolder || '新建文件夹',
+    label: documentsData.value?.newFolder || t('documents.newFolder'),
     icon: 'i-lucide-folder-plus',
     onSelect: () => {
       selectedParentId.value = null
@@ -964,17 +1211,17 @@ const dropdownItems = computed(() => [
     }
   },
   {
-    label: documentsData.value?.expandAll || '展开全部',
+    label: documentsData.value?.expandAll || t('documents.expandAll'),
     icon: 'i-lucide-chevrons-down-up',
     onSelect: expandAll
   },
   {
-    label: documentsData.value?.collapseAll || '折叠全部',
+    label: documentsData.value?.collapseAll || t('documents.collapseAll'),
     icon: 'i-lucide-chevrons-up-down',
     onSelect: collapseAll
   },
   {
-    label: documentsData.value?.fixPaths || '修复路径',
+    label: documentsData.value?.fixPaths || t('documents.fixPaths'),
     icon: 'i-lucide-wrench',
     onSelect: handleFixPaths,
     disabled: fixingPaths.value
@@ -1026,7 +1273,7 @@ watch(currentDocumentId, async (newId) => {
       class="flex items-center justify-between gap-4"
     >
       <h2 class="text-xl font-semibold">
-        {{ documentsData?.documentTree || '文档树' }}
+        {{ documentsData?.documentTree || t('documents.documentTree') }}
       </h2>
       <div class="flex gap-2">
         <UButton
@@ -1035,14 +1282,14 @@ watch(currentDocumentId, async (newId) => {
           size="sm"
           variant="soft"
         >
-          {{ documentsData?.newDocument || '新建文档' }}
+          {{ documentsData?.newDocument || t('documents.newDocument') }}
         </UButton>
         <UButton
           icon="i-lucide-folder-plus"
           size="sm"
           @click="() => { selectedParentId = null; showCreateFolder = true }"
         >
-          {{ documentsData?.newFolder || '新建文件夹' }}
+          {{ documentsData?.newFolder || t('documents.newFolder') }}
         </UButton>
         <UButton
           icon="i-lucide-chevrons-down-up"
@@ -1050,7 +1297,7 @@ watch(currentDocumentId, async (newId) => {
           variant="ghost"
           @click="expandAll"
         >
-          {{ documentsData?.expandAll || '展开全部' }}
+          {{ documentsData?.expandAll || t('documents.expandAll') }}
         </UButton>
         <UButton
           icon="i-lucide-chevrons-up-down"
@@ -1058,7 +1305,7 @@ watch(currentDocumentId, async (newId) => {
           variant="ghost"
           @click="collapseAll"
         >
-          {{ documentsData?.collapseAll || '折叠全部' }}
+          {{ documentsData?.collapseAll || t('documents.collapseAll') }}
         </UButton>
         <UButton
           :loading="fixingPaths"
@@ -1068,7 +1315,49 @@ watch(currentDocumentId, async (newId) => {
           variant="ghost"
           @click="handleFixPaths"
         >
-          {{ documentsData?.fixPaths || '修复路径' }}
+          {{ documentsData?.fixPaths || t('documents.fixPaths') }}
+        </UButton>
+      </div>
+    </div>
+
+    <div
+      class="border border-default rounded-lg bg-default p-3 space-y-3"
+    >
+      <div class="flex items-center gap-2">
+        <UInput
+          v-model="searchKeyword"
+          class="flex-1"
+          icon="i-lucide-search"
+          :placeholder="documentsData?.searchDocuments || t('documents.searchDocuments')"
+        />
+        <UButton
+          size="sm"
+          variant="soft"
+          icon="i-lucide-x"
+          :disabled="!searchKeyword && !searchTag"
+          @click="() => { searchKeyword = ''; searchTag = '' }"
+        >
+          {{ actionsData?.clear || t('actions.clear') }}
+        </UButton>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          size="xs"
+          :variant="searchTag ? 'ghost' : 'soft'"
+          @click="searchTag = ''"
+        >
+          {{ documentsData?.allTags || t('documents.allTags') }}
+        </UButton>
+        <UButton
+          v-for="tag in allTags"
+          :key="tag"
+          size="xs"
+          :variant="searchTag === tag ? 'solid' : 'ghost'"
+          color="neutral"
+          @click="searchTag = searchTag === tag ? '' : tag"
+        >
+          #{{ tag }}
         </UButton>
       </div>
     </div>
@@ -1076,18 +1365,18 @@ watch(currentDocumentId, async (newId) => {
     <!-- 创建文档模态框 -->
     <UModal
       v-model:open="showCreateDocument"
-      :title="documentsData?.newDocument || '新建文档'"
+      :title="documentsData?.newDocument || t('documents.newDocument')"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UFormField
-          :label="documentsData?.documentName || '文档名称'"
+          :label="documentsData?.documentName || t('documents.documentName')"
           name="documentName"
           required
         >
           <UInput
             v-model="newDocumentName"
-            :placeholder="documentsData?.enterDocumentName || '请输入文档名称'"
+            :placeholder="documentsData?.enterDocumentName || t('documents.enterDocumentName')"
             @keyup.enter="handleCreateDocument"
           />
         </UFormField>
@@ -1095,23 +1384,23 @@ watch(currentDocumentId, async (newId) => {
           v-if="createDocumentParentId"
           class="mt-2 text-sm text-muted"
         >
-          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+          {{ documentsData?.createInSelectedFolder || t('documents.createInSelectedFolder') }}
         </div>
       </template>
 
-      <template #footer="{ close }">
+      <template #footer>
         <UButton
           color="neutral"
           variant="ghost"
-          @click="close"
+          @click="showCreateDocument = false"
         >
-          {{ actionsData?.cancel || '取消' }}
+          {{ actionsData?.cancel || t('actions.cancel') }}
         </UButton>
         <UButton
           :loading="creatingDocument"
           @click="handleCreateDocument"
         >
-          {{ documentsData?.create || '创建' }}
+          {{ documentsData?.create || t('documents.create') }}
         </UButton>
       </template>
     </UModal>
@@ -1119,18 +1408,18 @@ watch(currentDocumentId, async (newId) => {
     <!-- 创建文件夹模态框 -->
     <UModal
       v-model:open="showCreateFolder"
-      :title="documentsData?.newFolder || '新建文件夹'"
+      :title="documentsData?.newFolder || t('documents.newFolder')"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UFormField
-          :label="documentsData?.folderName || '文件夹名称'"
+          :label="documentsData?.folderName || t('documents.folderName')"
           name="folderName"
           required
         >
           <UInput
             v-model="newFolderName"
-            :placeholder="documentsData?.enterFolderName || '请输入文件夹名称'"
+            :placeholder="documentsData?.enterFolderName || t('documents.enterFolderName')"
             @keyup.enter="handleCreateFolder"
           />
         </UFormField>
@@ -1138,8 +1427,82 @@ watch(currentDocumentId, async (newId) => {
           v-if="selectedParentId"
           class="mt-2 text-sm text-muted"
         >
-          {{ documentsData?.createInSelectedFolder || '将在选中的文件夹内创建' }}
+          {{ documentsData?.createInSelectedFolder || t('documents.createInSelectedFolder') }}
         </div>
+      </template>
+
+      <template #footer>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          @click="showCreateFolder = false"
+        >
+          {{ actionsData?.cancel || t('actions.cancel') }}
+        </UButton>
+        <UButton
+          :loading="creatingFolder"
+          @click="handleCreateFolder"
+        >
+          {{ documentsData?.create || t('documents.create') }}
+        </UButton>
+      </template>
+    </UModal>
+
+    <!-- 重命名模态框 -->
+    <UModal
+      v-model:open="showRenameModal"
+      :title="documentsData?.rename || t('documents.rename')"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UFormField
+          :label="documentsData?.name || t('documents.name')"
+          name="renameInput"
+          required
+        >
+          <UInput
+            v-model="renameInput"
+            :placeholder="documentsData?.pleaseEnterTitle || t('documents.pleaseEnterTitle')"
+            autofocus
+            @keyup.enter="handleRename"
+          />
+        </UFormField>
+      </template>
+
+      <template #footer>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          @click="handleCancelRename"
+        >
+          {{ actionsData?.cancel || t('actions.cancel') }}
+        </UButton>
+        <UButton
+          :loading="renamingLoadingId !== null"
+          @click="handleRename"
+        >
+          {{ documentsData?.save || t('documents.save') }}
+        </UButton>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="showTagModal"
+      :title="documentsData?.tags || t('documents.tags')"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UFormField
+          :label="documentsData?.tags || t('documents.tags')"
+          name="tags"
+          :description="documentsData?.tagsInputDesc || t('documents.tagsInputDesc')"
+        >
+          <UInput
+            v-model="tagInput"
+            :placeholder="documentsData?.tagsPlaceholder || t('documents.tagsPlaceholder')"
+            @keyup.enter="saveTagsForItem"
+          />
+        </UFormField>
       </template>
 
       <template #footer="{ close }">
@@ -1148,58 +1511,20 @@ watch(currentDocumentId, async (newId) => {
           variant="ghost"
           @click="close"
         >
-          {{ actionsData?.cancel || '取消' }}
+          {{ actionsData?.cancel || t('actions.cancel') }}
         </UButton>
         <UButton
-          :loading="creatingFolder"
-          @click="handleCreateFolder"
+          :loading="updatingTags"
+          @click="saveTagsForItem"
         >
-          {{ documentsData?.create || '创建' }}
-        </UButton>
-      </template>
-    </UModal>
-
-    <!-- 重命名模态框 -->
-    <UModal
-      v-model:open="showRenameModal"
-      :title="documentsData?.rename || '重命名'"
-      :ui="{ footer: 'justify-end' }"
-    >
-      <template #body>
-        <UFormField
-          :label="documentsData?.name || '名称'"
-          name="renameInput"
-          required
-        >
-          <UInput
-            v-model="renameInput"
-            :placeholder="documentsData?.pleaseEnterTitle || '请输入名称'"
-            autofocus
-            @keyup.enter="handleRename"
-          />
-        </UFormField>
-      </template>
-
-      <template #footer="{ close }">
-        <UButton
-          color="neutral"
-          variant="ghost"
-          @click="handleCancelRename"
-        >
-          {{ actionsData?.cancel || '取消' }}
-        </UButton>
-        <UButton
-          :loading="renamingLoadingId !== null"
-          @click="handleRename"
-        >
-          {{ documentsData?.save || '保存' }}
+          {{ documentsData?.save || t('documents.save') }}
         </UButton>
       </template>
     </UModal>
 
     <!-- 加载状态 -->
     <div
-      v-if="loading && treeItems.length === 0"
+      v-if="(loading && treeItems.length === 0) || searching"
       class="flex justify-center py-12"
     >
       <UIcon
@@ -1210,11 +1535,11 @@ watch(currentDocumentId, async (newId) => {
 
     <!-- 空状态 -->
     <UContextMenu
-      v-else-if="treeItems.length === 0"
+      v-else-if="treeItems.length === 0 && !searchKeyword && !searchTag"
       :items="getEmptyAreaMenuItems"
     >
       <div class="text-center py-12 text-muted cursor-context-menu">
-        {{ documentsData?.noDocuments || '还没有文档，开始创建你的第一个文档吧！' }}
+        {{ documentsData?.noDocuments || t('documents.noDocuments') }}
       </div>
     </UContextMenu>
 
@@ -1234,7 +1559,7 @@ watch(currentDocumentId, async (newId) => {
             class="w-8 h-8 animate-spin text-primary"
           />
           <span class="text-sm text-toned">
-            {{ documentsData?.moving || '正在移动...' }}
+            {{ documentsData?.moving || t('documents.moving') }}
           </span>
         </div>
       </div>
@@ -1255,12 +1580,12 @@ watch(currentDocumentId, async (newId) => {
               name="i-lucide-folder"
               class="w-4 h-4"
             />
-            <span>{{ documentsData?.rootDirectory || '根目录' }}</span>
+            <span>{{ documentsData?.rootDirectory || t('documents.rootDirectory') }}</span>
             <span
               v-if="dragOverRoot"
               class="text-xs text-primary"
             >
-              {{ documentsData?.dropToRoot || '拖动到此处移动到根目录' }}
+              {{ documentsData?.dropToRoot || t('documents.dropToRoot') }}
             </span>
           </div>
           <!-- 紧凑模式：下拉菜单 -->
@@ -1283,22 +1608,30 @@ watch(currentDocumentId, async (newId) => {
         </div>
       </div>
       <div class="p-2">
+        <div
+          v-if="(searchKeyword || searchTag) && activeItems.length === 0"
+          class="py-12 text-center text-muted text-sm"
+        >
+          {{ documentsData?.noSearchResult || t('documents.noSearchResult') }}
+        </div>
         <UTree
+          v-else
           v-model:expanded="expanded"
           :get-key="(item) => item.id"
-          :items="treeItems"
+          :items="activeItems"
           color="neutral"
           nested
           @select="onSelect"
         >
-          <template #item="{ item, expanded }">
+          <template #item="{ item, expanded: itemExpanded }">
             <UContextMenu :items="getTreeItemMenuItems(item as ExtendedTreeItem)">
               <div
                 :class="{
                   'bg-primary/30': currentDocumentId === item.id && item.type === 'document',
                   'rounded-lg px-1': true
                 }"
-                class="flex items-center w-full justify-between">
+                class="flex items-center w-full justify-between"
+              >
                 <div class="flex items-center gap-2">
                   <UIcon :name="item.icon" />
                   <div
@@ -1309,10 +1642,6 @@ watch(currentDocumentId, async (newId) => {
                     ]"
                     :draggable="true"
                     style="width: 100%;"
-                    @click="(e) => {
-                      // 文档的点击在 UTree 的 @select 事件中处理
-                      // 这里只处理拖放相关的事件，不阻止点击事件传播
-                    }"
                     @dragend="handleDragEnd"
                     @dragleave="handleDragLeave"
                     @dragover="handleDragOver($event, item as ExtendedTreeItem)"
@@ -1330,15 +1659,82 @@ watch(currentDocumentId, async (newId) => {
                       />
                     </div>
 
-                    <span class="flex-1 truncate">
-                      {{ item.label }}
-                    </span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="truncate">
+                          <template
+                            v-for="(part, partIndex) in displayTitleParts(item as ExtendedTreeItem)"
+                            :key="`${item.id}-title-${partIndex}`"
+                          >
+                            <mark v-if="part.highlighted">{{ part.text }}</mark>
+                            <span v-else>{{ part.text }}</span>
+                          </template>
+                        </span>
+                        <UIcon
+                          v-if="(item as ExtendedTreeItem).isPinned"
+                          name="i-lucide-pin"
+                          class="w-3 h-3 text-warning shrink-0"
+                        />
+                        <UIcon
+                          v-if="(item as ExtendedTreeItem).isFavorite"
+                          name="i-lucide-star"
+                          class="w-3 h-3 text-yellow-500 shrink-0"
+                        />
+                      </div>
+                      <p
+                        v-if="searchKeyword && (item as ExtendedTreeItem).contentPreview"
+                        class="text-xs text-muted truncate mt-0.5"
+                      >
+                        <template
+                          v-for="(part, partIndex) in displayPreviewParts(item as ExtendedTreeItem)"
+                          :key="`${item.id}-preview-${partIndex}`"
+                        >
+                          <mark v-if="part.highlighted">{{ part.text }}</mark>
+                          <span v-else>{{ part.text }}</span>
+                        </template>
+                      </p>
+                      <div
+                        v-if="(item as ExtendedTreeItem).tags && (item as ExtendedTreeItem).tags?.length > 0"
+                        class="flex flex-wrap gap-1 mt-1"
+                      >
+                        <span
+                          v-for="tag in (item as ExtendedTreeItem).tags?.slice(0, 3)"
+                          :key="`${item.id}-${tag}`"
+                          class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-toned"
+                        >
+                          #{{ tag }}
+                        </span>
+                      </div>
+                    </div>
 
                     <!-- 操作按钮 -->
                     <div
                       class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                       @click.stop
                     >
+                      <UButton
+                        :loading="pinningIds.has(item.id)"
+                        color="neutral"
+                        :icon="(item as ExtendedTreeItem).isPinned ? 'i-lucide-pin-off' : 'i-lucide-pin'"
+                        size="xs"
+                        variant="ghost"
+                        @click.stop="togglePinForItem(item as ExtendedTreeItem, $event)"
+                      />
+                      <UButton
+                        :loading="favoritingIds.has(item.id)"
+                        color="neutral"
+                        :icon="(item as ExtendedTreeItem).isFavorite ? 'i-lucide-star-off' : 'i-lucide-star'"
+                        size="xs"
+                        variant="ghost"
+                        @click.stop="toggleFavoriteForItem(item as ExtendedTreeItem, $event)"
+                      />
+                      <UButton
+                        color="neutral"
+                        icon="i-lucide-tags"
+                        size="xs"
+                        variant="ghost"
+                        @click.stop="openTagModal(item as ExtendedTreeItem, $event)"
+                      />
                       <UButton
                         color="neutral"
                         icon="i-lucide-pencil"
@@ -1369,7 +1765,7 @@ watch(currentDocumentId, async (newId) => {
                 <UIcon
                   v-if="item.type === 'folder'"
                   :name="`i-lucide-chevron-up`"
-                  :class="`${expanded ? 'rotate-180' : 'rotate-0'} duration-200`"
+                  :class="`${itemExpanded ? 'rotate-180' : 'rotate-0'} duration-200`"
                 />
               </div>
             </UContextMenu>

@@ -2,17 +2,36 @@
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import { useAuth } from '~/composables/useAuth'
 
+const { tm: $tm, t } = useI18n()
+
 definePageMeta({
   layout: 'default'
 })
 
-const route = useRoute()
-const router = useRouter()
 const { user, fetchUser } = useAuth()
 const safeLocalePath = useSafeLocalePath()
 const sharesData = computed(() => $tm('shares') as Record<string, string> | undefined)
 
-const shares = ref<any[]>([])
+interface ShareListItem {
+  id: string
+  document_title: string
+  view_count: number
+  has_password: boolean
+  expires_at: number | null
+  created_at: number
+}
+
+const getErrorMessage = (err: unknown) => {
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = (err as { message?: unknown }).message
+    if (typeof message === 'string') {
+      return message
+    }
+  }
+  return ''
+}
+
+const shares = ref<ShareListItem[]>([])
 const loading = ref(false)
 const error = ref('')
 const deletingIds = ref<Set<string>>(new Set())
@@ -25,10 +44,11 @@ const fetchShares = async () => {
   error.value = ''
 
   try {
-    const response = await $fetch('/api/shares')
+    const response = await $fetch<{ shares: ShareListItem[] }>('/api/shares')
     shares.value = response.shares || []
-  } catch (err: any) {
-    error.value = err.data?.message || sharesData.value?.loadFailed || '加载失败，请稍后重试'
+  } catch (err: unknown) {
+    const apiMessage = (err as { data?: { message?: string } })?.data?.message
+    error.value = apiMessage || getErrorMessage(err) || sharesData.value?.loadFailed || t('shares.loadFailed')
   } finally {
     loading.value = false
   }
@@ -38,7 +58,7 @@ const fetchShares = async () => {
 const deleteShare = async (shareId: string) => {
   if (deletingIds.value.has(shareId)) return
 
-  if (!confirm(sharesData.value?.deleteConfirm || '确定要删除这个分享链接吗？')) {
+  if (!confirm(sharesData.value?.deleteConfirm || t('shares.deleteConfirm'))) {
     return
   }
 
@@ -49,8 +69,9 @@ const deleteShare = async (shareId: string) => {
       method: 'DELETE'
     })
     await fetchShares()
-  } catch (err: any) {
-    alert(err.data?.message || sharesData.value?.deleteFailed || '删除失败，请稍后重试')
+  } catch (err: unknown) {
+    const apiMessage = (err as { data?: { message?: string } })?.data?.message
+    alert(apiMessage || getErrorMessage(err) || sharesData.value?.deleteFailed || t('shares.deleteFailed'))
   } finally {
     deletingIds.value.delete(shareId)
   }
@@ -61,9 +82,9 @@ const copyShareLink = (shareId: string) => {
   if (typeof window === 'undefined') return
   const url = `${window.location.origin}${safeLocalePath(`/share/${shareId}`)}`
   navigator.clipboard.writeText(url).then(() => {
-    alert(sharesData.value?.shareLinkCopied || '分享链接已复制到剪贴板')
+    alert(sharesData.value?.shareLinkCopied || t('shares.shareLinkCopied'))
   }).catch(() => {
-    alert(sharesData.value?.copyFailed || '复制失败，请手动复制')
+    alert(sharesData.value?.copyFailed || t('shares.copyFailed'))
   })
 }
 
@@ -74,9 +95,9 @@ const formatDate = (timestamp: number) => {
 
 // 格式化过期时间
 const formatExpiresAt = (expiresAt: number | null) => {
-  if (!expiresAt) return sharesData.value?.neverExpires || '永不过期'
+  if (!expiresAt) return sharesData.value?.neverExpires || t('shares.neverExpires')
   const now = Math.floor(Date.now() / 1000)
-  if (expiresAt < now) return sharesData.value?.expired || '已过期'
+  if (expiresAt < now) return sharesData.value?.expired || t('shares.expired')
   return formatDate(expiresAt)
 }
 
@@ -96,10 +117,10 @@ onMounted(async () => {
       <div class="container mx-auto px-4 py-8 max-w-6xl">
         <div class="mb-6">
           <h1 class="text-3xl font-bold text-highlighted mb-2">
-            {{ sharesData?.shareManagement || '分享管理' }}
+            {{ sharesData?.shareManagement || t('shares.shareManagement') }}
           </h1>
           <p class="text-toned">
-            {{ sharesData?.manageShareLinks || '管理您分享的文档链接' }}
+            {{ sharesData?.manageShareLinks || t('shares.manageShareLinks') }}
           </p>
         </div>
 
@@ -118,7 +139,7 @@ onMounted(async () => {
         <div
           v-if="error"
           class="bg-error/10 border border-error/20 rounded-lg p-4 mb-6"
-          >
+        >
           <p class="text-error">
             {{ error }}
           </p>
@@ -128,16 +149,16 @@ onMounted(async () => {
         <div
           v-if="!loading && shares.length === 0"
           class="bg-default rounded-lg shadow-md p-12 text-center"
-          >
+        >
           <UIcon
             name="i-lucide-share-2"
             class="w-16 h-16 text-dimmed mx-auto mb-4"
           />
           <p class="text-toned text-lg">
-            {{ sharesData?.noShares || '还没有分享任何文档' }}
+            {{ sharesData?.noShares || t('shares.noShares') }}
           </p>
           <p class="text-muted text-sm mt-2">
-            {{ sharesData?.createShareHint || '在文档编辑页面可以创建分享链接' }}
+            {{ sharesData?.createShareHint || t('shares.createShareHint') }}
           </p>
         </div>
 
@@ -159,32 +180,32 @@ onMounted(async () => {
 
                 <div class="space-y-2 text-sm text-toned">
                   <div class="flex items-center gap-4">
-                  <span>
-                    <UIcon
-                      name="i-lucide-eye"
-                      class="w-4 h-4 inline mr-1"
-                    />
-                    {{ sharesData?.viewCount || '查看次数' }}：{{ share.view_count }}
-                  </span>
                     <span>
-                    <UIcon
-                      name="i-lucide-lock"
-                      v-if="share.has_password"
-                      class="w-4 h-4 inline mr-1"
-                    />
-                    {{ share.has_password ? (sharesData?.requiresPassword || '需要密码') : (sharesData?.noPassword || '无需密码') }}
-                  </span>
+                      <UIcon
+                        name="i-lucide-eye"
+                        class="w-4 h-4 inline mr-1"
+                      />
+                      {{ sharesData?.viewCount || t('shares.viewCount') }}：{{ share.view_count }}
+                    </span>
                     <span>
-                    <UIcon
-                      name="i-lucide-clock"
-                      class="w-4 h-4 inline mr-1"
-                    />
-                    {{ formatExpiresAt(share.expires_at) }}
-                  </span>
+                      <UIcon
+                        v-if="share.has_password"
+                        name="i-lucide-lock"
+                        class="w-4 h-4 inline mr-1"
+                      />
+                      {{ share.has_password ? (sharesData?.requiresPassword || t('shares.requiresPassword')) : (sharesData?.noPassword || t('shares.noPassword')) }}
+                    </span>
+                    <span>
+                      <UIcon
+                        name="i-lucide-clock"
+                        class="w-4 h-4 inline mr-1"
+                      />
+                      {{ formatExpiresAt(share.expires_at) }}
+                    </span>
                   </div>
 
                   <div class="text-xs text-muted">
-                    {{ sharesData?.createdAt || '创建时间' }}：{{ formatDate(share.created_at) }}
+                    {{ sharesData?.createdAt || t('shares.createdAt') }}：{{ formatDate(share.created_at) }}
                   </div>
 
                   <div class="mt-3">
@@ -193,12 +214,12 @@ onMounted(async () => {
                         :value="typeof window !== 'undefined' ? `${window.location.origin}${safeLocalePath(`/share/${share.id}`)}` : ''"
                         readonly
                         class="flex-1 bg-transparent text-sm text-default outline-none"
-                      />
-                      <button
-                        @click="copyShareLink(share.id)"
-                        class="text-primary hover:text-primary/80 text-sm font-medium"
                       >
-                        {{ sharesData?.copyLink || '复制链接' }}
+                      <button
+                        class="text-primary hover:text-primary/80 text-sm font-medium"
+                        @click="copyShareLink(share.id)"
+                      >
+                        {{ sharesData?.copyLink || t('shares.copyLink') }}
                       </button>
                     </div>
                   </div>
@@ -207,10 +228,10 @@ onMounted(async () => {
 
               <div class="ml-4">
                 <button
-                  @click="deleteShare(share.id)"
                   :disabled="deletingIds.has(share.id)"
                   class="text-error hover:text-error/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                  :title="sharesData?.deleteShare || '删除分享'"
+                  :title="sharesData?.deleteShare || t('shares.deleteShare')"
+                  @click="deleteShare(share.id)"
                 >
                   <UIcon
                     v-if="deletingIds.has(share.id)"

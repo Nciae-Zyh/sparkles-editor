@@ -1,9 +1,11 @@
 <script lang="ts" setup>
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
-import { CalendarDate, CalendarDateTime, parseDateTime } from '@internationalized/date'
+import { CalendarDate, CalendarDateTime } from '@internationalized/date'
 import type { DateValue } from '@internationalized/date'
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+
+const { tm: $tm, t } = useI18n()
 
 interface Props {
   documentId: string
@@ -35,6 +37,16 @@ const error = ref('')
 const shareId = ref<string | null>(null)
 const shareUrl = ref('')
 
+const getErrorMessage = (err: unknown) => {
+  if (err && typeof err === 'object' && 'message' in err) {
+    const message = (err as { message?: unknown }).message
+    if (typeof message === 'string') {
+      return message
+    }
+  }
+  return ''
+}
+
 // 表单 schema
 const schema = z.object({
   password: z.string().optional(),
@@ -59,7 +71,11 @@ const createShare = async (event: FormSubmitEvent<FormSchema>) => {
   error.value = ''
 
   try {
-    const body: any = {
+    const body: {
+      document_id: string
+      password?: string
+      expires_at?: string
+    } = {
       document_id: props.documentId
     }
 
@@ -92,7 +108,7 @@ const createShare = async (event: FormSubmitEvent<FormSchema>) => {
       body.expires_at = date.toISOString()
     }
 
-    const response = await $fetch('/api/shares', {
+    const response = await $fetch<{ share: { id: string } }>('/api/shares', {
       method: 'POST',
       body
     })
@@ -101,8 +117,9 @@ const createShare = async (event: FormSubmitEvent<FormSchema>) => {
     if (typeof window !== 'undefined') {
       shareUrl.value = `${window.location.origin}${safeLocalePath(`/share/${response.share.id}`)}`
     }
-  } catch (err: any) {
-    error.value = err.data?.message || sharesData.value?.createShareFailed || '创建分享失败，请稍后重试'
+  } catch (err: unknown) {
+    const apiMessage = (err as { data?: { message?: string } })?.data?.message
+    error.value = apiMessage || getErrorMessage(err) || sharesData.value?.createShareFailed || t('shares.createShareFailed')
   } finally {
     loading.value = false
   }
@@ -111,15 +128,10 @@ const createShare = async (event: FormSubmitEvent<FormSchema>) => {
 // 复制分享链接
 const copyShareLink = () => {
   navigator.clipboard.writeText(shareUrl.value).then(() => {
-    alert(sharesData.value?.shareLinkCopied || '分享链接已复制到剪贴板')
+    alert(sharesData.value?.shareLinkCopied || t('shares.shareLinkCopied'))
   }).catch(() => {
-    alert(sharesData.value?.copyFailed || '复制失败，请手动复制')
+    alert(sharesData.value?.copyFailed || t('shares.copyFailed'))
   })
-}
-
-// 关闭模态框
-const close = () => {
-  open.value = false
 }
 
 // 重置表单
@@ -140,14 +152,14 @@ watch(() => props.documentId, () => {
 <template>
   <UModal
     v-model:open="open"
-    :title="sharesData?.shareDocument || '分享文档'"
+    :title="sharesData?.shareDocument || t('shares.shareDocument')"
     :ui="{ footer: 'justify-end' }"
   >
     <template #body>
       <div class="space-y-4">
         <div>
           <p class="text-sm text-toned mb-4">
-            文档：<span class="font-medium">{{ documentTitle }}</span>
+            {{ t('documents.document') }}：<span class="font-medium">{{ documentTitle }}</span>
           </p>
         </div>
 
@@ -158,23 +170,22 @@ watch(() => props.documentId, () => {
         >
           <div class="bg-success/10 border border-success/20 rounded-lg p-4">
             <p class="text-sm text-success mb-2">
-              ✓ {{ sharesData?.shareLinkCreated || '分享链接已创建' }}
+              ✓ {{ sharesData?.shareLinkCreated || t('shares.shareLinkCreated') }}
             </p>
             <div class="flex items-center gap-2 bg-default rounded px-3 py-2">
               <input
                 :value="shareUrl"
                 readonly
                 class="flex-1 text-sm text-default outline-none"
-              />
-              <button
-                @click="copyShareLink"
-                class="text-primary hover:text-primary/80 text-sm font-medium"
               >
-                {{ sharesData?.copy || '复制' }}
+              <button
+                class="text-primary hover:text-primary/80 text-sm font-medium"
+                @click="copyShareLink"
+              >
+                {{ sharesData?.copy || t('shares.copy') }}
               </button>
             </div>
           </div>
-
         </div>
 
         <!-- 创建分享表单 -->
@@ -194,23 +205,23 @@ watch(() => props.documentId, () => {
           />
 
           <UFormField
-            :label="sharesData?.accessPassword || '访问密码（可选）'"
+            :label="sharesData?.accessPassword || t('shares.accessPassword')"
             name="password"
           >
             <UInput
               v-model="state.password"
               type="password"
-              :placeholder="sharesData?.passwordPlaceholder || '留空则无需密码'"
+              :placeholder="sharesData?.passwordPlaceholder || t('shares.passwordPlaceholder')"
             />
             <template #description>
               <p class="text-xs text-muted">
-                {{ sharesData?.passwordDescription || '设置密码后，访问者需要输入密码才能查看文档' }}
+                {{ sharesData?.passwordDescription || t('shares.passwordDescription') }}
               </p>
             </template>
           </UFormField>
 
           <UFormField
-            :label="sharesData?.expiresAt || '过期时间（可选）'"
+            :label="sharesData?.expiresAt || t('shares.expiresAt')"
             name="expiresAt"
           >
             <UInputDate
@@ -219,7 +230,7 @@ watch(() => props.documentId, () => {
             />
             <template #description>
               <p class="text-xs text-muted">
-                {{ sharesData?.expiresAtDescription || '设置过期时间后，链接将在指定时间后失效' }}
+                {{ sharesData?.expiresAtDescription || t('shares.expiresAtDescription') }}
               </p>
             </template>
           </UFormField>
@@ -230,7 +241,7 @@ watch(() => props.documentId, () => {
             :loading="loading"
             class="mt-4"
           >
-            {{ sharesData?.createShareLink || '创建分享链接' }}
+            {{ sharesData?.createShareLink || t('shares.createShareLink') }}
           </UButton>
         </UForm>
       </div>
@@ -242,7 +253,7 @@ watch(() => props.documentId, () => {
           variant="soft"
           @click="closeModal"
         >
-          {{ actionsData?.cancel || sharesData?.cancel || '取消' }}
+          {{ actionsData?.cancel || sharesData?.cancel || t('shares.cancel') }}
         </UButton>
       </template>
       <template v-else>
@@ -250,12 +261,12 @@ watch(() => props.documentId, () => {
           variant="soft"
           @click="reset"
         >
-          {{ sharesData?.createNewLink || '创建新链接' }}
+          {{ sharesData?.createNewLink || t('shares.createNewLink') }}
         </UButton>
         <UButton
           @click="closeModal"
         >
-          {{ sharesData?.done || '完成' }}
+          {{ sharesData?.done || t('shares.done') }}
         </UButton>
       </template>
     </template>
