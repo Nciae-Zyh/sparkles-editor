@@ -4,8 +4,8 @@ export default eventHandler(async (event) => {
   const user = await getCurrentUser(event)
   if (!user) {
     throw createError({
-      statusCode: 401,
-      message: 'Unauthorized'
+      status: 401,
+      statusText: 'Unauthorized'
     })
   }
 
