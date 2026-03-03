@@ -1325,10 +1325,11 @@ defineExpose({
       >
         <EditorAIChatPanel
           :document-content="content || ''"
-          @insert="(text: string) => {
+          :document-id="props.documentId"
+          @insert="(html: string) => {
             const editor = getEditorInstance()
             if (editor) {
-              editor.chain().focus().insertContent(text, { contentType: 'markdown' }).run()
+              editor.chain().focus().insertContent(html).run()
             }
           }"
           @close="showAIChat = false"

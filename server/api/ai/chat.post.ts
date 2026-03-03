@@ -1,4 +1,6 @@
 import { logAiConfig, logAiError, logAiRequest, logAiValidationFail } from '~~/server/utils/ai-log'
+import { getDBWithMigration } from '~~/server/utils/db'
+import { getCurrentUser } from '~~/server/utils/auth'
 
 const ENDPOINT = 'chat'
 
@@ -14,9 +16,11 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Invalid request body' })
   })
 
-  const { messages, documentContent } = body as {
+  const { messages, documentContent, sessionId, documentId } = body as {
     messages: ChatMessage[]
     documentContent?: string
+    sessionId?: string
+    documentId?: string
   }
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -48,19 +52,61 @@ export default eventHandler(async (event) => {
   if (documentContent) {
     systemMessages.push({
       role: 'system',
-      content: `You are a professional writing assistant. The user is editing a document with the following content:
-
----
-${documentContent.slice(0, 3000)}${documentContent.length > 3000 ? '\n...(truncated)' : ''}
----
-
-Answer the user's questions based on the document. Help improve, expand, or analyze the content. Be concise, professional, and helpful. Detect the language the user writes in and respond in the same language.`
+      content: `You are a professional writing assistant. The user is editing a document with the following content:\n\n---\n${documentContent.slice(0, 3000)}${documentContent.length > 3000 ? '\n...(truncated)' : ''}\n---\n\nAnswer the user's questions based on the document. Help improve, expand, or analyze the content. Be concise, professional, and helpful.\n\nCRITICAL RULE: You MUST reply in the exact same language as the user's message. If the user writes in Chinese, your entire response must be in Chinese. If the user writes in English, respond in English. Never switch to a different language under any circumstances.`
     })
   } else {
     systemMessages.push({
       role: 'system',
-      content: 'You are a professional writing assistant. Help users with document writing, editing, and content improvement. Detect the language the user writes in and respond in the same language.'
+      content: 'You are a professional writing assistant. Help users with document writing, editing, and content improvement.\n\nCRITICAL RULE: You MUST reply in the exact same language as the user\'s message. If the user writes in Chinese, your entire response must be in Chinese. If the user writes in English, respond in English. Never switch to a different language under any circumstances.'
     })
+  }
+
+  // Persist conversation to DB if user is authenticated and sessionId provided
+  let db: Awaited<ReturnType<typeof getDBWithMigration>> | null = null
+  let userId: string | null = null
+
+  if (sessionId) {
+    try {
+      const user = await getCurrentUser(event)
+      if (user) {
+        userId = user.id
+        db = await getDBWithMigration(event)
+
+        // Create session if it doesn't exist
+        const existing = await db.prepare(
+          'SELECT id FROM ai_chat_sessions WHERE id = ?'
+        ).bind(sessionId).first()
+
+        if (!existing) {
+          const lastUserMsg = messages[messages.length - 1]
+          const title = lastUserMsg?.role === 'user'
+            ? lastUserMsg.content.slice(0, 100)
+            : ''
+          await db.prepare(`
+            INSERT INTO ai_chat_sessions (id, user_id, document_id, title, message_count)
+            VALUES (?, ?, ?, ?, 0)
+          `).bind(sessionId, userId, documentId ?? null, title).run()
+        }
+
+        // Save the latest user message
+        const lastUserMsg = messages[messages.length - 1]
+        if (lastUserMsg?.role === 'user') {
+          await db.prepare(`
+            INSERT INTO ai_chat_messages (id, session_id, role, content)
+            VALUES (?, ?, 'user', ?)
+          `).bind(crypto.randomUUID(), sessionId, lastUserMsg.content).run()
+          await db.prepare(`
+            UPDATE ai_chat_sessions
+            SET message_count = message_count + 1, updated_at = unixepoch()
+            WHERE id = ?
+          `).bind(sessionId).run()
+        }
+      }
+    } catch (e) {
+      // DB persistence is best-effort; do not block the chat response
+      console.warn('[chat] Failed to persist session/user message:', e)
+      db = null
+    }
   }
 
   // Set SSE headers for streaming response
@@ -99,10 +145,15 @@ Answer the user's questions based on the document. Help improve, expand, or anal
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
 
+  // Capture db and sessionId in closure for post-stream save
+  const capturedDb = db
+  const capturedSessionId = sessionId
+
   return sendStream(event, new ReadableStream({
     async pull(controller) {
+      let fullResponse = ''
       try {
-        while (true) {
+        outer: while (true) {
           const { done, value } = await reader.read()
           if (done) {
             controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'))
@@ -118,15 +169,16 @@ Answer the user's questions based on the document. Help improve, expand, or anal
               if (data === '[DONE]') {
                 controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'))
                 controller.close()
-                return
+                break outer  // exit while loop, not the pull function
               }
               try {
                 const parsed = JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> }
                 const textChunk = parsed.choices?.[0]?.delta?.content
                 if (textChunk) {
+                  fullResponse += textChunk
                   controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ text: textChunk })}\n\n`))
                 }
-              } catch (_) {
+              } catch {
                 // Skip malformed lines
               }
             }
@@ -135,6 +187,23 @@ Answer the user's questions based on the document. Help improve, expand, or anal
       } catch (err) {
         logAiError(ENDPOINT, err, { phase: 'stream' })
         controller.close()
+      }
+
+      // Save assistant message after streaming completes
+      if (capturedDb && capturedSessionId && fullResponse) {
+        try {
+          await capturedDb.prepare(`
+            INSERT INTO ai_chat_messages (id, session_id, role, content)
+            VALUES (?, ?, 'assistant', ?)
+          `).bind(crypto.randomUUID(), capturedSessionId, fullResponse).run()
+          await capturedDb.prepare(`
+            UPDATE ai_chat_sessions
+            SET message_count = message_count + 1, updated_at = unixepoch()
+            WHERE id = ?
+          `).bind(capturedSessionId).run()
+        } catch (e) {
+          console.warn('[chat] Failed to persist assistant message:', e)
+        }
       }
     },
     cancel() {

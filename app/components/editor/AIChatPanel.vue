@@ -11,6 +11,7 @@ interface Message {
 
 const props = defineProps<{
   documentContent?: string
+  documentId?: string
 }>()
 
 const emit = defineEmits<{
@@ -24,7 +25,10 @@ const editorData = computed(() => $tm('editor') as Record<string, string> | unde
 const messages = ref<Message[]>([])
 const inputText = ref('')
 const isLoading = ref(false)
+const isLoadingHistory = ref(false)
 const messagesEndRef = ref<HTMLDivElement | null>(null)
+// Each panel open gets a unique session; synced with DB when history is loaded
+const sessionId = ref(crypto.randomUUID())
 
 // Configure marked: GFM + line breaks
 marked.setOptions({ gfm: true, breaks: true })
@@ -40,6 +44,34 @@ const scrollToBottom = () => {
     messagesEndRef.value?.scrollIntoView({ behavior: 'smooth' })
   })
 }
+
+// Load previous conversation from DB when opening a document's chat panel
+onMounted(async () => {
+  if (!props.documentId) return
+  isLoadingHistory.value = true
+  try {
+    const data = await $fetch<{
+      sessionId: string | null
+      messages: Array<{ id: string; role: 'user' | 'assistant'; content: string }>
+    }>(`/api/ai/chat/history?documentId=${encodeURIComponent(props.documentId)}`)
+
+    if (data.sessionId && data.messages.length > 0) {
+      sessionId.value = data.sessionId
+      messages.value = data.messages.map(m => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        streaming: false,
+        html: m.role === 'assistant' ? renderMarkdown(m.content) : undefined
+      }))
+      scrollToBottom()
+    }
+  } catch {
+    // Not logged in or no history — proceed with empty state
+  } finally {
+    isLoadingHistory.value = false
+  }
+})
 
 const sendMessage = async () => {
   const text = inputText.value.trim()
@@ -73,7 +105,9 @@ const sendMessage = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: historyMessages,
-        documentContent: props.documentContent
+        documentContent: props.documentContent,
+        sessionId: sessionId.value,
+        documentId: props.documentId
       })
     })
 
@@ -150,12 +184,28 @@ const sendMessage = async () => {
   }
 }
 
-const clearHistory = () => {
+const clearHistory = async () => {
+  const currentSessionId = sessionId.value
   messages.value = []
+  sessionId.value = crypto.randomUUID()
+
+  // Soft-delete the session in DB (best-effort, don't block UI)
+  if (props.documentId) {
+    try {
+      await $fetch('/api/ai/chat/clear', {
+        method: 'POST',
+        body: { sessionId: currentSessionId }
+      })
+    } catch {
+      // Ignore errors — local state is already reset
+    }
+  }
 }
 
-const insertMessage = (content: string) => {
-  emit('insert', content)
+const insertMessage = (msg: Message) => {
+  // Emit rendered HTML so the editor can insert formatted content;
+  // fall back to raw text if HTML hasn't been rendered yet
+  emit('insert', msg.html || msg.content)
 }
 </script>
 
@@ -193,23 +243,35 @@ const insertMessage = (content: string) => {
 
     <!-- Messages -->
     <div class="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+      <!-- History loading state -->
       <div
-        v-if="messages.length === 0"
-        class="h-full flex flex-col items-center justify-center text-center gap-3 py-8"
+        v-if="isLoadingHistory"
+        class="h-full flex flex-col items-center justify-center gap-2"
       >
         <UIcon
-          name="i-lucide-sparkles"
-          class="w-8 h-8 text-primary/50"
+          name="i-lucide-loader-2"
+          class="w-5 h-5 text-muted animate-spin"
         />
-        <p class="text-sm text-muted max-w-48">
-          {{ editorData?.aiChatPlaceholder || t('editor.aiChatPlaceholder') }}
-        </p>
       </div>
 
-      <template
-        v-for="msg in messages"
-        :key="msg.id"
-      >
+      <template v-else>
+        <div
+          v-if="messages.length === 0"
+          class="h-full flex flex-col items-center justify-center text-center gap-3 py-8"
+        >
+          <UIcon
+            name="i-lucide-sparkles"
+            class="w-8 h-8 text-primary/50"
+          />
+          <p class="text-sm text-muted max-w-48">
+            {{ editorData?.aiChatPlaceholder || t('editor.aiChatPlaceholder') }}
+          </p>
+        </div>
+
+        <template
+          v-for="msg in messages"
+          :key="msg.id"
+        >
         <!-- User message -->
         <div
           v-if="msg.role === 'user'"
@@ -278,12 +340,13 @@ const insertMessage = (content: string) => {
               size="xs"
               variant="ghost"
               color="neutral"
-              @click="insertMessage(msg.content)"
+              @click="insertMessage(msg)"
             >
               {{ editorData?.aiChatInsert || t('editor.aiChatInsert') }}
             </UButton>
           </div>
         </div>
+        </template>
       </template>
       <div ref="messagesEndRef" />
     </div>

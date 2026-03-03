@@ -176,6 +176,32 @@ export async function initDB(db: D1Database) {
       )
     `).run()
 
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS ai_chat_sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        document_id TEXT,
+        title TEXT NOT NULL DEFAULT '',
+        message_count INTEGER NOT NULL DEFAULT 0,
+        deleted_at INTEGER,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL
+      )
+    `).run()
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS ai_chat_messages (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (session_id) REFERENCES ai_chat_sessions(id) ON DELETE CASCADE
+      )
+    `).run()
+
     await migrateDB(db)
 
     for (const sql of [
@@ -194,7 +220,10 @@ export async function initDB(db: D1Database) {
       'CREATE INDEX IF NOT EXISTS idx_shares_created_at ON shares(created_at DESC)',
       'CREATE INDEX IF NOT EXISTS idx_document_versions_document ON document_versions(document_id, created_at DESC)',
       'CREATE INDEX IF NOT EXISTS idx_document_comments_document ON document_comments(document_id, created_at DESC)',
-      'CREATE INDEX IF NOT EXISTS idx_document_comment_replies_comment ON document_comment_replies(comment_id, created_at ASC)'
+      'CREATE INDEX IF NOT EXISTS idx_document_comment_replies_comment ON document_comment_replies(comment_id, created_at ASC)',
+      'CREATE INDEX IF NOT EXISTS idx_ai_sessions_user_id ON ai_chat_sessions(user_id, created_at DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_ai_sessions_document_id ON ai_chat_sessions(document_id)',
+      'CREATE INDEX IF NOT EXISTS idx_ai_messages_session_id ON ai_chat_messages(session_id, created_at ASC)'
     ]) {
       await db.prepare(sql).run().catch((e: any) =>
         console.warn('[initDB] Index skipped:', e?.message)
@@ -329,6 +358,39 @@ export async function migrateDB(db: D1Database) {
         updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
         FOREIGN KEY (comment_id) REFERENCES document_comments(id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `).run().catch(() => {})
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS ai_chat_sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        document_id TEXT,
+        title TEXT NOT NULL DEFAULT '',
+        message_count INTEGER NOT NULL DEFAULT 0,
+        deleted_at INTEGER,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL
+      )
+    `).run().catch(() => {})
+
+    // Add deleted_at to ai_chat_sessions if missing (upgrade from earlier version)
+    const aiSessionColumns = await db.prepare(`PRAGMA table_info(ai_chat_sessions)`).all().catch(() => ({ results: [] as any[] }))
+    const aiSessionColumnNames = (aiSessionColumns.results as any[]).map((col: any) => col.name)
+    if (aiSessionColumnNames.length > 0 && !aiSessionColumnNames.includes('deleted_at')) {
+      await db.prepare(`ALTER TABLE ai_chat_sessions ADD COLUMN deleted_at INTEGER`).run().catch(() => {})
+    }
+
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS ai_chat_messages (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (session_id) REFERENCES ai_chat_sessions(id) ON DELETE CASCADE
       )
     `).run().catch(() => {})
 
