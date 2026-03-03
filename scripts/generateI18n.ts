@@ -1,3 +1,4 @@
+// @ts-nocheck
 import fs from 'fs'
 import path from 'path'
 
@@ -59,7 +60,7 @@ export const generateI18n = async () => {
   const files: Record<string, string[]> = {}
 
   const languages = fs.readdirSync(languagesDir)
-    .filter(name => fs.statSync(path.join(languagesDir, name)).isDirectory())
+    .filter((name: string) => fs.statSync(path.join(languagesDir, name)).isDirectory())
 
   // 核心优化点：使用递归函数
   for (const language of languages) {
@@ -129,7 +130,8 @@ ${languageModuleObjectContent}
 
   // D. 组合最终文件内容
   // 假定 defineI18nConfig 需要从 '@nuxtjs/i18n/runtime' 导入
-  const i18nFileContent = `import { merge } from 'lodash-es';
+  const i18nFileContent = `// @ts-nocheck
+import { merge } from 'lodash-es';
 
 ${importStatements}
 

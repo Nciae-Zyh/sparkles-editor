@@ -1,5 +1,5 @@
 export function useBeforeUnload(enabled: Ref<boolean> | (() => boolean) = () => true) {
-  const { tm: $tm, t } = useNuxtApp().$i18n
+  const { tm: $tm, t } = useNuxtApp().$i18n as { tm: (key: string) => unknown; t: (key: string, ...args: unknown[]) => string }
   const beforeunloadData = computed(() => $tm('beforeunload') as Record<string, string> | undefined)
 
   const isEnabled = computed(() => {

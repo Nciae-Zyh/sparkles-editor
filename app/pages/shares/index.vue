@@ -79,13 +79,20 @@ const deleteShare = async (shareId: string) => {
 
 // 复制分享链接
 const copyShareLink = (shareId: string) => {
-  if (typeof window === 'undefined') return
-  const url = `${window.location.origin}${safeLocalePath(`/share/${shareId}`)}`
+  const url = getShareUrl(shareId)
+  if (!url) return
   navigator.clipboard.writeText(url).then(() => {
     alert(sharesData.value?.shareLinkCopied || t('shares.shareLinkCopied'))
   }).catch(() => {
     alert(sharesData.value?.copyFailed || t('shares.copyFailed'))
   })
+}
+
+const getShareUrl = (shareId: string) => {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+  return `${window.location.origin}${safeLocalePath(`/share/${shareId}`)}`
 }
 
 // 格式化时间
@@ -211,7 +218,7 @@ onMounted(async () => {
                   <div class="mt-3">
                     <div class="flex items-center gap-2 bg-muted rounded px-3 py-2">
                       <input
-                        :value="typeof window !== 'undefined' ? `${window.location.origin}${safeLocalePath(`/share/${share.id}`)}` : ''"
+                        :value="getShareUrl(share.id)"
                         readonly
                         class="flex-1 bg-transparent text-sm text-default outline-none"
                       >

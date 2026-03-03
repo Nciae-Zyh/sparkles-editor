@@ -31,7 +31,7 @@ const stats = computed(() => {
   const nonChineseWords = stripped
     .replace(/[\u4E00-\u9FFF\u3400-\u4DBF]/g, '')
     .split(/\s+/)
-    .filter(w => w.length > 0).length
+    .filter((w: string) => w.length > 0).length
 
   const words = chineseChars + nonChineseWords
   const chars = stripped.replace(/\s/g, '').length

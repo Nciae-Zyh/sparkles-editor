@@ -24,17 +24,17 @@ const { locale, locales } = useI18n()
 const switchLocalePath = useSwitchLocalePath()
 
 const languageItems = computed(() =>
-  locales.value.map(l => ({
+  locales.value.map((l: { code: string; name?: string }) => ({
     label: l.name,
     suffix: locale.value === l.code ? 'i-lucide-check' : undefined,
     class: locale.value === l.code ? 'font-medium' : '',
-    onSelect: () => navigateTo(switchLocalePath(l.code))
+    onSelect: () => navigateTo(switchLocalePath(l.code as 'en' | 'zh'))
   }))
 )
 
 // 显示当前语言的简短代码，如 EN / 中
 const currentLocaleCode = computed(() => {
-  const currentLocale = locales.value.find(item => item.code === locale.value)
+  const currentLocale = locales.value.find((item: { code: string }) => item.code === locale.value)
   return currentLocale?.name || locale.value.toUpperCase()
 })
 </script>

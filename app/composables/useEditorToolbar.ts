@@ -2,19 +2,19 @@ import type { EditorToolbarItem, EditorCustomHandlers } from '@nuxt/ui'
 import type { Editor } from '@tiptap/vue-3'
 
 export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers?: T) {
-  const { tm: $tm } = useNuxtApp().$i18n
+  const { tm: $tm } = useNuxtApp().$i18n as { tm: (key: string) => unknown }
   const toolbarData = computed(() => $tm('toolbar') as Record<string, string> | undefined)
 
   // 辅助函数：如果 label 超过10个字符，将其移到 tooltip，按钮只显示图标
-  const processToolbarItem = <TItem extends EditorToolbarItem<T>>(item: TItem): TItem => {
-    if (item.label && item.label.length > 10) {
+  const processToolbarItem = (item: Record<string, unknown>): Record<string, unknown> => {
+    if (item.label && typeof item.label === 'string' && item.label.length > 10) {
       // 如果 label 超过10个字符，将其移到 tooltip
       const labelText = item.label
       return {
         ...item,
         label: undefined, // 移除 label，按钮只显示图标
         tooltip: item.tooltip || { text: labelText } // 将 label 移到 tooltip
-      } as TItem
+      }
     }
     return item
   }
@@ -34,7 +34,7 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
       label: toolbar?.add,
       icon: 'i-lucide-image',
       tooltip: { text: toolbar?.addImage }
-    })]] satisfies EditorToolbarItem<T>[][]
+    })]] as unknown as EditorToolbarItem<T>[][]
   })
 
   const bubbleToolbarItems = computed(() => {
@@ -131,7 +131,7 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
       kind: 'imageUpload',
       icon: 'i-lucide-image',
       tooltip: { text: toolbar?.image }
-    }]] satisfies EditorToolbarItem<T>[][]
+    }]] as unknown as EditorToolbarItem<T>[][]
   })
 
   const getImageToolbarItems = (editor: Editor): EditorToolbarItem<T>[][] => {
@@ -175,7 +175,7 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
           editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run()
         }
       }
-    }]]
+    }]] as unknown as EditorToolbarItem<T>[][]
   }
 
   const getTableToolbarItems = (editor: Editor): EditorToolbarItem<T>[][] => {
@@ -222,7 +222,7 @@ export function useEditorToolbar<T extends EditorCustomHandlers>(_customHandlers
       onClick: () => {
         editor.chain().focus().deleteTable().run()
       }
-    }]]
+    }]] as unknown as EditorToolbarItem<T>[][]
   }
 
   return {

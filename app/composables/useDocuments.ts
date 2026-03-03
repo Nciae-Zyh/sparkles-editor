@@ -209,7 +209,10 @@ export const useDocuments = () => {
       // 更新本地列表
       const index = documents.value.findIndex(d => d.id === id)
       if (index !== -1 && data.document) {
-        documents.value[index] = { ...documents.value[index], ...data.document }
+        const current = documents.value[index]
+        if (current) {
+          documents.value[index] = { ...current, ...data.document } as Document
+        }
       }
       return data.document
     } catch (error: unknown) {

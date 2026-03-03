@@ -1,6 +1,14 @@
 import type { Document } from '~/types'
 import type { ContextMenuItem } from '@nuxt/ui'
 
+type SimpleMenuItem = {
+  label?: string
+  icon?: string
+  color?: string
+  type?: 'label' | 'separator' | 'link' | 'checkbox'
+  onSelect?: (e: Event) => void
+}
+
 export interface UseDocumentContextMenuOptions {
   /**
    * 打开文档/文件夹的回调
@@ -47,16 +55,32 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     onDownload,
     currentParentId = null
   } = options
-  const { tm: $tm, t } = useNuxtApp().$i18n
+  const { tm: $tm, t } = useNuxtApp().$i18n as { tm: (key: string) => unknown; t: (key: string, ...args: unknown[]) => string }
 
-  const documentsData = computed(() => $tm('documents') as Record<string, unknown> | undefined)
-  const contextMenuData = computed(() => documentsData.value?.contextMenu || {})
+  const documentsData = computed(() => $tm('documents') as {
+    contextMenu?: Record<string, string>
+  } | undefined)
+  const contextMenuData = computed<Record<string, string>>(() => documentsData.value?.contextMenu || {})
+
+  const resolveParentId = (): string | null | undefined => {
+    if (typeof currentParentId === 'function') {
+      return currentParentId()
+    }
+    if (
+      currentParentId
+      && typeof currentParentId === 'object'
+      && 'value' in currentParentId
+    ) {
+      return currentParentId.value
+    }
+    return currentParentId
+  }
 
   /**
    * 获取文件夹的右键菜单项
    */
   const getFolderMenuItems = (folder: Document): ContextMenuItem[][] => {
-    const items: ContextMenuItem[][] = []
+    const items: SimpleMenuItem[][] = []
 
     // 打开文件夹
     if (onOpen) {
@@ -81,7 +105,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     }
 
     // 在文件夹内创建文档和文件夹
-    const createItems: ContextMenuItem[] = []
+    const createItems: SimpleMenuItem[] = []
     if (onCreateDocument) {
       createItems.push({
         label: contextMenuData.value.newDocument || t('documents.contextMenu.newDocument'),
@@ -112,14 +136,14 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
       ])
     }
 
-    return items
+    return items as unknown as ContextMenuItem[][]
   }
 
   /**
    * 获取文档的右键菜单项
    */
   const getDocumentMenuItems = (doc: Document): ContextMenuItem[][] => {
-    const items: ContextMenuItem[][] = []
+    const items: SimpleMenuItem[][] = []
 
     // 打开文档
     if (onOpen) {
@@ -166,15 +190,15 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
       ])
     }
 
-    return items
+    return items as unknown as ContextMenuItem[][]
   }
 
   /**
    * 获取空白区域的右键菜单项
    */
   const getEmptyAreaMenuItems = computed((): ContextMenuItem[][] => {
-    const items: ContextMenuItem[][] = []
-    const parentId = typeof currentParentId === 'function' ? currentParentId() : currentParentId
+    const items: SimpleMenuItem[][] = []
+    const parentId = resolveParentId()
 
     // 新建文档
     if (onCreateDocument) {
@@ -198,7 +222,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
       ])
     }
 
-    return items
+    return items as unknown as ContextMenuItem[][]
   })
 
   return {

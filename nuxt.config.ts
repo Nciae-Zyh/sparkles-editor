@@ -36,13 +36,6 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  content: {
-    ignores: [
-      '**/*.txt',
-      '**/sql_dump.*'
-    ]
-  },
-
   ui: {
     experimental: {
       componentDetection: true

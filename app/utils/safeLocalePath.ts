@@ -7,22 +7,23 @@
 export const useSafeLocalePath = () => {
   const localePath = useLocalePath()
   const { locale, defaultLocale } = useI18n()
-  const router = useRouter()
+  type LocaleCode = 'en' | 'zh'
 
-  return (path: string, targetLocale?: string): string => {
+  return (path: string, targetLocale?: LocaleCode): string => {
     // 如果指定了目标语言，直接使用
     if (targetLocale) {
       return localePath(path, targetLocale)
     }
 
     // 如果当前语言是默认语言，直接返回
-    if (locale.value === defaultLocale) {
+    const fallbackLocale = (defaultLocale as LocaleCode | undefined) || 'en'
+    if (locale.value === fallbackLocale) {
       return localePath(path)
     }
 
     // 获取当前语言和英文版本的路由
     const currentLocalePath = localePath(path)
-    const fallbackPath = localePath(path, defaultLocale)
+    const fallbackPath = localePath(path, fallbackLocale)
 
     // 检查当前语言的路由是否存在
     try {
@@ -31,7 +32,7 @@ export const useSafeLocalePath = () => {
       } else {
         return fallbackPath
       }
-    } catch (e) {
+    } catch {
       // 如果解析失败，使用英文版本
       return fallbackPath
     }

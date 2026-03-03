@@ -3,6 +3,7 @@ import { generateDocumentId } from '~/utils/documentId'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import { useAuth } from '~/composables/useAuth'
 
+const { t } = useI18n()
 const route = useRoute()
 const safeLocalePath = useSafeLocalePath()
 const { user } = useAuth()
@@ -41,7 +42,15 @@ const handleImported = (importedContent: string) => {
 watch(() => route.query.function, () => {
   checkCreateDocument()
 })
-const defaultContent = computed(() => $tm('editor.defaultContent'))
+const defaultContent = computed(() => t('editor.defaultContent'))
+
+const handleDocumentSaved = async (id: string) => {
+  isNewDocument.value = false
+  allowSave.value = false // 保存后恢复预览模式
+  newDocumentId.value = undefined // 清除临时ID
+  await navigateTo(safeLocalePath(`/documents/${id}`))
+}
+
 onMounted(() => {
   if (route.query && 'create' !== route.query.function) {
     try {
@@ -62,13 +71,7 @@ onMounted(() => {
       :document-id="newDocumentId"
       :enable-before-unload="false"
       @imported="handleImported"
-      @document-saved="async (id) => {
-        isNewDocument = false
-        allowSave.value = false // 保存后恢复预览模式
-        newDocumentId.value = undefined // 清除临时ID
-        // 保存后跳转到文档编辑页面
-        await navigateTo(safeLocalePath(`/documents/${id}`))
-      }"
+      @document-saved="handleDocumentSaved"
     />
   </div>
 </template>

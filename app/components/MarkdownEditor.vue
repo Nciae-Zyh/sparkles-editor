@@ -26,6 +26,10 @@ interface Props {
   renameLoading?: boolean // 重命名加载状态
 }
 
+interface EditorRefLike {
+  editor?: unknown
+}
+
 const emit = defineEmits<{
   'document-saved': [id: string]
   'start-rename': []
@@ -94,7 +98,7 @@ const documentId = ref(props.documentId)
 const hasBeenSaved = ref(false)
 
 // 检查文档是否已存在于服务器的函数
-const checkDocumentExists = async (id: string) => {
+const checkDocumentExists = async (id?: string) => {
   if (!id) {
     hasBeenSaved.value = false
     originalDocumentTitle.value = null
@@ -171,10 +175,11 @@ const placeholder = computed(() => {
   return editorData.value?.placeholder || t('editor.placeholder')
 })
 
-const editorRef = ref<Editor | null>(null)
+const editorRef = ref<EditorRefLike | null>(null)
+const getEditorInstance = () => (editorRef.value?.editor as Editor | null) ?? null
 
 // 自动保存相关
-const autoSaveTimer = ref<NodeJS.Timeout | null>(null)
+const autoSaveTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const isAutoSaving = ref(false)
 const lastSavedAt = ref<Date | null>(null)
 const lastSaveError = ref<string | null>(null)
@@ -271,7 +276,7 @@ watch([
       isAutoSaving.value = true
       // 自动保存时使用原始标题，避免标题被覆盖
       const titleToSave = originalDocumentTitle.value || documentTitle.value
-      await saveDocument(titleToSave, content.value, documentId.value)
+      await saveDocument(titleToSave, content.value || '', documentId.value)
       lastSavedAt.value = new Date()
       lastSaveError.value = null
     } catch (error) {
@@ -285,7 +290,7 @@ watch([
 })
 
 // AI 续写处理函数
-async function handleAIContinueAtPosition(editor: Editor, pos?: number) {
+async function handleAIContinueAtPosition(editor: any, pos?: number) {
   if (!editor || !content.value) {
     return
   }
@@ -408,7 +413,7 @@ function onCreate({ editor: _editor }: { editor: Editor }) {
 
 // 监听 readonly 变化，动态设置编辑器是否可编辑
 watch(() => props.readonly, (readonly) => {
-  const editor = editorRef.value?.editor
+  const editor = getEditorInstance()
   if (editor) {
     editor.setEditable(!readonly)
   }
@@ -435,7 +440,7 @@ const extensions = computed(() => [
 
 // 导入Markdown内容
 function importMarkdown(markdown: string) {
-  const editor = editorRef.value?.editor
+  const editor = getEditorInstance()
   if (!editor) {
     console.warn(editorData.value?.editorNotReady || t('editor.editorNotReady'))
     return
@@ -447,7 +452,7 @@ function importMarkdown(markdown: string) {
 
 // 导出Markdown内容
 function exportMarkdown(): string {
-  const editor = editorRef.value?.editor
+  const editor = getEditorInstance()
   if (!editor) {
     console.warn(editorData.value?.editorNotReady || t('editor.editorNotReady'))
     return content.value || ''
@@ -629,14 +634,25 @@ const restoreVersionById = async (versionId: string) => {
 
 // AI 续写处理（工具栏按钮使用）
 async function handleAIContinue() {
-  if (!editorRef.value?.editor) {
+  const editor = getEditorInstance()
+  if (!editor) {
     return
   }
-  await handleAIContinueAtPosition(editorRef.value.editor)
+  await handleAIContinueAtPosition(editor)
+}
+
+const handleEditorDocumentSaved = (id: string, savedTitle: string) => {
+  documentId.value = id
+  hasBeenSaved.value = true
+  lastSavedAt.value = new Date()
+  lastSaveError.value = null
+  originalDocumentTitle.value = savedTitle
+  documentTitle.value = savedTitle
+  emit('document-saved', id)
 }
 
 // 选中扩写：用 AI 扩写选中的文本，替换选区
-async function handleAIExpandSelected(editor: Editor) {
+async function handleAIExpandSelected(editor: any) {
   if (!editor || !content.value) {
     return
   }
@@ -669,7 +685,7 @@ async function handleAIExpandSelected(editor: Editor) {
 }
 
 // 选中润色：用 AI 润色选中的文本，替换选区
-async function handleAIPolishSelected(editor: Editor) {
+async function handleAIPolishSelected(editor: any) {
   if (!editor || !content.value) {
     return
   }
@@ -702,7 +718,7 @@ async function handleAIPolishSelected(editor: Editor) {
 }
 
 // 气泡工具栏中「选中扩写」+「润色」按钮的 items
-function getAIBubbleItems(editor: Editor) {
+function getAIBubbleItems(editor: any) {
   const data = editorData.value
   return [[
     {
@@ -721,7 +737,7 @@ function getAIBubbleItems(editor: Editor) {
 }
 
 // 合并格式工具栏与「选中扩写」按钮，供气泡工具栏使用
-function getMergedBubbleItems(editor: Editor) {
+function getMergedBubbleItems(editor: any) {
   const base = bubbleToolbarItems.value ?? []
   const aiItems = getAIBubbleItems(editor)
   return [...base, ...aiItems]
@@ -730,14 +746,14 @@ function getMergedBubbleItems(editor: Editor) {
 // 定义快捷键
 defineShortcuts({
   meta_s: {
-    handler: (e) => {
+    handler: (e: KeyboardEvent) => {
       e.preventDefault()
       handleSave()
     },
     usingInput: false // 不在输入框中时触发
   },
   ctrl_s: {
-    handler: (e) => {
+    handler: (e: KeyboardEvent) => {
       e.preventDefault()
       handleSave()
     },
@@ -814,7 +830,7 @@ defineExpose({
                         size="xs"
                         class="w-48"
                         autofocus
-                        @update:model-value="(val) => emit('update:renameInput', val)"
+                        @update:model-value="(val: string) => emit('update:renameInput', val)"
                         @keyup.enter="$emit('save-rename')"
                         @keyup.esc="$emit('cancel-rename')"
                       />
@@ -969,17 +985,7 @@ defineExpose({
                     :content="content || ''"
                     :document-id="documentId"
                     :title="documentTitle"
-                    @saved="(id, savedTitle) => {
-                      documentId = id
-                      hasBeenSaved = true // 标记文档已保存，允许自动保存
-                      lastSavedAt.value = new Date()
-                      lastSaveError.value = null
-                      // 保存用户设置的标题作为原始标题，用于后续自动保存（沿用用户设置的标题，不从内容提取）
-                      // savedTitle 是用户在 SaveDocumentButton 中手动输入的 pathInput.value
-                      originalDocumentTitle.value = savedTitle
-                      documentTitle.value = savedTitle
-                      $emit('document-saved', id)
-                    }"
+                    @saved="handleEditorDocumentSaved"
                   />
                   <div
                     v-if="user && canSave && saveStatus"

@@ -15,11 +15,17 @@ interface Props {
   placeholder?: string
 }
 
+interface EditorRefLike {
+  editor?: Editor | null
+}
+
 const props = withDefaults(defineProps<Props>(), {
   placeholder: ''
 })
 
-const editorRef = useTemplateRef('editorRef')
+const editorRef = ref<EditorRefLike | null>(null)
+const activeEditor = computed(() => editorRef.value?.editor ?? null)
+const toolbarEditor = computed(() => activeEditor.value as any)
 
 // Custom handlers for editor
 const customHandlers = {
@@ -58,10 +64,7 @@ const {
   getTableToolbarItems
 } = useEditorToolbar(customHandlers)
 
-const content = defineModel({
-  default: () => t('editor.defaultContent'),
-  type: 'string'
-})
+const content = defineModel<string>({ default: '' })
 
 function onCreate({ editor: _editor }: { editor: Editor }) {
   // Editor created
@@ -69,7 +72,6 @@ function onCreate({ editor: _editor }: { editor: Editor }) {
 
 function onUpdate(value: string) {
   content.value = value
-  emit('update:modelValue', value)
 }
 
 const extensions = computed(() => [
@@ -95,9 +97,15 @@ const placeholder = computed(() => {
   return editorData.value?.placeholder || t('editor.placeholder')
 })
 
+onMounted(() => {
+  if (!content.value) {
+    content.value = editorData.value?.defaultContent || t('editor.defaultContent')
+  }
+})
+
 // 导入Markdown内容
 function importMarkdown(markdown: string) {
-  const editor = editorRef.value?.editor
+  const editor = activeEditor.value
   if (!editor) {
     console.warn(editorData.value?.editorNotReady || t('editor.editorNotReady'))
     return
@@ -109,7 +117,7 @@ function importMarkdown(markdown: string) {
 
 // 导出Markdown内容
 function exportMarkdown(): string {
-  const editor = editorRef.value?.editor
+  const editor = activeEditor.value
   if (!editor) {
     console.warn(editorData.value?.editorNotReady || t('editor.editorNotReady'))
     return content.value || ''
@@ -130,7 +138,8 @@ defineExpose({
   <div class="editor-container">
     <AppHeader>
       <UEditorToolbar
-        :editor="editorRef"
+        v-if="toolbarEditor"
+        :editor="toolbarEditor"
         :items="toolbarItems"
       />
     </AppHeader>

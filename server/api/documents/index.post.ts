@@ -246,11 +246,12 @@ export default eventHandler(async (event) => {
         now,
         now
       ).run()
+      const resultMeta = (result as { meta?: unknown }).meta
 
       console.log(`[POST /api/documents] [${requestId}] 数据库保存成功:`, {
         documentId,
         success: result.success,
-        meta: result.meta
+        meta: resultMeta
       })
     } catch (error: any) {
       console.error(`[POST /api/documents] [${requestId}] 保存到数据库时出错:`, {

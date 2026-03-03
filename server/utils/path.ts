@@ -17,11 +17,11 @@ export function parseFilePath(filePath: string): { folderPath: string[], fileNam
   }
 
   if (parts.length === 1) {
-    return { folderPath: [], fileName: parts[0] }
+    return { folderPath: [], fileName: parts[0] || '' }
   }
 
   // 最后一部分是文件名，其余是文件夹路径
-  const fileName = parts[parts.length - 1]
+  const fileName = parts[parts.length - 1] || ''
   const folderPath = parts.slice(0, -1)
 
   return { folderPath, fileName }
@@ -46,6 +46,9 @@ export async function ensureFolderPath(
 
   for (let i = 0; i < folderPath.length; i++) {
     const folderName = folderPath[i]
+    if (!folderName) {
+      continue
+    }
 
     // 先检查是否已存在同名文件夹（在同一父文件夹下）
     const existingFolder = await db.prepare(`

@@ -6,12 +6,12 @@ import { mapEditorItems } from '@nuxt/ui/utils/editor'
 const CONVERTIBLE_TYPES = ['paragraph', 'heading', 'bulletList', 'orderedList', 'taskList', 'blockquote', 'codeBlock', 'listItem', 'taskItem']
 
 export function useEditorDragHandle<T extends EditorCustomHandlers>(customHandlers?: T) {
-  const { tm: $tm } = useNuxtApp().$i18n
+  const { tm: $tm } = useNuxtApp().$i18n as { tm: (key: string) => unknown }
   const dragHandleData = computed(() => $tm('dragHandle') as Record<string, string> | undefined)
   const toolbarData = computed(() => $tm('toolbar') as Record<string, string> | undefined)
   const selectedNode = ref<{ node: JSONContent | null, pos: number }>()
 
-  const getTypeSpecificItems = (editor: Editor, nodeType: string): DropdownMenuItem[] => {
+  const getTypeSpecificItems = (editor: Editor, nodeType: string): unknown[] => {
     const pos = selectedNode.value?.pos
 
     const dragHandle = dragHandleData.value

@@ -35,7 +35,10 @@ function extractImageUrls(markdown: string): Array<{ url: string, isInternal: bo
   let match
 
   while ((match = imageRegex.exec(markdown)) !== null) {
-    const url = match[1]
+    const url = match[1] || ''
+    if (!url) {
+      continue
+    }
     // 排除 data URL
     if (!url.startsWith('data:')) {
       const isInternal = isInternalUrl(url)
@@ -101,7 +104,7 @@ function getExtensionFromMimeType(mimeType: string | undefined): string {
  */
 function getImageFileName(url: string, index: number, usedNames: Set<string>, contentType?: string): string {
   // 尝试从 URL 中提取文件名
-  const urlPath = url.split('?')[0] // 移除查询参数
+  const urlPath = url.split('?')[0] || '' // 移除查询参数
   let fileName = urlPath.split('/').pop() || `image-${index + 1}`
 
   // 如果没有扩展名，根据 MIME 类型或使用默认扩展名
@@ -114,8 +117,9 @@ function getImageFileName(url: string, index: number, usedNames: Set<string>, co
   let finalFileName = fileName
   let counter = 1
   while (usedNames.has(finalFileName)) {
-    const ext = fileName.substring(fileName.lastIndexOf('.'))
-    const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.'))
+    const extIndex = fileName.lastIndexOf('.')
+    const ext = extIndex >= 0 ? fileName.substring(extIndex) : ''
+    const nameWithoutExt = extIndex >= 0 ? fileName.substring(0, extIndex) : fileName
     finalFileName = `${nameWithoutExt}-${counter}${ext}`
     counter++
   }

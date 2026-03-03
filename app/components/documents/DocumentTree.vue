@@ -245,6 +245,10 @@ const handleCreateDocument = async (parentId?: string | null) => {
   }
 }
 
+const handleCreateDocumentFromModal = async () => {
+  await handleCreateDocument()
+}
+
 // 处理开始重命名
 const handleStartRename = (id: string) => {
   const node = flat.value.find(d => d.id === id)
@@ -285,8 +289,9 @@ const handleRename = async () => {
 
     // 发布重命名通知，通知编辑页面更新
     const nuxtApp = useNuxtApp()
-    if (nuxtApp.$publishNotification) {
-      nuxtApp.$publishNotification('document:renamed', {
+    const publishNotification = nuxtApp.$publishNotification as ((eventName: string, payload?: unknown) => void) | undefined
+    if (publishNotification) {
+      publishNotification('document:renamed', {
         id,
         title: newTitle
       })
@@ -316,8 +321,10 @@ onMounted(() => {
 
   // 订阅编辑页面的重命名通知
   const nuxtApp = useNuxtApp()
-  if (nuxtApp.$subscribeNotification) {
-    const unsubscribe = nuxtApp.$subscribeNotification<{ id: string, title: string }>('document:renamed', (payload) => {
+  type SubscribeFn = <T>(eventName: string, handler: (payload: T) => void) => () => void
+  const subscribeNotification = nuxtApp.$subscribeNotification as SubscribeFn | undefined
+  if (subscribeNotification) {
+    const unsubscribe = subscribeNotification<{ id: string, title: string }>('document:renamed', (payload) => {
       // 如果重命名的是树中的某个文档，更新树中的标题
       if (payload && payload.id) {
         const updateNodeTitle = (nodes: DocumentTreeNode[]): boolean => {
@@ -407,7 +414,7 @@ watch(currentDocumentId, async (newId) => {
           <UInput
             v-model="newDocumentName"
             :placeholder="documentsData?.enterDocumentName || t('documents.enterDocumentName')"
-            @keyup.enter="handleCreateDocument"
+            @keyup.enter="handleCreateDocumentFromModal"
           />
         </UFormField>
         <div
@@ -428,7 +435,7 @@ watch(currentDocumentId, async (newId) => {
         </UButton>
         <UButton
           :loading="creatingDocument"
-          @click="handleCreateDocument"
+          @click="handleCreateDocumentFromModal"
         >
           {{ documentsData?.create || t('documents.create') }}
         </UButton>

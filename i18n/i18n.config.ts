@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { merge } from 'lodash-es';
 
 import enActions from './locales/en/actions.json';

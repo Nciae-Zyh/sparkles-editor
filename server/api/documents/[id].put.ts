@@ -10,6 +10,9 @@ export default eventHandler(async (event) => {
   }
 
   const { id } = getRouterParams(event)
+  if (!id) {
+    throw createError({ statusCode: 400, message: 'Document id is required' })
+  }
 
   let body: { title?: string, content?: string }
   try {

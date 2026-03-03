@@ -9,6 +9,9 @@ export default eventHandler(async (event) => {
   }
 
   const { id, versionId } = getRouterParams(event)
+  if (!id || !versionId) {
+    throw createError({ statusCode: 400, message: 'Document id and version id are required' })
+  }
   const db = await getDBWithMigration(event)
 
   const doc = await db.prepare(`

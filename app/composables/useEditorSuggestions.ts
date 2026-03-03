@@ -1,7 +1,7 @@
 import type { EditorSuggestionMenuItem, EditorCustomHandlers } from '@nuxt/ui'
 
 export function useEditorSuggestions<T extends EditorCustomHandlers>(_customHandlers?: T) {
-  const { tm: $tm } = useNuxtApp().$i18n
+  const { tm: $tm } = useNuxtApp().$i18n as { tm: (key: string) => unknown }
   const suggestionsData = computed(() => $tm('suggestions') as Record<string, string> | undefined)
   const toolbarData = computed(() => $tm('toolbar') as Record<string, string> | undefined)
 

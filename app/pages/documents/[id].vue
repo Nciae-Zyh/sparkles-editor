@@ -65,8 +65,10 @@ onMounted(async () => {
 
   // 订阅文档树的重命名通知
   const nuxtApp = useNuxtApp()
-  if (nuxtApp.$subscribeNotification) {
-    const unsubscribe = nuxtApp.$subscribeNotification<{ id: string, title: string }>('document:renamed', (payload) => {
+  type SubscribeFn = <T>(eventName: string, handler: (payload: T) => void) => () => void
+  const subscribeNotification = nuxtApp.$subscribeNotification as SubscribeFn | undefined
+  if (subscribeNotification) {
+    const unsubscribe = subscribeNotification<{ id: string, title: string }>('document:renamed', (payload) => {
       // 如果重命名的是当前文档，更新标题
       if (payload && payload.id === documentId.value) {
         documentTitle.value = payload.title
@@ -128,8 +130,9 @@ const saveRename = async () => {
 
     // 发布重命名通知，通知文档树更新
     const nuxtApp = useNuxtApp()
-    if (nuxtApp.$publishNotification) {
-      nuxtApp.$publishNotification('document:renamed', {
+    const publishNotification = nuxtApp.$publishNotification as ((eventName: string, payload?: unknown) => void) | undefined
+    if (publishNotification) {
+      publishNotification('document:renamed', {
         id: documentId.value,
         title: newTitle
       })
@@ -142,6 +145,10 @@ const saveRename = async () => {
   } finally {
     isRenamingLoading.value = false
   }
+}
+
+const handleRenameInputUpdate = (value: string) => {
+  renameInput.value = value
 }
 </script>
 
@@ -185,7 +192,7 @@ const saveRename = async () => {
         @start-rename="startRename"
         @save-rename="saveRename"
         @cancel-rename="cancelRename"
-        @update:rename-input="(val) => { renameInput = val }"
+        @update:rename-input="handleRenameInputUpdate"
       />
     </Transition>
 

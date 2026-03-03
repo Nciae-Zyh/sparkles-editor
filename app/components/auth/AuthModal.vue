@@ -47,11 +47,18 @@ const registerSchema = computed(() => z.object({
 
 const schema = computed(() => currentMode.value === 'login' ? loginSchema.value : registerSchema.value)
 
-type LoginSchema = z.output<typeof loginSchema>
-type RegisterSchema = z.output<typeof registerSchema>
-type FormSchema = LoginSchema | RegisterSchema
+interface LoginFormData {
+  email: string
+  password: string
+}
 
-const state = reactive<Partial<FormSchema>>({
+interface RegisterFormData extends LoginFormData {
+  name?: string
+}
+
+type FormSchema = LoginFormData | RegisterFormData
+
+const state = reactive<Partial<RegisterFormData>>({
   email: undefined,
   password: undefined,
   name: undefined
@@ -78,13 +85,20 @@ watch(() => props.mode, (newMode) => {
 const handleSubmit = async (event: FormSubmitEvent<FormSchema>) => {
   error.value = ''
   try {
+    const data = event.data as Partial<RegisterFormData>
+    const email = typeof data.email === 'string' ? data.email : ''
+    const password = typeof data.password === 'string' ? data.password : ''
+    const name = typeof data.name === 'string' ? data.name : undefined
+
+    if (!email || !password) {
+      throw new Error(authData.value?.operationFailed || t('auth.operationFailed'))
+    }
+
     if (currentMode.value === 'login') {
-      const data = event.data as LoginSchema
-      await login(data.email, data.password)
+      await login(email, password)
       isOpen.value = false
     } else {
-      const data = event.data as RegisterSchema
-      await register(data.email, data.password, data.name)
+      await register(email, password, name)
       isOpen.value = false
     }
   } catch (err: unknown) {

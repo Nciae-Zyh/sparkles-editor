@@ -35,6 +35,7 @@ const documentsData = computed(() => $tm('documents') as Record<string, string> 
 
 const isExpanded = computed(() => props.expandedFolders.has(props.node.id))
 const hasChildren = computed(() => props.node.children && props.node.children.length > 0)
+const isRenaming = computed(() => props.renamingId === props.node.id)
 
 const handleClick = () => {
   emit('click', props.node)
@@ -195,6 +196,7 @@ const getMenuItems = computed(() => {
         @click="(n: DocumentTreeNode) => emit('click', n)"
         @delete="(id: string, e: Event) => emit('delete', id, e)"
         @create-sub-folder="(id: string, e: Event) => emit('create-sub-folder', id, e)"
+        @create-document="(folderId: string | null) => emit('create-document', folderId)"
         @download="(id: string, e: Event) => emit('download', id, e)"
         @start-rename="(id: string) => emit('start-rename', id)"
       />

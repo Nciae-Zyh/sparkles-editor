@@ -2,7 +2,7 @@
 import type { Editor } from '@tiptap/core'
 
 interface EditorRefLike {
-  editor?: Editor | null
+  editor?: unknown
 }
 
 interface Props {
@@ -25,16 +25,21 @@ const headings = computed<Heading[]>(() => {
   const regex = /^(#{1,4})\s+(.+)$/gm
   let match
   while ((match = regex.exec(raw)) !== null) {
+    const hashes = match[1]
+    const text = match[2]
+    if (!hashes || !text) {
+      continue
+    }
     results.push({
-      level: match[1].length,
-      text: match[2].trim()
+      level: hashes.length,
+      text: text.trim()
     })
   }
   return results
 })
 
 function scrollToHeading(heading: Heading) {
-  const editor: Editor | null = props.editorRef?.editor ?? null
+  const editor = (props.editorRef?.editor as Editor | null) ?? null
   if (!editor) return
 
   editor.state.doc.descendants((node, pos) => {
