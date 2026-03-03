@@ -11,7 +11,7 @@ declare global {
   }
 
   interface R2Bucket {
-    get(key: string): Promise<{ text(): Promise<string>; arrayBuffer(): Promise<ArrayBuffer> } | null>
+    get(key: string): Promise<{ text(): Promise<string>, arrayBuffer(): Promise<ArrayBuffer> } | null>
     put(
       key: string,
       value: string | ArrayBuffer | ArrayBufferView | ReadableStream | Blob,
@@ -20,7 +20,6 @@ declare global {
     delete(key: string): Promise<void>
   }
 
-  // eslint-disable-next-line no-var
   var process: {
     env: Record<string, string | undefined>
     argv: string[]

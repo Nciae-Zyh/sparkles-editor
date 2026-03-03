@@ -10,6 +10,7 @@ import { ImageUpload } from '~/components/editor/ImageUploadExtension'
 import { useAuth } from '~/composables/useAuth'
 import { useDocuments } from '~/composables/useDocuments'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
+import { useFocusMode } from '~/composables/useFocusMode'
 
 const { tm: $tm, t } = useI18n()
 
@@ -289,7 +290,7 @@ watch([
   }, AUTO_SAVE_DELAY)
 })
 
-// AI 续写处理函数
+// AI 续写处理函数（流式）
 async function handleAIContinueAtPosition(editor: any, pos?: number) {
   if (!editor || !content.value) {
     return
@@ -309,7 +310,6 @@ async function handleAIContinueAtPosition(editor: any, pos?: number) {
     const { selection } = state
     const currentPos = pos !== undefined ? pos : selection.from
 
-    // 获取当前段落文本（作为 AI 续写的上下文）
     const $pos = state.doc.resolve(currentPos)
     const paragraph = $pos.parent
     let currentParagraph = ''
@@ -322,17 +322,44 @@ async function handleAIContinueAtPosition(editor: any, pos?: number) {
       }
     }
 
-    // 调用 AI 续写
-    const continuedText = await continueWriting(currentContent, currentParagraph)
-
-    // 在当前顶层块之后插入续写内容（作为新块，避免在段落内破坏 markdown 解析）
     const afterBlockPos = $pos.depth >= 1 ? $pos.after(1) : state.doc.content.size
-    editor.chain()
-      .focus()
-      .insertContentAt(afterBlockPos, continuedText, { contentType: 'markdown' })
-      .run()
+
+    // 使用流式输出，逐字追加到预览
+    let streamedText = ''
+    pendingAIResult.value = {
+      text: '',
+      label: editorData.value?.aiContinue || t('editor.aiContinue'),
+      insertFn: () => {
+        editor.chain()
+          .focus()
+          .insertContentAt(afterBlockPos, streamedText, { contentType: 'markdown' })
+          .run()
+      }
+    }
+
+    await streamContinue(currentContent, currentParagraph || undefined, (chunk) => {
+      streamedText += chunk
+      if (pendingAIResult.value) {
+        pendingAIResult.value = { ...pendingAIResult.value, text: streamedText }
+      }
+    })
+
+    // Finalize insertFn with complete text
+    if (pendingAIResult.value) {
+      pendingAIResult.value = {
+        text: streamedText,
+        label: editorData.value?.aiContinue || t('editor.aiContinue'),
+        insertFn: () => {
+          editor.chain()
+            .focus()
+            .insertContentAt(afterBlockPos, streamedText, { contentType: 'markdown' })
+            .run()
+        }
+      }
+    }
   } catch (error: unknown) {
     console.error('AI continue error:', error)
+    pendingAIResult.value = null
     alert(aiError.value || editorData.value?.aiContinueError || t('editor.aiContinueError'))
   } finally {
     isAIContinuing.value = false
@@ -385,10 +412,36 @@ const {
 } = useEditorToolbar(customHandlers)
 
 // AI 功能
-const { continueWriting, expandSelected, polishSelected, error: aiError } = useAI()
+const { streamContinue, expandSelected, polishSelected, assist, error: aiError } = useAI()
 const isAIContinuing = ref(false)
 const isAIExpanding = ref(false)
 const isAIPolishing = ref(false)
+const isAIAssisting = ref(false)
+
+// 专注模式
+const { isFocusMode, toggleFocusMode, exitFocusMode } = useFocusMode()
+
+// AI 侧边栏对话
+const showAIChat = ref(false)
+
+// AI 接受/拒绝预览
+interface PendingAIResult {
+  text: string
+  label: string
+  insertFn: () => void
+}
+const pendingAIResult = ref<PendingAIResult | null>(null)
+
+const acceptAIResult = () => {
+  if (pendingAIResult.value) {
+    pendingAIResult.value.insertFn()
+    pendingAIResult.value = null
+  }
+}
+
+const rejectAIResult = () => {
+  pendingAIResult.value = null
+}
 
 // 移除了从内容中提取标题的函数，因为用户希望沿用设置的标题，而不是自动从内容提取
 
@@ -651,7 +704,7 @@ const handleEditorDocumentSaved = (id: string, savedTitle: string) => {
   emit('document-saved', id)
 }
 
-// 选中扩写：用 AI 扩写选中的文本，替换选区
+// 选中扩写：用 AI 扩写选中的文本，替换选区（通过预览）
 async function handleAIExpandSelected(editor: any) {
   if (!editor || !content.value) {
     return
@@ -671,11 +724,17 @@ async function handleAIExpandSelected(editor: any) {
     isAIExpanding.value = true
     const context = content.value
     const expandedText = await expandSelected(selectedText, context)
-    editor.chain()
-      .focus()
-      .setTextSelection({ from, to })
-      .insertContent(expandedText, { contentType: 'markdown' })
-      .run()
+    pendingAIResult.value = {
+      text: expandedText,
+      label: editorData.value?.aiExpand || t('editor.aiExpand'),
+      insertFn: () => {
+        editor.chain()
+          .focus()
+          .setTextSelection({ from, to })
+          .insertContent(expandedText, { contentType: 'markdown' })
+          .run()
+      }
+    }
   } catch (error: unknown) {
     console.error('AI expand error:', error)
     alert(aiError.value || editorData.value?.aiExpandError || t('editor.aiExpandError'))
@@ -684,7 +743,7 @@ async function handleAIExpandSelected(editor: any) {
   }
 }
 
-// 选中润色：用 AI 润色选中的文本，替换选区
+// 选中润色：用 AI 润色选中的文本，替换选区（通过预览）
 async function handleAIPolishSelected(editor: any) {
   if (!editor || !content.value) {
     return
@@ -704,11 +763,17 @@ async function handleAIPolishSelected(editor: any) {
     isAIPolishing.value = true
     const context = content.value
     const polishedText = await polishSelected(selectedText, context)
-    editor.chain()
-      .focus()
-      .setTextSelection({ from, to })
-      .insertContent(polishedText, { contentType: 'markdown' })
-      .run()
+    pendingAIResult.value = {
+      text: polishedText,
+      label: editorData.value?.aiPolish || t('editor.aiPolish'),
+      insertFn: () => {
+        editor.chain()
+          .focus()
+          .setTextSelection({ from, to })
+          .insertContent(polishedText, { contentType: 'markdown' })
+          .run()
+      }
+    }
   } catch (error: unknown) {
     console.error('AI polish error:', error)
     alert(aiError.value || editorData.value?.aiPolishError || t('editor.aiPolishError'))
@@ -717,7 +782,52 @@ async function handleAIPolishSelected(editor: any) {
   }
 }
 
-// 气泡工具栏中「选中扩写」+「润色」按钮的 items
+// AI 辅助操作（翻译/改写/提取要点）通过预览
+async function handleAIAssist(
+  editor: any,
+  action: 'rewrite' | 'translate' | 'action_items',
+  label: string,
+  options?: { tone?: string, targetLang?: string }
+) {
+  if (!editor) return
+  const { state } = editor
+  const { from, to } = state.selection
+  if (from === to) {
+    alert(editorData.value?.aiExpandNoSelection || t('editor.aiExpandNoSelection'))
+    return
+  }
+  const selectedText = state.doc.textBetween(from, to, ' ')
+  if (!selectedText.trim()) {
+    alert(editorData.value?.aiExpandNoSelection || t('editor.aiExpandNoSelection'))
+    return
+  }
+  try {
+    isAIAssisting.value = true
+    const result = await assist(action, selectedText, {
+      context: content.value,
+      tone: options?.tone,
+      targetLang: options?.targetLang
+    })
+    pendingAIResult.value = {
+      text: result,
+      label,
+      insertFn: () => {
+        editor.chain()
+          .focus()
+          .setTextSelection({ from, to })
+          .insertContent(result, { contentType: 'markdown' })
+          .run()
+      }
+    }
+  } catch (error: unknown) {
+    console.error('AI assist error:', error)
+    alert(aiError.value || t('actions.serverError'))
+  } finally {
+    isAIAssisting.value = false
+  }
+}
+
+// 气泡工具栏中 AI 操作按钮（扩写、润色、更多）
 function getAIBubbleItems(editor: any) {
   const data = editorData.value
   return [[
@@ -725,15 +835,62 @@ function getAIBubbleItems(editor: any) {
       icon: 'i-lucide-sparkles',
       label: data?.aiExpand || t('editor.aiExpand'),
       tooltip: { text: data?.aiExpandDesc || t('editor.aiExpandDesc') },
+      loading: isAIExpanding.value,
       onClick: () => handleAIExpandSelected(editor)
     },
     {
       icon: 'i-lucide-wand-2',
       label: data?.aiPolish || t('editor.aiPolish'),
       tooltip: { text: data?.aiPolishDesc || t('editor.aiPolishDesc') },
+      loading: isAIPolishing.value,
       onClick: () => handleAIPolishSelected(editor)
+    },
+    {
+      icon: 'i-lucide-chevron-down',
+      label: data?.aiMoreActions || t('editor.aiMoreActions'),
+      tooltip: { text: data?.aiMoreActions || t('editor.aiMoreActions') },
+      loading: isAIAssisting.value,
+      slot: 'aiMore'
     }
   ]]
+}
+
+// 更多 AI 操作的下拉菜单 items
+function getAIMoreDropdownItems(editor: any) {
+  const data = editorData.value
+  return [
+    [
+      {
+        label: data?.aiTranslateToChinese || t('editor.aiTranslateToChinese'),
+        icon: 'i-lucide-languages',
+        onSelect: () => handleAIAssist(editor, 'translate', data?.aiTranslateToChinese || t('editor.aiTranslateToChinese'), { targetLang: 'Chinese' })
+      },
+      {
+        label: data?.aiTranslateToEnglish || t('editor.aiTranslateToEnglish'),
+        icon: 'i-lucide-languages',
+        onSelect: () => handleAIAssist(editor, 'translate', data?.aiTranslateToEnglish || t('editor.aiTranslateToEnglish'), { targetLang: 'English' })
+      }
+    ],
+    [
+      {
+        label: data?.aiFormalTone || t('editor.aiFormalTone'),
+        icon: 'i-lucide-briefcase',
+        onSelect: () => handleAIAssist(editor, 'rewrite', data?.aiFormalTone || t('editor.aiFormalTone'), { tone: 'formal' })
+      },
+      {
+        label: data?.aiCasualTone || t('editor.aiCasualTone'),
+        icon: 'i-lucide-smile',
+        onSelect: () => handleAIAssist(editor, 'rewrite', data?.aiCasualTone || t('editor.aiCasualTone'), { tone: 'casual' })
+      }
+    ],
+    [
+      {
+        label: data?.aiExtractKeyPoints || t('editor.aiExtractKeyPoints'),
+        icon: 'i-lucide-list-checks',
+        onSelect: () => handleAIAssist(editor, 'action_items', data?.aiExtractKeyPoints || t('editor.aiExtractKeyPoints'))
+      }
+    ]
+  ]
 }
 
 // 合并格式工具栏与「选中扩写」按钮，供气泡工具栏使用
@@ -756,6 +913,20 @@ defineShortcuts({
     handler: (e: KeyboardEvent) => {
       e.preventDefault()
       handleSave()
+    },
+    usingInput: false
+  },
+  meta_shift_f: {
+    handler: () => toggleFocusMode(),
+    usingInput: false
+  },
+  ctrl_shift_f: {
+    handler: () => toggleFocusMode(),
+    usingInput: false
+  },
+  escape: {
+    handler: () => {
+      if (isFocusMode.value) exitFocusMode()
     },
     usingInput: false
   },
@@ -796,7 +967,10 @@ defineExpose({
           @update:model-value="onUpdate"
         >
           <div
-            class="sticky top-0 z-50 flex items-center bg-default/80 backdrop-blur-md border-b border-default shadow-sm"
+            :class="[
+              'sticky top-0 z-50 flex items-center bg-default/80 backdrop-blur-md border-b border-default shadow-sm transition-opacity duration-300',
+              isFocusMode ? 'opacity-0 hover:opacity-100' : ''
+            ]"
           >
             <div class="container mx-auto px-4 sm:px-6 lg:px-14">
               <div class="flex items-center justify-between gap-4 py-3">
@@ -875,15 +1049,34 @@ defineExpose({
                     </UButton>
                   </div>
                 </div>
-                <div class="hidden lg:flex shrink-0 items-center">
+                <div class="hidden lg:flex shrink-0 items-center gap-1">
                   <UTooltip :text="editorData?.outline || t('editor.outline')">
                     <UButton
                       v-if="!readonly"
                       icon="i-lucide-list-tree"
                       size="sm"
-                      :variant="showOutline ? 'solid' : 'soft'"
+                      :variant="showOutline && !showAIChat ? 'solid' : 'soft'"
                       color="primary"
-                      @click="showOutline = !showOutline"
+                      @click="showOutline = !showOutline; if (showOutline) showAIChat = false"
+                    />
+                  </UTooltip>
+                  <UTooltip :text="editorData?.aiChat || t('editor.aiChat')">
+                    <UButton
+                      v-if="!readonly"
+                      icon="i-lucide-message-square-text"
+                      size="sm"
+                      :variant="showAIChat ? 'solid' : 'soft'"
+                      color="primary"
+                      @click="showAIChat = !showAIChat; if (showAIChat) showOutline = false"
+                    />
+                  </UTooltip>
+                  <UTooltip :text="isFocusMode ? (editorData?.exitFocusMode || t('editor.exitFocusMode')) : (editorData?.focusMode || t('editor.focusMode'))">
+                    <UButton
+                      :icon="isFocusMode ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'"
+                      size="sm"
+                      :variant="isFocusMode ? 'solid' : 'soft'"
+                      color="primary"
+                      @click="toggleFocusMode"
                     />
                   </UTooltip>
                 </div>
@@ -1019,6 +1212,23 @@ defineExpose({
             <template #link>
               <EditorLinkPopover :editor="editor" />
             </template>
+            <template #aiMore>
+              <UDropdownMenu
+                :items="getAIMoreDropdownItems(editor)"
+                :content="{ align: 'start' }"
+                :ui="{ content: 'w-52' }"
+              >
+                <UButton
+                  icon="i-lucide-chevron-down"
+                  size="sm"
+                  variant="ghost"
+                  color="neutral"
+                  :loading="isAIAssisting"
+                >
+                  {{ editorData?.aiMoreActions || t('editor.aiMoreActions') }}
+                </UButton>
+              </UDropdownMenu>
+            </template>
           </UEditorToolbar>
 
           <UEditorToolbar
@@ -1095,12 +1305,12 @@ defineExpose({
           />
         </UEditor>
         <EditorWordCountBar
-          v-if="!readonly"
+          v-if="!readonly && !isFocusMode"
           :content="content || ''"
         />
       </div>
       <div
-        v-show="showOutline && !readonly"
+        v-show="showOutline && !readonly && !showAIChat && !isFocusMode"
         class="hidden lg:flex flex-col w-48 border-l border-default overflow-y-auto shrink-0"
       >
         <EditorDocumentOutline
@@ -1108,7 +1318,116 @@ defineExpose({
           :editor-ref="editorRef"
         />
       </div>
+      <!-- AI Chat Panel -->
+      <div
+        v-show="showAIChat && !readonly"
+        class="hidden lg:flex flex-col w-72 shrink-0"
+      >
+        <EditorAIChatPanel
+          :document-content="content || ''"
+          @insert="(text: string) => {
+            const editor = getEditorInstance()
+            if (editor) {
+              editor.chain().focus().insertContent(text, { contentType: 'markdown' }).run()
+            }
+          }"
+          @close="showAIChat = false"
+        />
+      </div>
     </div>
+
+    <!-- AI 结果预览卡片 -->
+    <Transition
+      enter-active-class="transition-all duration-300"
+      enter-from-class="opacity-0 translate-y-4"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition-all duration-200"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 translate-y-4"
+    >
+      <div
+        v-if="pendingAIResult"
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4"
+      >
+        <UCard
+          :ui="{
+            root: 'shadow-xl border border-primary/20',
+            body: 'p-4 space-y-3'
+          }"
+        >
+          <template #header>
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-lucide-sparkles"
+                  class="w-4 h-4 text-primary"
+                />
+                <span class="text-sm font-semibold text-primary">
+                  {{ editorData?.aiPreviewTitle || t('editor.aiPreviewTitle') }}
+                </span>
+                <UBadge
+                  size="xs"
+                  variant="soft"
+                >
+                  {{ pendingAIResult.label }}
+                </UBadge>
+              </div>
+              <UButton
+                icon="i-lucide-x"
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                @click="rejectAIResult"
+              />
+            </div>
+          </template>
+
+          <div class="text-sm text-muted max-h-40 overflow-y-auto whitespace-pre-wrap leading-relaxed border border-default rounded-md p-3 bg-muted/30">
+            <template v-if="!pendingAIResult.text && isAIContinuing">
+              <span class="inline-flex items-center gap-1.5">
+                <UIcon
+                  name="i-lucide-loader-2"
+                  class="w-3.5 h-3.5 animate-spin"
+                />
+                {{ editorData?.aiStreamContinue || t('editor.aiStreamContinue') }}
+              </span>
+            </template>
+            <template v-else>
+              {{ pendingAIResult.text.slice(0, 500) }}
+              <span
+                v-if="isAIContinuing"
+                class="inline-block w-0.5 h-4 bg-current ml-0.5 animate-pulse"
+              />
+              <span
+                v-else-if="pendingAIResult.text.length > 500"
+                class="text-muted"
+              > ...</span>
+            </template>
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <UButton
+              icon="i-lucide-x"
+              size="sm"
+              variant="soft"
+              color="error"
+              :disabled="isAIContinuing"
+              @click="rejectAIResult"
+            >
+              {{ editorData?.aiPreviewReject || t('editor.aiPreviewReject') }}
+            </UButton>
+            <UButton
+              icon="i-lucide-check"
+              size="sm"
+              :disabled="isAIContinuing || !pendingAIResult.text"
+              @click="acceptAIResult"
+            >
+              {{ editorData?.aiPreviewAccept || t('editor.aiPreviewAccept') }}
+            </UButton>
+          </div>
+        </UCard>
+      </div>
+    </Transition>
 
     <!-- 分享模态框 -->
     <DocumentsShareDocumentModal

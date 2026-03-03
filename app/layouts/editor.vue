@@ -3,6 +3,7 @@ import { useAuth } from '~/composables/useAuth'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import { useMediaQuery, useLocalStorage } from '@vueuse/core'
 import { useDocuments } from '~/composables/useDocuments'
+import { useFocusMode } from '~/composables/useFocusMode'
 
 const { tm: $tm, t } = useI18n()
 
@@ -12,6 +13,7 @@ const actionsData = computed(() => $tm('actions') as Record<string, string> | un
 const { user, fetchUser, logout, authInitialized } = useAuth()
 const safeLocalePath = useSafeLocalePath()
 const { createEmptyDocument } = useDocuments()
+const { isFocusMode } = useFocusMode()
 
 // 文档树显示状态
 const isDocumentTreeOpen = ref(false)
@@ -75,7 +77,10 @@ onMounted(async () => {
 
 <template>
   <div class="flex flex-col h-screen overflow-hidden">
-    <AppHeader @toggle-document-tree="toggleDocumentTree">
+    <AppHeader
+      v-show="!isFocusMode"
+      @toggle-document-tree="toggleDocumentTree"
+    >
       <template #default>
         <slot name="header-actions">
           <UButton
@@ -127,7 +132,7 @@ onMounted(async () => {
       <aside
         :class="[
           'hidden lg:flex flex-col border-r border-default bg-default transition-all duration-300 overflow-hidden',
-          isDocumentTreeCollapsed ? 'w-0' : 'w-80'
+          (isDocumentTreeCollapsed || isFocusMode) ? 'w-0' : 'w-80'
         ]"
       >
         <div

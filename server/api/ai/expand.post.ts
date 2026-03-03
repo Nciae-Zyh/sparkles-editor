@@ -49,13 +49,14 @@ export default eventHandler(async (event) => {
   }
 
   try {
-    const prompt = `请对以下选中的内容进行扩写。要求：
-1. 保持原文的核心意思和观点不变；
-2. 适当展开、补充细节或论据，使内容更丰富、完整；
-3. 保持与原文风格、语气一致；
-4. 只输出扩写后的完整内容，不要重复原文再扩写，不要加「扩写如下」等前缀。
+    const prompt = `Expand the selected text below. Rules:
+1. Preserve the core meaning and viewpoint of the original.
+2. Add details, examples, or arguments to make it richer and more complete.
+3. Match the original style and tone.
+4. Output only the expanded content — no prefixes or explanations.
+5. Detect the language of the input and respond in the same language.
 
-${context ? `上下文：\n${context}\n\n` : ''}选中内容：\n${selectedText}\n\n请输出扩写后的完整内容：`
+${context ? `Context:\n${context}\n\n` : ''}Selected text:\n${selectedText}\n\nExpanded version:`
 
     const response = await fetch(requestUrl, {
       method: 'POST',

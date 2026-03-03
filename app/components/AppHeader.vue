@@ -24,7 +24,7 @@ const { locale, locales } = useI18n()
 const switchLocalePath = useSwitchLocalePath()
 
 const languageItems = computed(() =>
-  locales.value.map((l: { code: string; name?: string }) => ({
+  locales.value.map((l: { code: string, name?: string }) => ({
     label: l.name,
     suffix: locale.value === l.code ? 'i-lucide-check' : undefined,
     class: locale.value === l.code ? 'font-medium' : '',

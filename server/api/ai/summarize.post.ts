@@ -92,7 +92,7 @@ export default eventHandler(async (event) => {
         messages: [
           {
             role: 'user',
-            content: `请为以下内容生成一个简洁的总结，不超过200字：\n\n${content}`
+            content: `Write a concise summary of the following content in under 150 words. Detect the language of the input and respond in the same language.\n\n${content}`
           }
         ],
         max_tokens: 300,

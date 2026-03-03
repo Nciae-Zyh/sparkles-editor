@@ -4,15 +4,15 @@ const ENDPOINT = 'assist'
 
 function buildPrompt(action: string, text: string, context: string, tone: string, targetLang: string) {
   if (action === 'rewrite') {
-    return `请把下面的内容改写成${tone || '专业、清晰'}语气，保持原意，不要额外解释：\n\n${text}\n\n上下文：\n${context || '(none)'}`
+    return `Rewrite the following text in a ${tone || 'professional and clear'} tone. Preserve the original meaning. Output only the rewritten text without explanations. Detect the language of the input and respond in the same language.\n\nText:\n${text}\n\nContext:\n${context || '(none)'}`
   }
   if (action === 'translate') {
-    return `请把下面内容翻译为${targetLang || '英文'}，只输出翻译结果：\n\n${text}`
+    return `Translate the following text into ${targetLang || 'English'}. Output only the translation.\n\n${text}`
   }
   if (action === 'title') {
-    return `请为下面内容生成 5 个简洁标题（列表形式）：\n\n${text}`
+    return `Generate 5 concise title suggestions for the following content (output as a numbered list). Detect the language of the input and respond in the same language.\n\n${text}`
   }
-  return `请从下面内容中提炼行动项，使用 Markdown 任务列表格式（- [ ]）：\n\n${text}`
+  return `Extract action items from the following content using Markdown task list format (- [ ]). Detect the language of the input and respond in the same language.\n\n${text}`
 }
 
 export default eventHandler(async (event) => {

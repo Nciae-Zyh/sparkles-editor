@@ -43,6 +43,26 @@
     "wordCountChars": "{n} chars",
     "wordCountReading": "~{n} min read",
     "outline": "Outline",
-    "outlineEmpty": "No headings"
+    "outlineEmpty": "No headings",
+    "focusMode": "Focus Mode",
+    "focusModeDesc": "Hide sidebar and toolbar for distraction-free writing",
+    "exitFocusMode": "Exit Focus Mode",
+    "aiPreviewTitle": "AI Result Preview",
+    "aiPreviewAccept": "Accept",
+    "aiPreviewReject": "Reject",
+    "aiTranslateToChinese": "Translate to Chinese",
+    "aiTranslateToEnglish": "Translate to English",
+    "aiFormalTone": "Formal tone",
+    "aiCasualTone": "Casual tone",
+    "aiExtractKeyPoints": "Extract key points",
+    "aiMoreActions": "More AI actions",
+    "aiStreamContinue": "AI writing...",
+    "aiChat": "AI Chat",
+    "aiChatPlaceholder": "Ask AI about this document...",
+    "aiChatSend": "Send",
+    "aiChatInsert": "Insert into editor",
+    "aiChatClear": "Clear history",
+    "aiChatTyping": "AI is thinking...",
+    "aiChatError": "AI failed to respond, please try again"
   }
 }

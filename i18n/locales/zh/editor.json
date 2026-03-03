@@ -43,6 +43,26 @@
     "wordCountChars": "{n} 字符",
     "wordCountReading": "约 {n} 分钟阅读",
     "outline": "文档大纲",
-    "outlineEmpty": "暂无标题"
+    "outlineEmpty": "暂无标题",
+    "focusMode": "专注模式",
+    "focusModeDesc": "隐藏侧边栏和工具栏，沉浸式写作",
+    "exitFocusMode": "退出专注模式",
+    "aiPreviewTitle": "AI 结果预览",
+    "aiPreviewAccept": "接受",
+    "aiPreviewReject": "拒绝",
+    "aiTranslateToChinese": "翻译为中文",
+    "aiTranslateToEnglish": "翻译为英文",
+    "aiFormalTone": "改为正式语气",
+    "aiCasualTone": "改为轻松语气",
+    "aiExtractKeyPoints": "提取要点",
+    "aiMoreActions": "更多 AI 操作",
+    "aiStreamContinue": "AI 续写中...",
+    "aiChat": "AI 对话",
+    "aiChatPlaceholder": "就文档内容向 AI 提问...",
+    "aiChatSend": "发送",
+    "aiChatInsert": "插入编辑器",
+    "aiChatClear": "清空历史",
+    "aiChatTyping": "AI 思考中...",
+    "aiChatError": "AI 回复失败，请重试"
   }
 }

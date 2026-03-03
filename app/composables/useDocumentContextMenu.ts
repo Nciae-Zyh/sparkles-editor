@@ -55,7 +55,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     onDownload,
     currentParentId = null
   } = options
-  const { tm: $tm, t } = useNuxtApp().$i18n as { tm: (key: string) => unknown; t: (key: string, ...args: unknown[]) => string }
+  const { tm: $tm, t } = useNuxtApp().$i18n as { tm: (key: string) => unknown, t: (key: string, ...args: unknown[]) => string }
 
   const documentsData = computed(() => $tm('documents') as {
     contextMenu?: Record<string, string>

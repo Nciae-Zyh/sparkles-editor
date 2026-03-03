@@ -24,7 +24,7 @@ declare global {
   interface R2Bucket {
     get(
       key: string
-    ): Promise<{ text(): Promise<string>; arrayBuffer(): Promise<ArrayBuffer> } | null>
+    ): Promise<{ text(): Promise<string>, arrayBuffer(): Promise<ArrayBuffer> } | null>
     put(
       key: string,
       value: string | ArrayBuffer | ArrayBufferView | ReadableStream | Blob,
@@ -46,7 +46,7 @@ declare global {
 
 declare module 'better-sqlite3' {
   interface DatabaseStatement {
-    run(...params: unknown[]): { changes: number; lastInsertRowid: number | bigint }
+    run(...params: unknown[]): { changes: number, lastInsertRowid: number | bigint }
     get(...params: unknown[]): unknown
     all(...params: unknown[]): unknown[]
   }

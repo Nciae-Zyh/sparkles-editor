@@ -260,6 +260,82 @@ export function useAI() {
     }
   }
 
+  /**
+   * AI 流式续写
+   * @param content 完整文档内容
+   * @param currentParagraph 当前段落
+   * @param onChunk 每次收到新 token 时的回调
+   */
+  const streamContinue = async (
+    content: string,
+    currentParagraph: string | undefined,
+    onChunk: (chunk: string) => void
+  ): Promise<void> => {
+    loading.value = true
+    error.value = null
+
+    logClient('stream continue request', {
+      contentLength: content?.length ?? 0,
+      hasCurrentParagraph: !!currentParagraph
+    })
+
+    try {
+      const response = await fetch('/api/ai/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'continue',
+          content,
+          currentParagraph,
+          context: content
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Stream request failed: ${response.status}`)
+      }
+
+      if (!response.body) {
+        throw new Error('No response body')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim()
+            if (data === '[DONE]') return
+            try {
+              const parsed = JSON.parse(data) as { text?: string }
+              if (parsed.text) {
+                onChunk(parsed.text)
+              }
+            } catch {
+              // skip malformed SSE lines
+            }
+          }
+        }
+      }
+    } catch (err: unknown) {
+      const { message } = getErrorMeta(err)
+      logClientError('stream continue', err)
+      error.value = message || t('editor.aiContinueError')
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   const assist = async (
     action: 'rewrite' | 'translate' | 'title' | 'action_items',
     text: string,
@@ -313,6 +389,7 @@ export function useAI() {
     loading: readonly(loading),
     error: readonly(error),
     continueWriting,
+    streamContinue,
     expandSelected,
     polishSelected,
     summarize,

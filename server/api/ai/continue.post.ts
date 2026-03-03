@@ -53,22 +53,22 @@ export default eventHandler(async (event) => {
   try {
     let prompt = ''
     if (currentParagraph && currentParagraph.trim()) {
-      prompt = `请根据以下上下文，自然地续写当前段落。保持与原文风格、语气和主题一致，续写内容应该流畅地接续当前段落，不要重复已有内容。
+      prompt = `Continue the current paragraph naturally based on the context below. Match the original style, tone, and topic. The continuation should flow seamlessly from the current paragraph without repeating existing content. Detect the language of the input and respond in the same language.
 
-上下文：
+Context:
 ${context || ''}
 
-当前段落：
+Current paragraph:
 ${currentParagraph}
 
-请续写当前段落：`
+Continue the paragraph:`
     } else {
-      prompt = `请根据以下上下文，自然地续写一段新内容。保持与原文风格、语气和主题一致，内容应该与上下文连贯。
+      prompt = `Write a natural continuation based on the context below. Match the original style, tone, and topic. The new content should flow coherently from the context. Detect the language of the input and respond in the same language.
 
-上下文：
+Context:
 ${content}
 
-请续写新内容：`
+Continue:`
     }
 
     const response = await fetch(requestUrl, {

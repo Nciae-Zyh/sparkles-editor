@@ -2,6 +2,7 @@
 import type { Document } from '~/types'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import { useDocuments } from '~/composables/useDocuments'
+
 const { tm: $tm, t } = useI18n()
 
 definePageMeta({

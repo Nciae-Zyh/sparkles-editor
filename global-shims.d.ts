@@ -2,8 +2,8 @@ declare global {
   interface D1PreparedStatement {
     bind(...values: unknown[]): D1PreparedStatement
     first<T = unknown>(): Promise<T | null>
-    all<T = unknown>(): Promise<{ success: boolean; meta: Record<string, unknown>; results?: T[] }>
-    run(): Promise<{ success: boolean; meta: Record<string, unknown> }>
+    all<T = unknown>(): Promise<{ success: boolean, meta: Record<string, unknown>, results?: T[] }>
+    run(): Promise<{ success: boolean, meta: Record<string, unknown> }>
   }
 
   interface D1Database {
@@ -13,7 +13,7 @@ declare global {
   interface R2Bucket {
     get(
       key: string
-    ): Promise<{ text(): Promise<string>; arrayBuffer(): Promise<ArrayBuffer> } | null>
+    ): Promise<{ text(): Promise<string>, arrayBuffer(): Promise<ArrayBuffer> } | null>
     put(
       key: string,
       value: string | ArrayBuffer | ArrayBufferView | ReadableStream | Blob,
@@ -62,7 +62,7 @@ declare module '@internationalized/date' {
     year: number
     month: number
     day: number
-    toDateTime(time: { hour: number; minute: number; second: number }): CalendarDateTime
+    toDateTime(time: { hour: number, minute: number, second: number }): CalendarDateTime
   }
 
   export class CalendarDateTime {
@@ -85,7 +85,7 @@ declare module '@internationalized/date' {
 
 declare module 'better-sqlite3' {
   interface DatabaseStatement {
-    run(...params: unknown[]): { changes: number; lastInsertRowid: number | bigint }
+    run(...params: unknown[]): { changes: number, lastInsertRowid: number | bigint }
     get(...params: unknown[]): unknown
     all(...params: unknown[]): unknown[]
   }
@@ -108,7 +108,7 @@ declare module 'node:fs' {
 declare module 'fs' {
   const fs: {
     readdirSync(path: string): string[]
-    statSync(path: string): { isDirectory(): boolean; isFile(): boolean }
+    statSync(path: string): { isDirectory(): boolean, isFile(): boolean }
     writeFileSync(path: string, data: string): void
   }
   export default fs

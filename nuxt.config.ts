@@ -1,19 +1,7 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import {generateI18n} from './scripts/generateI18n'
+import { generateI18n } from './scripts/generateI18n'
 
 export default defineNuxtConfig({
-  vite: {
-    optimizeDeps: {
-      include: [
-        '@nuxt/ui > prosemirror-state',
-        '@nuxt/ui > prosemirror-transform',
-        '@nuxt/ui > prosemirror-model',
-        '@nuxt/ui > prosemirror-view',
-        '@nuxt/ui > prosemirror-gapcursor'
-      ],
-      exclude: ['@nuxtjs/mdc']
-    }
-  },
   modules: [
     '@nuxt/eslint',
     '@nuxt/ui',
@@ -102,6 +90,18 @@ export default defineNuxtConfig({
   hub: {
     blob: true
   },
+  vite: {
+    optimizeDeps: {
+      include: [
+        '@nuxt/ui > prosemirror-state',
+        '@nuxt/ui > prosemirror-transform',
+        '@nuxt/ui > prosemirror-model',
+        '@nuxt/ui > prosemirror-view',
+        '@nuxt/ui > prosemirror-gapcursor'
+      ],
+      exclude: ['@nuxtjs/mdc']
+    }
+  },
 
   hooks: {
     'build:before': async () => {
@@ -116,9 +116,9 @@ export default defineNuxtConfig({
       for (let i = imports.length - 1; i >= 0; i--) {
         const e = imports[i]
         if (
-          e?.name === 'options' &&
-          typeof e.from === 'string' &&
-          e.from.includes('@nuxt/ui/dist/runtime/composables/useResizable')
+          e?.name === 'options'
+          && typeof e.from === 'string'
+          && e.from.includes('@nuxt/ui/dist/runtime/composables/useResizable')
         ) {
           imports.splice(i, 1)
         }

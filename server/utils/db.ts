@@ -71,7 +71,7 @@ export async function getDBWithMigration(event?: any): Promise<D1Database> {
   // 3. 确保每个进程只初始化/迁移一次
   if (!_migrationDone.has('default')) {
     try {
-      await initDB(db)  // initDB 内部已包含 migrateDB，会创建表并补齐缺失列
+      await initDB(db) // initDB 内部已包含 migrateDB，会创建表并补齐缺失列
       _migrationDone.add('default')
     } catch (error: any) {
       console.warn('[getDBWithMigration] DB init failed:', error?.message)

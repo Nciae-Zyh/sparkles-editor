@@ -36,7 +36,7 @@ declare global {
   interface R2Bucket {
     get(
       key: string
-    ): Promise<{ text(): Promise<string>; arrayBuffer(): Promise<ArrayBuffer> } | null>
+    ): Promise<{ text(): Promise<string>, arrayBuffer(): Promise<ArrayBuffer> } | null>
     put(
       key: string,
       value: string | ArrayBuffer | ArrayBufferView | ReadableStream | Blob,
@@ -58,7 +58,7 @@ declare module '@internationalized/date' {
     year: number
     month: number
     day: number
-    toDateTime(time: { hour: number; minute: number; second: number }): CalendarDateTime
+    toDateTime(time: { hour: number, minute: number, second: number }): CalendarDateTime
   }
 
   export class CalendarDateTime {

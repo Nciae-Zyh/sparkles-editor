@@ -233,7 +233,7 @@ watch(expanded, async (newExpanded, oldExpanded) => {
   const newlyExpanded = newExpanded.filter(id => !oldExpanded.includes(id))
 
   for (const folderId of newlyExpanded) {
-    const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],folderId)
+    const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], folderId)
     if (item && item.type === 'folder' && !item._loaded) {
       // 展开时加载子项
       await loadFolderChildren(folderId, item)
@@ -272,7 +272,7 @@ const collapseAll = () => {
 // 处理删除
 const handleDelete = async (id: string, event: Event) => {
   event.stopPropagation()
-  const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],id)
+  const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], id)
   const itemType = item?.type === 'folder' ? (documentsData.value?.folder || t('documents.folder')) : (documentsData.value?.document || t('documents.document'))
   const deleteConfirm = documentsData.value?.deleteConfirm?.replace('{type}', itemType) || t('documents.deleteConfirm', { type: itemType })
   const deleteWarning = item?.type === 'folder' ? (documentsData.value?.deleteFolderWarning || t('documents.deleteFolderWarning')) : ''
@@ -285,7 +285,7 @@ const handleDelete = async (id: string, event: Event) => {
     deletingId.value = id
     await deleteDocument(id)
     // 从树中移除该项
-    removeItemFromTree(treeItems.value as unknown as ExtendedTreeItem[],id)
+    removeItemFromTree(treeItems.value as unknown as ExtendedTreeItem[], id)
   } catch (error: unknown) {
     alert(getErrorMessage(error) || documentsData.value?.deleteFailed || t('documents.deleteFailed'))
   } finally {
@@ -313,7 +313,7 @@ const handleCreateDocument = async () => {
       ;(treeItems.value as unknown as ExtendedTreeItem[]).unshift(convertToTreeItem(document))
     } else {
       // 如果是在某个文件夹内创建，需要找到该文件夹并添加
-      const parentItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],savedParentId)
+      const parentItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], savedParentId)
       if (parentItem && parentItem.type === 'folder') {
         // 确保父文件夹已加载，如果没有加载则先加载
         if (!parentItem._loaded) {
@@ -363,7 +363,7 @@ const handleCreateFolder = async () => {
       ;(treeItems.value as unknown as ExtendedTreeItem[]).unshift(convertToTreeItem(folder))
     } else {
       // 如果是在某个文件夹内创建，需要找到该文件夹并添加
-      const parentItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],savedParentId)
+      const parentItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], savedParentId)
       if (parentItem && parentItem.type === 'folder') {
         // 确保父文件夹已加载，如果没有加载则先加载
         if (!parentItem._loaded) {
@@ -418,7 +418,7 @@ const handleRename = async () => {
     await renameDocument(id, newTitle)
 
     // 更新树中的标签
-    const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],id)
+    const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], id)
     if (item) {
       item.label = newTitle
     }
@@ -660,7 +660,7 @@ const saveTagsForItem = async () => {
   updatingTags.value = true
   try {
     await updateTags(itemId, tags)
-    updateTreeItem(treeItems.value as unknown as ExtendedTreeItem[],itemId, (item) => {
+    updateTreeItem(treeItems.value as unknown as ExtendedTreeItem[], itemId, (item) => {
       item.tags = tags
     })
     const resultItem = searchResults.value.find(item => item.id === itemId)
@@ -684,7 +684,7 @@ const toggleFavoriteForItem = async (item: ExtendedTreeItem, event: Event) => {
   try {
     const isFavorite = await toggleFavorite(item.id, !item.isFavorite)
     item.isFavorite = !!isFavorite
-    updateTreeItem(treeItems.value as unknown as ExtendedTreeItem[],item.id, (target) => {
+    updateTreeItem(treeItems.value as unknown as ExtendedTreeItem[], item.id, (target) => {
       target.isFavorite = !!isFavorite
     })
     sortTreeItems(treeItems.value as unknown as ExtendedTreeItem[])
@@ -704,7 +704,7 @@ const togglePinForItem = async (item: ExtendedTreeItem, event: Event) => {
   try {
     const isPinned = await togglePin(item.id, !item.isPinned)
     item.isPinned = !!isPinned
-    updateTreeItem(treeItems.value as unknown as ExtendedTreeItem[],item.id, (target) => {
+    updateTreeItem(treeItems.value as unknown as ExtendedTreeItem[], item.id, (target) => {
       target.isPinned = !!isPinned
     })
     sortTreeItems(treeItems.value as unknown as ExtendedTreeItem[])
@@ -720,7 +720,7 @@ const togglePinForItem = async (item: ExtendedTreeItem, event: Event) => {
 const isDescendant = (parentId: string, childId: string): boolean => {
   if (parentId === childId) return true
 
-  const parent = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],parentId)
+  const parent = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], parentId)
   if (!parent || !parent.children) return false
 
   const checkChildren = (items: ExtendedTreeItem[], visited: Set<string> = new Set()): boolean => {
@@ -808,7 +808,7 @@ const handleDragOver = (event: DragEvent, item: ExtendedTreeItem) => {
           if (!expanded.value.includes(item.id)) {
             expanded.value.push(item.id)
             // 如果文件夹未加载，异步加载其子项
-            const folderItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],item.id)
+            const folderItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], item.id)
             if (folderItem && !folderItem._loaded) {
               loadFolderChildren(item.id, folderItem)
             }
@@ -870,7 +870,7 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
       if (!expanded.value.includes(targetItem.id)) {
         expanded.value.push(targetItem.id)
         // 如果文件夹未加载，先加载其子项
-        const folderItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],targetItem.id)
+        const folderItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], targetItem.id)
         if (folderItem && !folderItem._loaded) {
           await loadFolderChildren(targetItem.id, folderItem)
         }
@@ -890,11 +890,11 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
         return null
       }
 
-      const parent = findParent(treeItems.value as unknown as ExtendedTreeItem[],targetItem.id)
+      const parent = findParent(treeItems.value as unknown as ExtendedTreeItem[], targetItem.id)
       newParentId = parent?.id || null
     }
 
-    const draggedItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],draggedItemId.value)
+    const draggedItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], draggedItemId.value)
     if (draggedItem?.type === 'folder' && targetItem.type === 'folder' && dragOverPosition.value !== 'before' && dragOverPosition.value !== 'after') {
       newParentId = targetItem.id
     }
@@ -902,14 +902,14 @@ const handleDrop = async (event: DragEvent, targetItem: ExtendedTreeItem) => {
     await moveDocument(draggedItemId.value, newParentId)
 
     // 更新树结构
-    const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],draggedItemId.value)
+    const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], draggedItemId.value)
     if (item) {
       // 从原位置移除
-      removeItemFromTree(treeItems.value as unknown as ExtendedTreeItem[],draggedItemId.value)
+      removeItemFromTree(treeItems.value as unknown as ExtendedTreeItem[], draggedItemId.value)
 
       // 添加到新位置
       if (newParentId) {
-        const parentItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],newParentId)
+        const parentItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], newParentId)
         if (parentItem && parentItem.type === 'folder') {
           if (!parentItem.children) {
             parentItem.children = []
@@ -975,10 +975,10 @@ const handleRootDrop = async (event: DragEvent) => {
     await moveDocument(draggedItemId.value, null)
 
     // 更新树结构
-    const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],draggedItemId.value)
+    const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], draggedItemId.value)
     if (item) {
       // 从原位置移除
-      removeItemFromTree(treeItems.value as unknown as ExtendedTreeItem[],draggedItemId.value)
+      removeItemFromTree(treeItems.value as unknown as ExtendedTreeItem[], draggedItemId.value)
       // 添加到根目录
       ;(treeItems.value as unknown as ExtendedTreeItem[]).push(item)
     }
@@ -1041,7 +1041,7 @@ const { getFolderMenuItems, getDocumentMenuItems, getEmptyAreaMenuItems } = useD
     if (item.type === 'folder') {
       // 文件夹的展开/折叠，并加载子项
       const folderId = item.id
-      const folderItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],folderId)
+      const folderItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], folderId)
 
       if (!expanded.value.includes(folderId)) {
         // 展开文件夹
@@ -1062,7 +1062,7 @@ const { getFolderMenuItems, getDocumentMenuItems, getEmptyAreaMenuItems } = useD
     }
   },
   onRename: (item: Document) => {
-    const treeItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],item.id)
+    const treeItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], item.id)
     if (treeItem) {
       handleStartRename(item.id, treeItem.label || '')
     }
@@ -1147,7 +1147,7 @@ const expandToDocument = async (documentId: string) => {
       }
 
       // 找到文件夹项
-      const folderItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],folderId)
+      const folderItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], folderId)
 
       if (folderItem && folderItem.type === 'folder') {
         // 如果文件夹还未加载，先加载子项
@@ -1166,11 +1166,11 @@ const expandToDocument = async (documentId: string) => {
           if (!parentFolderId) {
             continue
           }
-          const parentItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],parentFolderId)
+          const parentItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], parentFolderId)
           if (parentItem && parentItem.type === 'folder' && !parentItem._loaded) {
             await loadFolderChildren(parentFolderId, parentItem)
             // 重新查找当前文件夹
-            const currentItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],folderId)
+            const currentItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], folderId)
             if (currentItem && currentItem.type === 'folder' && !currentItem._loaded) {
               await loadFolderChildren(folderId, currentItem)
             }
@@ -1204,7 +1204,7 @@ const expandToDocument = async (documentId: string) => {
         }
         if (!expanded.value.includes(folderId)) {
           expanded.value.push(folderId)
-          const folderItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],folderId)
+          const folderItem = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], folderId)
           if (folderItem && folderItem.type === 'folder' && !folderItem._loaded) {
             await loadFolderChildren(folderId, folderItem)
             await new Promise(resolve => setTimeout(resolve, 50))
@@ -1269,7 +1269,7 @@ onMounted(async () => {
     const unsubscribe = subscribeNotification<{ id: string, title: string }>('document:renamed', (payload) => {
       // 如果重命名的是树中的某个文档，更新树中的标签
       if (payload && payload.id) {
-        const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[],payload.id)
+        const item = findItemInTree(treeItems.value as unknown as ExtendedTreeItem[], payload.id)
         if (item) {
           item.label = payload.title
         }

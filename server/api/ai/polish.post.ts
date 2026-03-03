@@ -49,14 +49,15 @@ export default eventHandler(async (event) => {
   }
 
   try {
-    const prompt = `请对以下文本进行润色和优化。要求：
-1. 修正语法错误和不当表达；
-2. 提升流畅性和可读性；
-3. 保持原文核心意思和篇幅基本不变；
-4. 保持语气和风格一致；
-5. 只输出润色后的内容，不要加任何前缀或说明。
+    const prompt = `Polish and improve the following text. Rules:
+1. Fix grammar errors and awkward phrasing.
+2. Improve fluency and readability.
+3. Keep the core meaning and length roughly the same.
+4. Preserve the original tone and style.
+5. Output only the polished text — no prefixes or explanations.
+6. Detect the language of the input and respond in the same language.
 
-${context ? `上下文：\n${context}\n\n` : ''}需要润色的内容：\n${selectedText}\n\n请输出润色后的内容：`
+${context ? `Context:\n${context}\n\n` : ''}Text to polish:\n${selectedText}\n\nPolished version:`
 
     const response = await fetch(requestUrl, {
       method: 'POST',
