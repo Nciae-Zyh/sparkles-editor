@@ -12,6 +12,12 @@ function buildPrompt(action: string, text: string, context: string, tone: string
   if (action === 'title') {
     return `Generate 5 concise title suggestions for the following content (output as a numbered list). Detect the language of the input and respond in the same language.\n\n${text}`
   }
+  if (action === 'grammar') {
+    return `Fix all grammar, spelling, and punctuation errors in the following text. Output only the corrected text without any explanations or comments. Detect the language of the input and respond in the same language.\n\nText:\n${text}`
+  }
+  if (action === 'simplify') {
+    return `Simplify the following text to make it clearer and easier to understand. Use shorter sentences and simpler vocabulary while preserving the core meaning. Output only the simplified text without explanations. Detect the language of the input and respond in the same language.\n\nText:\n${text}`
+  }
   return `Extract action items from the following content using Markdown task list format (- [ ]). Detect the language of the input and respond in the same language.\n\n${text}`
 }
 
@@ -43,7 +49,7 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Text is required' })
   }
 
-  const allowedActions = new Set(['rewrite', 'translate', 'title', 'action_items'])
+  const allowedActions = new Set(['rewrite', 'translate', 'title', 'action_items', 'grammar', 'simplify'])
   if (!allowedActions.has(action)) {
     logAiValidationFail(ENDPOINT, `unsupported action: ${action}`)
     throw createError({ statusCode: 400, message: 'Unsupported action' })

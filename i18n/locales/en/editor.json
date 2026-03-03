@@ -63,6 +63,17 @@
     "aiChatInsert": "Insert into editor",
     "aiChatClear": "Clear history",
     "aiChatTyping": "AI is thinking...",
-    "aiChatError": "AI failed to respond, please try again"
+    "aiChatError": "AI failed to respond, please try again",
+    "aiLoginRequired": "Please log in to use AI features",
+    "aiGrammar": "Fix grammar",
+    "aiSimplify": "Simplify text",
+    "aiRoleLabel": "AI Role",
+    "aiRoleGeneral": "General Assistant",
+    "aiRoleAcademic": "Academic Advisor",
+    "aiRoleWriter": "Creative Writer",
+    "aiRoleCivil": "Government Writer",
+    "aiRoleCopywriter": "Copywriter",
+    "aiRoleTranslator": "Translation Expert",
+    "aiChatOpen": "Open AI Chat"
   }
 }

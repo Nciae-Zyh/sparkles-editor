@@ -9,6 +9,17 @@ interface ChatMessage {
   content: string
 }
 
+const LANGUAGE_RULE = 'CRITICAL RULE: You MUST reply in the exact same language as the user\'s message. If the user writes in Chinese, your entire response must be in Chinese. If the user writes in English, respond in English. Never switch to a different language under any circumstances.'
+
+const ROLE_BASE_PROMPTS: Record<string, string> = {
+  general: 'You are a professional writing assistant. Help users with document writing, editing, and content improvement.',
+  academic: 'You are an experienced academic advisor and research mentor. You specialize in academic writing, thesis guidance, research methodology, literature reviews, citation formatting, and scholarly argument construction. Maintain academic rigor while making complex concepts accessible. Provide structured, evidence-based feedback.',
+  writer: 'You are a creative writing expert and story continuator. You excel at narrative development, character building, plot continuity, vivid scene description, and maintaining consistent tone and style. When continuing a story, seamlessly pick up where the author left off while preserving their unique voice. Help overcome writer\'s block with imaginative suggestions.',
+  civil: 'You are a government document writing expert specializing in official correspondence, policy documents, administrative reports, work summaries, and formal government communications. Write in clear, authoritative, and precise language appropriate for official use. Follow formal document conventions and ensure compliance with bureaucratic standards.',
+  copywriter: 'You are a professional copywriter and marketing expert. Craft compelling, persuasive content for brands, products, and campaigns. You understand consumer psychology, brand voice, call-to-action optimization, and storytelling in marketing. Write for various formats: ads, landing pages, social media, emails, and product descriptions.',
+  translator: 'You are a professional translator with expertise in multiple languages. Provide accurate, natural-sounding translations that preserve the original meaning, tone, and cultural nuances. Handle technical documents, literary works, business communications, and casual content with equal skill.'
+}
+
 export default eventHandler(async (event) => {
   const config = useRuntimeConfig(event)
   const body = await readBody(event).catch((e) => {
@@ -16,11 +27,12 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Invalid request body' })
   })
 
-  const { messages, documentContent, sessionId, documentId } = body as {
+  const { messages, documentContent, sessionId, documentId, role } = body as {
     messages: ChatMessage[]
     documentContent?: string
     sessionId?: string
     documentId?: string
+    role?: string
   }
 
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -48,16 +60,19 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 500, message: 'AI API URL is invalid' })
   }
 
+  const roleId = (role && ROLE_BASE_PROMPTS[role]) ? role : 'general'
+  const rolePrompt = ROLE_BASE_PROMPTS[roleId]!
+
   const systemMessages: ChatMessage[] = []
   if (documentContent) {
     systemMessages.push({
       role: 'system',
-      content: `You are a professional writing assistant. The user is editing a document with the following content:\n\n---\n${documentContent.slice(0, 3000)}${documentContent.length > 3000 ? '\n...(truncated)' : ''}\n---\n\nAnswer the user's questions based on the document. Help improve, expand, or analyze the content. Be concise, professional, and helpful.\n\nCRITICAL RULE: You MUST reply in the exact same language as the user's message. If the user writes in Chinese, your entire response must be in Chinese. If the user writes in English, respond in English. Never switch to a different language under any circumstances.`
+      content: `${rolePrompt}\n\nThe user is editing a document with the following content:\n\n---\n${documentContent.slice(0, 3000)}${documentContent.length > 3000 ? '\n...(truncated)' : ''}\n---\n\nAnswer the user's questions based on the document. Help improve, expand, or analyze the content. Be concise and helpful.\n\n${LANGUAGE_RULE}`
     })
   } else {
     systemMessages.push({
       role: 'system',
-      content: 'You are a professional writing assistant. Help users with document writing, editing, and content improvement.\n\nCRITICAL RULE: You MUST reply in the exact same language as the user\'s message. If the user writes in Chinese, your entire response must be in Chinese. If the user writes in English, respond in English. Never switch to a different language under any circumstances.'
+      content: `${rolePrompt}\n\n${LANGUAGE_RULE}`
     })
   }
 

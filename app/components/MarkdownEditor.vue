@@ -56,6 +56,18 @@ const props = withDefaults(defineProps<Props>(), {
 const content = defineModel<string>()
 
 const { user } = useAuth()
+const toast = useToast()
+
+function requireAuth(): boolean {
+  if (user.value) return true
+  toast.add({
+    title: editorData.value?.aiLoginRequired || t('editor.aiLoginRequired'),
+    color: 'warning',
+    icon: 'i-lucide-lock',
+    duration: 3000
+  })
+  return false
+}
 const {
   saveDocument,
   getDocument,
@@ -423,6 +435,7 @@ const { isFocusMode, toggleFocusMode, exitFocusMode } = useFocusMode()
 
 // AI 侧边栏对话
 const showAIChat = ref(false)
+const showMobileChat = ref(false)
 
 // AI 接受/拒绝预览
 interface PendingAIResult {
@@ -687,10 +700,9 @@ const restoreVersionById = async (versionId: string) => {
 
 // AI 续写处理（工具栏按钮使用）
 async function handleAIContinue() {
+  if (!requireAuth()) return
   const editor = getEditorInstance()
-  if (!editor) {
-    return
-  }
+  if (!editor) return
   await handleAIContinueAtPosition(editor)
 }
 
@@ -706,9 +718,8 @@ const handleEditorDocumentSaved = (id: string, savedTitle: string) => {
 
 // 选中扩写：用 AI 扩写选中的文本，替换选区（通过预览）
 async function handleAIExpandSelected(editor: any) {
-  if (!editor || !content.value) {
-    return
-  }
+  if (!requireAuth()) return
+  if (!editor || !content.value) return
   const { state } = editor
   const { from, to } = state.selection
   if (from === to) {
@@ -745,9 +756,8 @@ async function handleAIExpandSelected(editor: any) {
 
 // 选中润色：用 AI 润色选中的文本，替换选区（通过预览）
 async function handleAIPolishSelected(editor: any) {
-  if (!editor || !content.value) {
-    return
-  }
+  if (!requireAuth()) return
+  if (!editor || !content.value) return
   const { state } = editor
   const { from, to } = state.selection
   if (from === to) {
@@ -785,10 +795,11 @@ async function handleAIPolishSelected(editor: any) {
 // AI 辅助操作（翻译/改写/提取要点）通过预览
 async function handleAIAssist(
   editor: any,
-  action: 'rewrite' | 'translate' | 'action_items',
+  action: 'rewrite' | 'translate' | 'action_items' | 'grammar' | 'simplify',
   label: string,
   options?: { tone?: string, targetLang?: string }
 ) {
+  if (!requireAuth()) return
   if (!editor) return
   const { state } = editor
   const { from, to } = state.selection
@@ -884,6 +895,16 @@ function getAIMoreDropdownItems(editor: any) {
       }
     ],
     [
+      {
+        label: data?.aiGrammar || t('editor.aiGrammar'),
+        icon: 'i-lucide-spell-check',
+        onSelect: () => handleAIAssist(editor, 'grammar', data?.aiGrammar || t('editor.aiGrammar'))
+      },
+      {
+        label: data?.aiSimplify || t('editor.aiSimplify'),
+        icon: 'i-lucide-minimize-2',
+        onSelect: () => handleAIAssist(editor, 'simplify', data?.aiSimplify || t('editor.aiSimplify'))
+      },
       {
         label: data?.aiExtractKeyPoints || t('editor.aiExtractKeyPoints'),
         icon: 'i-lucide-list-checks',
@@ -1049,6 +1070,17 @@ defineExpose({
                     </UButton>
                   </div>
                 </div>
+                <!-- Mobile-only AI Chat button -->
+                <UButton
+                  v-if="!readonly"
+                  icon="i-lucide-message-square-text"
+                  size="sm"
+                  variant="soft"
+                  color="primary"
+                  class="lg:hidden"
+                  @click="showMobileChat = true"
+                />
+
                 <div class="hidden lg:flex shrink-0 items-center gap-1">
                   <UTooltip :text="editorData?.outline || t('editor.outline')">
                     <UButton
@@ -1319,9 +1351,10 @@ defineExpose({
         />
       </div>
       <!-- AI Chat Panel -->
+      <!-- Desktop AI Chat panel -->
       <div
         v-show="showAIChat && !readonly"
-        class="hidden lg:flex flex-col w-72 shrink-0"
+        class="hidden lg:flex flex-col w-80 shrink-0"
       >
         <EditorAIChatPanel
           :document-content="content || ''"
@@ -1336,6 +1369,29 @@ defineExpose({
         />
       </div>
     </div>
+
+    <!-- Mobile AI Chat modal -->
+    <UModal
+      v-model:open="showMobileChat"
+      :ui="{ content: 'h-[90dvh] flex flex-col p-0 gap-0 rounded-t-2xl rounded-b-none sm:rounded-2xl max-w-lg' }"
+      class="lg:hidden"
+    >
+      <template #content>
+        <EditorAIChatPanel
+          :document-content="content || ''"
+          :document-id="props.documentId"
+          class="h-full"
+          @insert="(html: string) => {
+            const editor = getEditorInstance()
+            if (editor) {
+              editor.chain().focus().insertContent(html).run()
+            }
+            showMobileChat = false
+          }"
+          @close="showMobileChat = false"
+        />
+      </template>
+    </UModal>
 
     <!-- AI 结果预览卡片 -->
     <Transition

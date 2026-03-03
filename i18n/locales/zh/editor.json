@@ -63,6 +63,17 @@
     "aiChatInsert": "插入编辑器",
     "aiChatClear": "清空历史",
     "aiChatTyping": "AI 思考中...",
-    "aiChatError": "AI 回复失败，请重试"
+    "aiChatError": "AI 回复失败，请重试",
+    "aiLoginRequired": "请先登录后使用 AI 功能",
+    "aiGrammar": "语法修正",
+    "aiSimplify": "简化文本",
+    "aiRoleLabel": "AI 角色",
+    "aiRoleGeneral": "通用助手",
+    "aiRoleAcademic": "论文指导",
+    "aiRoleWriter": "续写专家",
+    "aiRoleCivil": "公务员写作",
+    "aiRoleCopywriter": "文案创作",
+    "aiRoleTranslator": "翻译专家",
+    "aiChatOpen": "打开 AI 对话"
   }
 }
