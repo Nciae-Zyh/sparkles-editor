@@ -49,7 +49,7 @@ export default defineNuxtConfig({
     cloudflare: {
       deployConfig: true,
       wrangler: {
-        name: 'nciae-zyh-sparkles-editor',
+        name: 'sparkles-editor',
         d1_databases: [
           {
             binding: 'DB',
