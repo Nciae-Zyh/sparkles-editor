@@ -78,6 +78,16 @@ const currentLocaleCode = computed(() => {
     <template #right>
       <slot />
 
+      <UButton
+        icon="i-simple-icons-github"
+        variant="ghost"
+        size="sm"
+        to="https://github.com/Nciae-Zyh/sparkles-editor"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="GitHub"
+      />
+
       <USeparator
         orientation="vertical"
         class="h-7"

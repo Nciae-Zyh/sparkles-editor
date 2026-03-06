@@ -21,7 +21,7 @@
     "imageUploadDesc": "支持自定义图片上传节点。",
     "emoji": "表情",
     "emojiDesc": "使用 `:` 添加表情 🚀",
-    "defaultContent": "# 欢迎使用编辑器\n\n这是一个功能丰富的富文本编辑器，支持多种格式和功能。\n\n## 富文本编辑\n\n支持 **粗体**、*斜体*、<u>下划线</u>、~~删除线~~ 和 `行内代码`。\n\n![图片占位符](/placeholder.jpeg)\n\n### 代码块\n\n代码块支持语法高亮。\n\n```typescript\nconst greeting = 'Hello, World!'\nconsole.log(greeting)\n```\n\n### 列表\n\n1. 有序列表\n2. 自动编号\n\n- 无序列表\n  - 支持嵌套\n  - 多级嵌套\n\n- [ ] 任务列表\n- [x] 已完成任务\n\n### 表格\n\n插入和编辑表格，支持行列操作。\n\n| 功能 | 描述 | 状态 |\n| ------- | ----------- | ------ |\n| 表格 | 完整表格支持 | ✅ |\n| Markdown | 内容序列化 | ✅ |\n\n---\n\n## 功能特性\n\n### 工具栏\n\n选择文本查看气泡工具栏，顶部固定工具栏提供快速访问常用操作。\n\n### 拖拽手柄\n\n使用左侧的拖拽手柄可以重新排序、复制、删除或转换块类型。\n\n### 斜杠命令\n\n输入 `/` 可以快速插入标题、列表、代码块、表格、图片等。\n\n### 图片上传\n\n支持自定义图片上传节点。\n\n### 表情\n\n使用 `:` 添加表情 🚀\n",
+    "defaultContent": "# 欢迎使用 Sparkles Editor\n\n> 🔗 **演示地址**：[sparkles-editor.com](https://sparkles-editor.com/) · [GitHub 源码](https://github.com/Nciae-Zyh/sparkles-editor)\n\n这是一个功能丰富的富文本编辑器，支持多种格式和功能。\n\n## 富文本编辑\n\n支持 **粗体**、*斜体*、<u>下划线</u>、~~删除线~~ 和 `行内代码`。\n\n![图片占位符](/placeholder.jpeg)\n\n### 代码块\n\n代码块支持语法高亮。\n\n```typescript\nconst greeting = 'Hello, World!'\nconsole.log(greeting)\n```\n\n### 列表\n\n1. 有序列表\n2. 自动编号\n\n- 无序列表\n  - 支持嵌套\n  - 多级嵌套\n\n- [ ] 任务列表\n- [x] 已完成任务\n\n### 表格\n\n插入和编辑表格，支持行列操作。\n\n| 功能 | 描述 | 状态 |\n| ------- | ----------- | ------ |\n| 表格 | 完整表格支持 | ✅ |\n| Markdown | 内容序列化 | ✅ |\n\n---\n\n## 功能特性\n\n### 工具栏\n\n选择文本查看气泡工具栏，顶部固定工具栏提供快速访问常用操作。\n\n### 拖拽手柄\n\n使用左侧的拖拽手柄可以重新排序、复制、删除或转换块类型。\n\n### 斜杠命令\n\n输入 `/` 可以快速插入标题、列表、代码块、表格、图片等。\n\n### 图片上传\n\n支持自定义图片上传节点。\n\n### 表情\n\n使用 `:` 添加表情 🚀\n",
     "autoSaving": "自动保存中...",
     "saved": "已保存",
     "editorNotReady": "编辑器未就绪",

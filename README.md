@@ -2,6 +2,8 @@
 
 Notion-like WYSIWYG editor in Vue & Nuxt. Built with Nuxt UI and TipTap, showcasing the powerful `UEditor` component with advanced editing capabilities.
 
+🔗 **Live Demo**: [sparkles-editor.com](https://sparkles-editor.com/) · **GitHub**: [Nciae-Zyh/sparkles-editor](https://github.com/Nciae-Zyh/sparkles-editor)
+
 ## Features
 
 - **Rich Text Editing** - Full formatting support with headings, lists, blockquotes, and code blocks
