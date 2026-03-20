@@ -18,6 +18,12 @@ logs
 .fleet
 .idea
 
+# Docker dev environment (kept outside project root)
+.docker
+
+# pnpm store state
+.pnpm
+
 # Local env files
 .env
 .env.*
