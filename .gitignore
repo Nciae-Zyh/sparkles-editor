@@ -22,7 +22,7 @@ logs
 .docker
 
 # pnpm store state
-.pnpm
+.pnpm-store
 
 # Local env files
 .env
