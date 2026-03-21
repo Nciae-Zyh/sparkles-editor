@@ -43,6 +43,79 @@ const createDocumentParentId = ref<string | null>(null)
 // 筛选状态
 const filterMode = ref<'all' | 'favorite' | 'pinned'>('all')
 
+// 批量操作状态
+const multiSelectMode = ref(false)
+const selectedIds = ref<Set<string>>(new Set())
+const showMoveModal = ref(false)
+const moveTargetFolderId = ref<string | null>(null)
+const movingBatch = ref(false)
+
+const hasSelection = computed(() => selectedIds.value.size > 0)
+const selectedCount = computed(() => selectedIds.value.size)
+
+function toggleMultiSelect() {
+  multiSelectMode.value = !multiSelectMode.value
+  if (!multiSelectMode.value) {
+    selectedIds.value = new Set()
+  }
+}
+
+function toggleSelect(id: string) {
+  const newSet = new Set(selectedIds.value)
+  if (newSet.has(id)) {
+    newSet.delete(id)
+  } else {
+    newSet.add(id)
+  }
+  selectedIds.value = newSet
+}
+
+function selectAll() {
+  selectedIds.value = new Set(filteredDocuments.value.map(d => d.id))
+}
+
+function deselectAll() {
+  selectedIds.value = new Set()
+}
+
+async function batchDelete() {
+  if (selectedIds.value.size === 0) return
+  const count = selectedIds.value.size
+  const confirmMsg = documentsData.value?.batchDeleteConfirm?.replace('{count}', String(count))
+    || t('documents.batchDeleteConfirm', { count })
+  if (!confirm(confirmMsg)) return
+
+  try {
+    for (const id of selectedIds.value) {
+      await deleteDocument(id)
+    }
+    selectedIds.value = new Set()
+    await fetchDocuments(currentParentId.value)
+  } catch (e) {
+    const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : ''
+    alert(msg || 'Batch delete failed')
+  }
+}
+
+async function batchMove() {
+  if (selectedIds.value.size === 0) return
+  try {
+    movingBatch.value = true
+    const { moveDocument } = useDocuments()
+    for (const id of selectedIds.value) {
+      await moveDocument(id, moveTargetFolderId.value || null)
+    }
+    selectedIds.value = new Set()
+    showMoveModal.value = false
+    await fetchDocuments(currentParentId.value)
+  } catch (e) {
+    const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : ''
+    alert(msg || 'Batch move failed')
+  } finally {
+    movingBatch.value = false
+  }
+}
+
 // 重命名相关状态
 const showRenameModal = ref(false)
 const renamingId = ref<string | null>(null)
@@ -279,6 +352,13 @@ const createNewDocument = () => {
           :color="filterMode === 'pinned' ? 'primary' : 'neutral'"
           @click="filterMode = filterMode === 'pinned' ? 'all' : 'pinned'"
         />
+        <UButton
+          icon="i-lucide-list-checks"
+          size="sm"
+          :variant="multiSelectMode ? 'solid' : 'ghost'"
+          :color="multiSelectMode ? 'primary' : 'neutral'"
+          @click="toggleMultiSelect"
+        />
         <UTooltip
           v-if="(documentsData?.newDocument || t('documents.newDocument')).length > 10"
           :text="documentsData?.newDocument || t('documents.newDocument')"
@@ -319,6 +399,70 @@ const createNewDocument = () => {
         </UButton>
       </div>
     </div>
+
+    <!-- Batch operations toolbar -->
+    <Transition name="fade">
+      <div
+        v-if="multiSelectMode && hasSelection"
+        class="flex items-center gap-2 p-3 bg-elevated rounded-lg border border-default"
+      >
+        <span class="text-sm font-medium">
+          {{ documentsData?.selectedCount?.replace('{count}', String(selectedCount))
+            || t('documents.selectedCount', { count: selectedCount }) }}
+        </span>
+        <div class="flex items-center gap-1 ml-auto">
+          <UButton
+            size="xs"
+            variant="soft"
+            @click="selectAll"
+          >
+            {{ documentsData?.selectAll || t('documents.selectAll') }}
+          </UButton>
+          <UButton
+            size="xs"
+            variant="ghost"
+            @click="deselectAll"
+          >
+            {{ documentsData?.deselectAll || t('documents.deselectAll') }}
+          </UButton>
+          <UButton
+            size="xs"
+            variant="soft"
+            icon="i-lucide-folder-input"
+            @click="showMoveModal = true"
+          >
+            {{ documentsData?.batchMove || t('documents.batchMove') }}
+          </UButton>
+          <UButton
+            size="xs"
+            color="error"
+            variant="soft"
+            icon="i-lucide-trash-2"
+            @click="batchDelete"
+          >
+            {{ documentsData?.batchDelete || t('documents.batchDelete') }}
+          </UButton>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Move to folder modal -->
+    <UModal
+      v-model:open="showMoveModal"
+      :title="documentsData?.moveToFolder || t('documents.moveToFolder')"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <DocumentsFolderSelector
+          v-model="moveTargetFolderId"
+          :placeholder="documentsData?.selectFolder || t('documents.selectFolder')"
+        />
+      </template>
+      <template #footer="{ close }">
+        <UButton variant="ghost" @click="close">{{ actionsData?.cancel || t('actions.cancel') }}</UButton>
+        <UButton :loading="movingBatch" @click="batchMove">{{ documentsData?.move || t('documents.move') }}</UButton>
+      </template>
+    </UModal>
 
     <UModal
       v-model:open="showCreateFolder"
@@ -513,11 +657,18 @@ const createNewDocument = () => {
           >
             <UCard
               class="cursor-pointer hover:shadow-lg transition-shadow"
-              @click="navigateTo(`${safeLocalePath('/documents')}/${doc.id}`)"
+              :class="{ 'ring-2 ring-primary': selectedIds.has(doc.id) }"
+              @click="multiSelectMode ? toggleSelect(doc.id) : navigateTo(`${safeLocalePath('/documents')}/${doc.id}`)"
             >
               <template #header>
                 <div class="flex items-start justify-between">
                   <div class="flex items-center gap-2 flex-1">
+                    <UCheckbox
+                      v-if="multiSelectMode"
+                      :model-value="selectedIds.has(doc.id)"
+                      @update:model-value="toggleSelect(doc.id)"
+                      @click.stop
+                    />
                     <UIcon
                       name="i-lucide-file-text"
                       class="w-5 h-5 text-primary"
