@@ -1,5 +1,5 @@
-import { getDBWithMigration } from '../../utils/db'
-import { getCurrentUser } from '../../utils/auth'
+import { getDBWithMigration } from '#server/utils/db'
+import { getCurrentUser } from '#server/utils/auth'
 import type { Document } from '~/types'
 
 interface DocumentTreeNode extends Document {

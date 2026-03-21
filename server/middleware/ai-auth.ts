@@ -1,4 +1,4 @@
-import { getCurrentUser } from '../utils/auth'
+import { getCurrentUser } from '#server/utils/auth'
 
 /**
  * Protect all /api/ai/* routes — authentication required.

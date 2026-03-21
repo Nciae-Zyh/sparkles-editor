@@ -1,4 +1,4 @@
-import { getCurrentUser } from '../../utils/auth'
+import { getCurrentUser } from '#server/utils/auth'
 
 export default eventHandler(async (event) => {
   const user = await getCurrentUser(event)

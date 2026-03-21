@@ -1,5 +1,5 @@
-import { getDBWithMigration } from '../../utils/db'
-import { verifyPassword, createSession } from '../../utils/auth'
+import { getDBWithMigration } from '#server/utils/db'
+import { verifyPassword, createSession } from '#server/utils/auth'
 
 export default eventHandler(async (event) => {
   const body = await readBody(event)
