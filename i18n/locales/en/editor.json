@@ -94,6 +94,8 @@
     "exportMarkdown": "Export as Markdown",
     "exportSuccess": "Export successful",
     "exportFailed": "Export failed",
+    "print": "Print",
+    "printPreview": "Print Preview",
     "addTag": "Add tag",
     "removeTag": "Remove tag",
     "tagInputPlaceholder": "Type a tag and press Enter"

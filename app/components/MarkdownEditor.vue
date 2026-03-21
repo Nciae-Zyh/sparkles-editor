@@ -667,6 +667,11 @@ const exportItems = computed(() => [
     label: editorData.value?.exportPdf || t('editor.exportPdf'),
     icon: 'i-lucide-file-text',
     onSelect: handleExportPdf
+  },
+  {
+    label: editorData.value?.print || t('editor.print'),
+    icon: 'i-lucide-printer',
+    onSelect: () => window.print()
   }
 ])
 
