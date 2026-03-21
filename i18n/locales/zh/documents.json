@@ -65,6 +65,16 @@
     "favorite": "收藏",
     "pin": "置顶",
     "pinned": "已置顶",
+    "stats": {
+      "title": "文档统计",
+      "totalDocuments": "总文档数",
+      "totalFolders": "总文件夹数",
+      "totalChars": "总字符数",
+      "activeLast7Days": "近7天活跃",
+      "recentlyEdited": "最近编辑",
+      "recentlyCreated": "最近创建",
+      "noDocuments": "暂无文档"
+    }
     "moveToRootFailed": "移动到根目录失败，请稍后重试",
     "cannotMoveToSelf": "不能将项目移动到自己的位置",
     "cannotMoveIntoSubfolder": "不能将文件夹移动到自己的子文件夹中",
