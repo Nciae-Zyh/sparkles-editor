@@ -98,6 +98,20 @@
     "printPreview": "打印预览",
     "addTag": "添加标签",
     "removeTag": "移除标签",
-    "tagInputPlaceholder": "输入标签后按回车添加"
+    "tagInputPlaceholder": "输入标签后按回车添加",
+    "comments": "评论",
+    "commentPlaceholder": "写下你的评论...",
+    "selectedTextPlaceholder": "选中的文本（可选）",
+    "submitComment": "提交",
+    "commentAdded": "评论已添加",
+    "commentAddFailed": "添加评论失败",
+    "noComments": "暂无评论",
+    "resolved": "已解决",
+    "replyPlaceholder": "写下你的回复...",
+    "reply": "回复",
+    "replyAddFailed": "添加回复失败",
+    "deleteCommentConfirm": "确定删除这条评论吗？",
+    "commentDeleted": "评论已删除",
+    "commentDeleteFailed": "删除评论失败"
   }
 }
