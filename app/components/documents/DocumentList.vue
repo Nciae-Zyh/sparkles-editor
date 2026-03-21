@@ -12,7 +12,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const { documents, loading, fetchDocuments, deleteDocument, createFolder, createEmptyDocument, renameDocument } = useDocuments()
+const { documents, loading, fetchDocuments, deleteDocument, createFolder, createEmptyDocument, renameDocument, toggleFavorite, togglePin, cloneDocument } = useDocuments()
 const safeLocalePath = useSafeLocalePath()
 
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
@@ -40,6 +40,9 @@ const newDocumentName = ref('')
 const creatingDocument = ref(false)
 const createDocumentParentId = ref<string | null>(null)
 
+// 筛选状态
+const filterMode = ref<'all' | 'favorite' | 'pinned'>('all')
+
 // 重命名相关状态
 const showRenameModal = ref(false)
 const renamingId = ref<string | null>(null)
@@ -47,8 +50,18 @@ const renamingName = ref('')
 const renamingType = ref<'document' | 'folder'>('document')
 const renaming = ref(false)
 
-const folders = computed(() => documents.value.filter(d => d.type === 'folder'))
-const files = computed(() => documents.value.filter(d => d.type === 'document'))
+const filteredDocuments = computed(() => {
+  if (filterMode.value === 'favorite') {
+    return documents.value.filter(d => d.is_favorite)
+  }
+  if (filterMode.value === 'pinned') {
+    return documents.value.filter(d => d.is_pinned)
+  }
+  return documents.value
+})
+
+const folders = computed(() => filteredDocuments.value.filter(d => d.type === 'folder'))
+const files = computed(() => filteredDocuments.value.filter(d => d.type === 'document'))
 
 watch(() => props.parentId, (newParentId) => {
   currentParentId.value = newParentId
@@ -206,8 +219,38 @@ const {
     }
     showCreateFolder.value = true
   },
+  onClone: async (item: Document) => {
+    try {
+      await cloneDocument(item.id)
+      await fetchDocuments(currentParentId.value)
+    } catch (e) {
+      const message = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : ''
+      alert(message || 'Clone failed')
+    }
+  },
   currentParentId: () => currentParentId.value
 })
+
+// Toggle favorite/pin
+const handleToggleFavorite = async (doc: Document, event: Event) => {
+  event.stopPropagation()
+  try {
+    await toggleFavorite(doc.id)
+    doc.is_favorite = doc.is_favorite ? 0 : 1
+  } catch (e) {
+    console.error('Toggle favorite failed:', e)
+  }
+}
+
+const handleTogglePin = async (doc: Document, event: Event) => {
+  event.stopPropagation()
+  try {
+    await togglePin(doc.id)
+    doc.is_pinned = doc.is_pinned ? 0 : 1
+  } catch (e) {
+    console.error('Toggle pin failed:', e)
+  }
+}
 const createNewDocument = () => {
   newDocumentName.value = ''
   showCreateDocument.value = true
@@ -221,6 +264,21 @@ const createNewDocument = () => {
         {{ documentsData?.documentList || t('documents.documentList') }}
       </h2>
       <div class="flex gap-2">
+        <!-- Filter buttons -->
+        <UButton
+          icon="i-lucide-star"
+          size="sm"
+          :variant="filterMode === 'favorite' ? 'solid' : 'ghost'"
+          :color="filterMode === 'favorite' ? 'warning' : 'neutral'"
+          @click="filterMode = filterMode === 'favorite' ? 'all' : 'favorite'"
+        />
+        <UButton
+          icon="i-lucide-pin"
+          size="sm"
+          :variant="filterMode === 'pinned' ? 'solid' : 'ghost'"
+          :color="filterMode === 'pinned' ? 'primary' : 'neutral'"
+          @click="filterMode = filterMode === 'pinned' ? 'all' : 'pinned'"
+        />
         <UTooltip
           v-if="(documentsData?.newDocument || t('documents.newDocument')).length > 10"
           :text="documentsData?.newDocument || t('documents.newDocument')"
@@ -467,15 +525,36 @@ const createNewDocument = () => {
                     <h3 class="font-semibold text-lg truncate">
                       {{ doc.title || (documentsData?.untitledDocument || t('documents.untitledDocument')) }}
                     </h3>
+                    <UIcon
+                      v-if="doc.is_pinned"
+                      name="i-lucide-pin"
+                      class="w-3.5 h-3.5 text-primary"
+                    />
                   </div>
-                  <UButton
-                    color="error"
-                    variant="ghost"
-                    icon="i-lucide-trash-2"
-                    size="sm"
-                    :loading="deletingId === doc.id"
-                    @click="handleDelete(doc.id, $event)"
-                  />
+                  <div class="flex items-center gap-1">
+                    <UButton
+                      :icon="doc.is_favorite ? 'i-lucide-star' : 'i-lucide-star'"
+                      :variant="doc.is_favorite ? 'solid' : 'ghost'"
+                      :color="doc.is_favorite ? 'warning' : 'neutral'"
+                      size="xs"
+                      @click="handleToggleFavorite(doc, $event)"
+                    />
+                    <UButton
+                      icon="i-lucide-pin"
+                      :variant="doc.is_pinned ? 'solid' : 'ghost'"
+                      :color="doc.is_pinned ? 'primary' : 'neutral'"
+                      size="xs"
+                      @click="handleTogglePin(doc, $event)"
+                    />
+                    <UButton
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash-2"
+                      size="xs"
+                      :loading="deletingId === doc.id"
+                      @click="handleDelete(doc.id, $event)"
+                    />
+                  </div>
                 </div>
               </template>
 
