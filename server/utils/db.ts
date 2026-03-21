@@ -1,4 +1,4 @@
-import type { CloudflareEnv } from '../../types'
+import type { CloudflareEnv } from '~~/types'
 
 // 模块级缓存：同一进程内只执行一次迁移
 const _migrationDone = new Set<string>()

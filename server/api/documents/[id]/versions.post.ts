@@ -1,6 +1,6 @@
-import { getDBWithMigration } from '../../../utils/db'
-import { generateDocumentId, getCurrentUser } from '../../../utils/auth'
-import { getDocumentFromR2, getR2Bucket } from '../../../utils/r2'
+import { getDBWithMigration } from '#server/utils/db'
+import { generateDocumentId, getCurrentUser } from '#server/utils/auth'
+import { getDocumentFromR2, getR2Bucket } from '#server/utils/r2'
 
 export default eventHandler(async (event) => {
   const user = await getCurrentUser(event)
