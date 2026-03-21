@@ -112,6 +112,11 @@
     "replyAddFailed": "Failed to add reply",
     "deleteCommentConfirm": "Delete this comment?",
     "commentDeleted": "Comment deleted",
-    "commentDeleteFailed": "Failed to delete comment"
+    "commentDeleteFailed": "Failed to delete comment",
+    "compare": "Compare",
+    "compareHint": "Select a second version to compare",
+    "diffView": "Diff View",
+    "versionRestored": "Version restored",
+    "versionRestoreFailed": "Restore failed"
   }
 }
