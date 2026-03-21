@@ -249,6 +249,21 @@ export const useDocuments = () => {
     return data.is_favorite
   }
 
+  const cloneDocument = async (id: string) => {
+    try {
+      loading.value = true
+      const data = await $fetch<{ success: boolean, document: Document }>(`/api/documents/${id}/clone`, {
+        method: 'POST'
+      })
+      return data.document
+    } catch (error: unknown) {
+      const errorInfo = getErrorInfo(error)
+      throw new Error(errorInfo.data?.message || t('documents.cloneFailed'))
+    } finally {
+      loading.value = false
+    }
+  }
+
   const togglePin = async (id: string, isPinned?: boolean) => {
     const data = await $fetch<{ is_pinned: number }>(`/api/documents/${id}/pin`, {
       method: 'POST',
@@ -374,6 +389,7 @@ export const useDocuments = () => {
     fetchComments,
     createComment,
     addCommentReply,
-    resolveComment
+    resolveComment,
+    cloneDocument
   }
 }

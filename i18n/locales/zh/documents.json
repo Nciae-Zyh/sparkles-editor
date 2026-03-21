@@ -57,6 +57,8 @@
     "fixPathsSuccess": "路径修复完成！修复了 {fixed} 个项目，{errors} 个错误。",
     "fixPathsFailed": "修复路径失败，请稍后重试",
     "moveFailed": "移动失败，请稍后重试",
+    "cloneFailed": "克隆失败，请稍后重试",
+    "cloneSuccess": "文档克隆成功",
     "moveToRootFailed": "移动到根目录失败，请稍后重试",
     "cannotMoveToSelf": "不能将项目移动到自己的位置",
     "cannotMoveIntoSubfolder": "不能将文件夹移动到自己的子文件夹中",
@@ -78,7 +80,8 @@
       "rename": "重命名",
       "delete": "删除",
       "open": "打开",
-      "download": "下载"
+      "download": "下载",
+      "clone": "克隆"
     }
   }
 }
