@@ -1,5 +1,5 @@
 import { generateDocumentId } from './auth'
-import type { CloudflareEnv } from '../../types'
+import type { CloudflareEnv } from '~~/types'
 
 /**
  * 解析类似 WebStorm 的文件名，提取文件夹路径和文件名

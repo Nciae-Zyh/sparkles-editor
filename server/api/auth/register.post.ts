@@ -1,5 +1,5 @@
-import { getDBWithMigration, initDB } from '../../utils/db'
-import { hashPassword, createSession, generateUserId } from '../../utils/auth'
+import { getDBWithMigration, initDB } from '#server/utils/db'
+import { hashPassword, createSession, generateUserId } from '#server/utils/auth'
 
 export default eventHandler(async (event) => {
   try {

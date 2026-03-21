@@ -1,7 +1,7 @@
-import { getDBWithMigration } from '../../utils/db'
-import { getCurrentUser, generateDocumentId } from '../../utils/auth'
-import { getR2Bucket, saveDocumentToR2, deleteDocumentFromR2 } from '../../utils/r2'
-import { parseFilePath, ensureFolderPath } from '../../utils/path'
+import { getDBWithMigration } from '#server/utils/db'
+import { getCurrentUser, generateDocumentId } from '#server/utils/auth'
+import { getR2Bucket, saveDocumentToR2, deleteDocumentFromR2 } from '#server/utils/r2'
+import { parseFilePath, ensureFolderPath } from '#server/utils/path'
 
 export default eventHandler(async (event) => {
   const startTime = Date.now()

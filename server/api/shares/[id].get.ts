@@ -1,6 +1,6 @@
-import { getDBWithMigration } from '../../utils/db'
-import { getR2Bucket, getDocumentFromR2 } from '../../utils/r2'
-import { verifyPassword } from '../../utils/auth'
+import { getDBWithMigration } from '#server/utils/db'
+import { getR2Bucket, getDocumentFromR2 } from '#server/utils/r2'
+import { verifyPassword } from '#server/utils/auth'
 
 export default eventHandler(async (event) => {
   const { id } = getRouterParams(event)
