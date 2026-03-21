@@ -23,6 +23,12 @@ const previewContent = ref<string | null>(null)
 const previewLoading = ref(false)
 const restoring = ref(false)
 
+// Diff compare mode
+const compareMode = ref(false)
+const compareVersion = ref<Version | null>(null)
+const compareContent = ref<string | null>(null)
+const compareLoading = ref(false)
+
 async function fetchVersions() {
   if (!props.documentId) return
   try {
@@ -36,17 +42,46 @@ async function fetchVersions() {
   }
 }
 
+async function fetchVersionContent(versionId: string): Promise<string> {
+  const data = await $fetch<{ version: { content: string } }>(`/api/documents/${props.documentId}/versions/${versionId}`)
+  return data.version?.content || ''
+}
+
 async function previewVersion(version: Version) {
+  if (compareMode.value) {
+    // In compare mode, select as compare target
+    if (selectedVersion.value && selectedVersion.value.id !== version.id) {
+      compareVersion.value = version
+      try {
+        compareLoading.value = true
+        compareContent.value = await fetchVersionContent(version.id)
+      } catch (e) {
+        console.error('Failed to fetch compare version:', e)
+        compareContent.value = null
+      } finally {
+        compareLoading.value = false
+      }
+    }
+    return
+  }
+
   selectedVersion.value = version
   try {
     previewLoading.value = true
-    const data = await $fetch<{ content: string }>(`/api/documents/${props.documentId}/versions/${version.id}`)
-    previewContent.value = data.content || ''
+    previewContent.value = await fetchVersionContent(version.id)
   } catch (e) {
     console.error('Failed to preview version:', e)
     previewContent.value = null
   } finally {
     previewLoading.value = false
+  }
+}
+
+function toggleCompareMode() {
+  compareMode.value = !compareMode.value
+  if (!compareMode.value) {
+    compareVersion.value = null
+    compareContent.value = null
   }
 }
 
@@ -60,7 +95,6 @@ async function restoreVersion(version: Version) {
       icon: 'i-lucide-check-circle-2'
     })
     open.value = false
-    // 触发页面刷新
     await navigateTo(`/documents/${props.documentId}`, { replace: true })
   } catch (e) {
     toast.add({
@@ -94,7 +128,14 @@ function formatSize(bytes: number): string {
 }
 
 watch(open, (val) => {
-  if (val) fetchVersions()
+  if (val) {
+    fetchVersions()
+    compareMode.value = false
+    compareVersion.value = null
+    compareContent.value = null
+    selectedVersion.value = null
+    previewContent.value = null
+  }
 })
 </script>
 
@@ -102,9 +143,30 @@ watch(open, (val) => {
   <USlideover
     v-model:open="open"
     :title="editorData?.versionHistory || 'Version History'"
-    :ui="{ content: 'max-w-md' }"
+    :ui="{ content: 'max-w-lg' }"
   >
     <template #body>
+      <!-- Compare mode toggle -->
+      <div class="mb-3 flex items-center justify-between">
+        <p class="text-sm text-muted">
+          {{ documentsData?.versionHistoryDesc || editorData?.versionHistoryDesc || 'Create snapshots and restore to any previous version.' }}
+        </p>
+        <UButton
+          size="xs"
+          :variant="compareMode ? 'solid' : 'ghost'"
+          :color="compareMode ? 'primary' : 'neutral'"
+          icon="i-lucide-git-compare"
+          @click="toggleCompareMode"
+        >
+          {{ editorData?.compare || 'Compare' }}
+        </UButton>
+      </div>
+
+      <div v-if="compareMode && selectedVersion" class="mb-3 p-2 bg-primary/5 rounded-lg text-xs text-muted">
+        {{ editorData?.compareHint || 'Select a second version to compare' }}
+        <span v-if="compareVersion"> · {{ selectedVersion.title }} vs {{ compareVersion.title }}</span>
+      </div>
+
       <div v-if="loading" class="space-y-3">
         <USkeleton v-for="i in 5" :key="i" class="h-14 w-full rounded-lg" />
       </div>
@@ -119,7 +181,10 @@ watch(open, (val) => {
           v-for="version in versions"
           :key="version.id"
           class="group p-3 rounded-lg border border-default hover:bg-elevated transition-colors cursor-pointer"
-          :class="{ 'border-primary bg-primary/5': selectedVersion?.id === version.id }"
+          :class="{
+            'border-primary bg-primary/5': selectedVersion?.id === version.id,
+            'border-warning bg-warning/5': compareVersion?.id === version.id
+          }"
           @click="previewVersion(version)"
         >
           <div class="flex items-center justify-between">
@@ -146,8 +211,21 @@ watch(open, (val) => {
         </div>
       </div>
 
-      <!-- Preview panel -->
-      <div v-if="selectedVersion && previewContent !== null" class="mt-4 pt-4 border-t border-default">
+      <!-- Diff view -->
+      <div v-if="compareMode && selectedVersion && compareVersion && compareContent !== null" class="mt-4 pt-4 border-t border-default">
+        <h4 class="text-sm font-medium mb-2">{{ editorData?.diffView || 'Diff View' }}</h4>
+        <div v-if="compareLoading" class="space-y-2">
+          <USkeleton v-for="i in 5" :key="i" class="h-5 w-full" />
+        </div>
+        <EditorDiffViewer
+          v-else
+          :old-content="previewContent || ''"
+          :new-content="compareContent"
+        />
+      </div>
+
+      <!-- Preview panel (non-compare mode) -->
+      <div v-else-if="!compareMode && selectedVersion && previewContent !== null" class="mt-4 pt-4 border-t border-default">
         <div class="flex items-center justify-between mb-2">
           <h4 class="text-sm font-medium text-default">{{ editorData?.preview || 'Preview' }}</h4>
           <UButton
