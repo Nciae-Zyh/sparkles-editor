@@ -94,6 +94,8 @@
     "exportMarkdown": "导出为 Markdown",
     "exportSuccess": "导出成功",
     "exportFailed": "导出失败",
+    "print": "打印",
+    "printPreview": "打印预览",
     "addTag": "添加标签",
     "removeTag": "移除标签",
     "tagInputPlaceholder": "输入标签后按回车添加"
