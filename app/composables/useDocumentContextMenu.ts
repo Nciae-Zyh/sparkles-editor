@@ -35,6 +35,10 @@ export interface UseDocumentContextMenuOptions {
    */
   onDownload?: (item: Document, event: Event) => void
   /**
+   * 克隆文档的回调（仅文档）
+   */
+  onClone?: (item: Document) => void
+  /**
    * 当前父文件夹ID（用于在空白处创建时指定父文件夹）
    * 可以是值、ref 或 computed
    */
@@ -53,6 +57,7 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
     onCreateDocument,
     onCreateFolder,
     onDownload,
+    onClone,
     currentParentId = null
   } = options
   const { tm: $tm, t } = useNuxtApp().$i18n as { tm: (key: string) => unknown, t: (key: string, ...args: unknown[]) => string }
@@ -163,6 +168,17 @@ export const useDocumentContextMenu = (options: UseDocumentContextMenuOptions = 
           label: contextMenuData.value.rename || t('documents.contextMenu.rename'),
           icon: 'i-lucide-pencil',
           onSelect: () => onRename(doc)
+        }
+      ])
+    }
+
+    // 克隆（仅文档）
+    if (onClone && doc.type === 'document') {
+      items.push([
+        {
+          label: contextMenuData.value.clone || t('documents.contextMenu.clone'),
+          icon: 'i-lucide-copy',
+          onSelect: () => onClone(doc)
         }
       ])
     }

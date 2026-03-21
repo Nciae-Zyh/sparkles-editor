@@ -26,6 +26,15 @@
     "deleteFailed": "Delete failed",
     "createInSelectedFolder": "Will be created in the selected folder",
     "noDocuments": "No documents yet, start creating your first document!",
+    "activity": {
+      "title": "Recent Activity",
+      "pageTitle": "Recent Activity",
+      "refresh": "Refresh",
+      "noActivity": "No recent activity",
+      "documentCreated": "Document created",
+      "documentEdited": "Document edited",
+      "folderCreated": "Folder created"
+    },
     "login": "Login",
     "logout": "Logout",
     "folderName": "Folder Name",
@@ -57,6 +66,36 @@
     "fixPathsSuccess": "Path fix completed! Fixed {fixed} items, {errors} errors.",
     "fixPathsFailed": "Failed to fix paths, please try again later",
     "moveFailed": "Move failed, please try again later",
+    "cloneFailed": "Clone failed, please try again later",
+    "cloneSuccess": "Document cloned successfully",
+    "filterFavorites": "Show favorites",
+    "filterPinned": "Show pinned",
+    "filterAll": "Show all",
+    "favorite": "Favorite",
+    "pin": "Pin",
+    "pinned": "Pinned",
+    "stats": {
+      "title": "Document Statistics",
+      "totalDocuments": "Total Documents",
+      "totalFolders": "Total Folders",
+      "totalChars": "Total Characters",
+      "activeLast7Days": "Active (7 days)",
+      "recentlyEdited": "Recently Edited",
+      "recentlyCreated": "Recently Created",
+      "noDocuments": "No documents yet"
+    },
+    "backlinks": {
+      "title": "Backlinks",
+      "noBacklinks": "No backlinks found"
+    },
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "batchDelete": "Delete",
+    "batchMove": "Move",
+    "batchDeleteConfirm": "Delete {count} selected items?",
+    "selectedCount": "{count} selected",
+    "moveToFolder": "Move to Folder",
+    "move": "Move"
     "moveToRootFailed": "Failed to move to root directory, please try again later",
     "cannotMoveToSelf": "Cannot move item to its own position",
     "cannotMoveIntoSubfolder": "Cannot move folder into its own subfolder",
@@ -78,7 +117,8 @@
       "rename": "Rename",
       "delete": "Delete",
       "open": "Open",
-      "download": "Download"
+      "download": "Download",
+      "clone": "Clone"
     }
   }
 }

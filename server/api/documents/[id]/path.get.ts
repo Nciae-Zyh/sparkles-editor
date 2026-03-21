@@ -13,10 +13,10 @@ export default eventHandler(async (event) => {
   const { id } = getRouterParams(event)
   const db = await getDBWithMigration(event)
 
-  // 检查文档是否存在且属于当前用户
+  // Check if the document exists (allow any user's doc for read-only viewing)
   const document = await db.prepare(`
-    SELECT id, parent_id, deleted_at FROM documents WHERE id = ? AND user_id = ?
-  `).bind(id, user.id).first() as any
+    SELECT id, title, parent_id, deleted_at FROM documents WHERE id = ?
+  `).bind(id).first() as any
 
   if (!document || document.deleted_at) {
     throw createError({
@@ -25,26 +25,26 @@ export default eventHandler(async (event) => {
     })
   }
 
-  // 递归获取所有父文件夹ID（从文档到根目录）
-  const parentIds: string[] = []
+  // Recursively get all parent folders (from document to root)
+  const parents: Array<{ id: string, title: string }> = []
   let currentParentId: string | null = document.parent_id || null
 
   while (currentParentId) {
     const parentDoc = await db.prepare(`
-      SELECT id, parent_id, deleted_at FROM documents WHERE id = ? AND user_id = ?
-    `).bind(currentParentId, user.id).first() as any
+      SELECT id, title, parent_id, deleted_at FROM documents WHERE id = ?
+    `).bind(currentParentId).first() as any
 
     if (!parentDoc || parentDoc.deleted_at) {
       break
     }
 
-    parentIds.push(parentDoc.id)
+    parents.push({ id: parentDoc.id, title: parentDoc.title })
     currentParentId = parentDoc.parent_id || null
   }
 
-  // 返回从根目录到文档的路径（反转数组）
+  // Return path from root to document (reverse array)
   return {
-    path: parentIds.reverse(),
+    path: parents.reverse(),
     documentId: id
   }
 })

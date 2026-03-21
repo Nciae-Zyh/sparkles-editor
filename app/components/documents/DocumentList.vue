@@ -12,7 +12,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const { documents, loading, fetchDocuments, deleteDocument, createFolder, createEmptyDocument, renameDocument } = useDocuments()
+const { documents, loading, fetchDocuments, deleteDocument, createFolder, createEmptyDocument, renameDocument, toggleFavorite, togglePin, cloneDocument } = useDocuments()
 const safeLocalePath = useSafeLocalePath()
 
 const documentsData = computed(() => $tm('documents') as Record<string, string> | undefined)
@@ -40,6 +40,82 @@ const newDocumentName = ref('')
 const creatingDocument = ref(false)
 const createDocumentParentId = ref<string | null>(null)
 
+// 筛选状态
+const filterMode = ref<'all' | 'favorite' | 'pinned'>('all')
+
+// 批量操作状态
+const multiSelectMode = ref(false)
+const selectedIds = ref<Set<string>>(new Set())
+const showMoveModal = ref(false)
+const moveTargetFolderId = ref<string | null>(null)
+const movingBatch = ref(false)
+
+const hasSelection = computed(() => selectedIds.value.size > 0)
+const selectedCount = computed(() => selectedIds.value.size)
+
+function toggleMultiSelect() {
+  multiSelectMode.value = !multiSelectMode.value
+  if (!multiSelectMode.value) {
+    selectedIds.value = new Set()
+  }
+}
+
+function toggleSelect(id: string) {
+  const newSet = new Set(selectedIds.value)
+  if (newSet.has(id)) {
+    newSet.delete(id)
+  } else {
+    newSet.add(id)
+  }
+  selectedIds.value = newSet
+}
+
+function selectAll() {
+  selectedIds.value = new Set(filteredDocuments.value.map(d => d.id))
+}
+
+function deselectAll() {
+  selectedIds.value = new Set()
+}
+
+async function batchDelete() {
+  if (selectedIds.value.size === 0) return
+  const count = selectedIds.value.size
+  const confirmMsg = documentsData.value?.batchDeleteConfirm?.replace('{count}', String(count))
+    || t('documents.batchDeleteConfirm', { count })
+  if (!confirm(confirmMsg)) return
+
+  try {
+    for (const id of selectedIds.value) {
+      await deleteDocument(id)
+    }
+    selectedIds.value = new Set()
+    await fetchDocuments(currentParentId.value)
+  } catch (e) {
+    const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : ''
+    alert(msg || 'Batch delete failed')
+  }
+}
+
+async function batchMove() {
+  if (selectedIds.value.size === 0) return
+  try {
+    movingBatch.value = true
+    const { moveDocument } = useDocuments()
+    for (const id of selectedIds.value) {
+      await moveDocument(id, moveTargetFolderId.value || null)
+    }
+    selectedIds.value = new Set()
+    showMoveModal.value = false
+    await fetchDocuments(currentParentId.value)
+  } catch (e) {
+    const msg = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : ''
+    alert(msg || 'Batch move failed')
+  } finally {
+    movingBatch.value = false
+  }
+}
+
 // 重命名相关状态
 const showRenameModal = ref(false)
 const renamingId = ref<string | null>(null)
@@ -47,8 +123,18 @@ const renamingName = ref('')
 const renamingType = ref<'document' | 'folder'>('document')
 const renaming = ref(false)
 
-const folders = computed(() => documents.value.filter(d => d.type === 'folder'))
-const files = computed(() => documents.value.filter(d => d.type === 'document'))
+const filteredDocuments = computed(() => {
+  if (filterMode.value === 'favorite') {
+    return documents.value.filter(d => d.is_favorite)
+  }
+  if (filterMode.value === 'pinned') {
+    return documents.value.filter(d => d.is_pinned)
+  }
+  return documents.value
+})
+
+const folders = computed(() => filteredDocuments.value.filter(d => d.type === 'folder'))
+const files = computed(() => filteredDocuments.value.filter(d => d.type === 'document'))
 
 watch(() => props.parentId, (newParentId) => {
   currentParentId.value = newParentId
@@ -206,8 +292,38 @@ const {
     }
     showCreateFolder.value = true
   },
+  onClone: async (item: Document) => {
+    try {
+      await cloneDocument(item.id)
+      await fetchDocuments(currentParentId.value)
+    } catch (e) {
+      const message = e && typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : ''
+      alert(message || 'Clone failed')
+    }
+  },
   currentParentId: () => currentParentId.value
 })
+
+// Toggle favorite/pin
+const handleToggleFavorite = async (doc: Document, event: Event) => {
+  event.stopPropagation()
+  try {
+    await toggleFavorite(doc.id)
+    doc.is_favorite = doc.is_favorite ? 0 : 1
+  } catch (e) {
+    console.error('Toggle favorite failed:', e)
+  }
+}
+
+const handleTogglePin = async (doc: Document, event: Event) => {
+  event.stopPropagation()
+  try {
+    await togglePin(doc.id)
+    doc.is_pinned = doc.is_pinned ? 0 : 1
+  } catch (e) {
+    console.error('Toggle pin failed:', e)
+  }
+}
 const createNewDocument = () => {
   newDocumentName.value = ''
   showCreateDocument.value = true
@@ -221,6 +337,28 @@ const createNewDocument = () => {
         {{ documentsData?.documentList || t('documents.documentList') }}
       </h2>
       <div class="flex gap-2">
+        <!-- Filter buttons -->
+        <UButton
+          icon="i-lucide-star"
+          size="sm"
+          :variant="filterMode === 'favorite' ? 'solid' : 'ghost'"
+          :color="filterMode === 'favorite' ? 'warning' : 'neutral'"
+          @click="filterMode = filterMode === 'favorite' ? 'all' : 'favorite'"
+        />
+        <UButton
+          icon="i-lucide-pin"
+          size="sm"
+          :variant="filterMode === 'pinned' ? 'solid' : 'ghost'"
+          :color="filterMode === 'pinned' ? 'primary' : 'neutral'"
+          @click="filterMode = filterMode === 'pinned' ? 'all' : 'pinned'"
+        />
+        <UButton
+          icon="i-lucide-list-checks"
+          size="sm"
+          :variant="multiSelectMode ? 'solid' : 'ghost'"
+          :color="multiSelectMode ? 'primary' : 'neutral'"
+          @click="toggleMultiSelect"
+        />
         <UTooltip
           v-if="(documentsData?.newDocument || t('documents.newDocument')).length > 10"
           :text="documentsData?.newDocument || t('documents.newDocument')"
@@ -261,6 +399,70 @@ const createNewDocument = () => {
         </UButton>
       </div>
     </div>
+
+    <!-- Batch operations toolbar -->
+    <Transition name="fade">
+      <div
+        v-if="multiSelectMode && hasSelection"
+        class="flex items-center gap-2 p-3 bg-elevated rounded-lg border border-default"
+      >
+        <span class="text-sm font-medium">
+          {{ documentsData?.selectedCount?.replace('{count}', String(selectedCount))
+            || t('documents.selectedCount', { count: selectedCount }) }}
+        </span>
+        <div class="flex items-center gap-1 ml-auto">
+          <UButton
+            size="xs"
+            variant="soft"
+            @click="selectAll"
+          >
+            {{ documentsData?.selectAll || t('documents.selectAll') }}
+          </UButton>
+          <UButton
+            size="xs"
+            variant="ghost"
+            @click="deselectAll"
+          >
+            {{ documentsData?.deselectAll || t('documents.deselectAll') }}
+          </UButton>
+          <UButton
+            size="xs"
+            variant="soft"
+            icon="i-lucide-folder-input"
+            @click="showMoveModal = true"
+          >
+            {{ documentsData?.batchMove || t('documents.batchMove') }}
+          </UButton>
+          <UButton
+            size="xs"
+            color="error"
+            variant="soft"
+            icon="i-lucide-trash-2"
+            @click="batchDelete"
+          >
+            {{ documentsData?.batchDelete || t('documents.batchDelete') }}
+          </UButton>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Move to folder modal -->
+    <UModal
+      v-model:open="showMoveModal"
+      :title="documentsData?.moveToFolder || t('documents.moveToFolder')"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <DocumentsFolderSelector
+          v-model="moveTargetFolderId"
+          :placeholder="documentsData?.selectFolder || t('documents.selectFolder')"
+        />
+      </template>
+      <template #footer="{ close }">
+        <UButton variant="ghost" @click="close">{{ actionsData?.cancel || t('actions.cancel') }}</UButton>
+        <UButton :loading="movingBatch" @click="batchMove">{{ documentsData?.move || t('documents.move') }}</UButton>
+      </template>
+    </UModal>
 
     <UModal
       v-model:open="showCreateFolder"
@@ -455,11 +657,18 @@ const createNewDocument = () => {
           >
             <UCard
               class="cursor-pointer hover:shadow-lg transition-shadow"
-              @click="navigateTo(`${safeLocalePath('/documents')}/${doc.id}`)"
+              :class="{ 'ring-2 ring-primary': selectedIds.has(doc.id) }"
+              @click="multiSelectMode ? toggleSelect(doc.id) : navigateTo(`${safeLocalePath('/documents')}/${doc.id}`)"
             >
               <template #header>
                 <div class="flex items-start justify-between">
                   <div class="flex items-center gap-2 flex-1">
+                    <UCheckbox
+                      v-if="multiSelectMode"
+                      :model-value="selectedIds.has(doc.id)"
+                      @update:model-value="toggleSelect(doc.id)"
+                      @click.stop
+                    />
                     <UIcon
                       name="i-lucide-file-text"
                       class="w-5 h-5 text-primary"
@@ -467,15 +676,36 @@ const createNewDocument = () => {
                     <h3 class="font-semibold text-lg truncate">
                       {{ doc.title || (documentsData?.untitledDocument || t('documents.untitledDocument')) }}
                     </h3>
+                    <UIcon
+                      v-if="doc.is_pinned"
+                      name="i-lucide-pin"
+                      class="w-3.5 h-3.5 text-primary"
+                    />
                   </div>
-                  <UButton
-                    color="error"
-                    variant="ghost"
-                    icon="i-lucide-trash-2"
-                    size="sm"
-                    :loading="deletingId === doc.id"
-                    @click="handleDelete(doc.id, $event)"
-                  />
+                  <div class="flex items-center gap-1">
+                    <UButton
+                      :icon="doc.is_favorite ? 'i-lucide-star' : 'i-lucide-star'"
+                      :variant="doc.is_favorite ? 'solid' : 'ghost'"
+                      :color="doc.is_favorite ? 'warning' : 'neutral'"
+                      size="xs"
+                      @click="handleToggleFavorite(doc, $event)"
+                    />
+                    <UButton
+                      icon="i-lucide-pin"
+                      :variant="doc.is_pinned ? 'solid' : 'ghost'"
+                      :color="doc.is_pinned ? 'primary' : 'neutral'"
+                      size="xs"
+                      @click="handleTogglePin(doc, $event)"
+                    />
+                    <UButton
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash-2"
+                      size="xs"
+                      :loading="deletingId === doc.id"
+                      @click="handleDelete(doc.id, $event)"
+                    />
+                  </div>
                 </div>
               </template>
 
