@@ -95,7 +95,7 @@
     "batchDeleteConfirm": "确定删除选中的 {count} 个项目？",
     "selectedCount": "已选中 {count} 项",
     "moveToFolder": "移动到文件夹",
-    "move": "移动"
+    "move": "移动",
     "moveToRootFailed": "移动到根目录失败，请稍后重试",
     "cannotMoveToSelf": "不能将项目移动到自己的位置",
     "cannotMoveIntoSubfolder": "不能将文件夹移动到自己的子文件夹中",
