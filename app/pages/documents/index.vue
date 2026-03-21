@@ -31,15 +31,21 @@ const currentFolderId = computed(() => route.query.folder as string | undefined)
           {{ documentsData?.myDocuments || t('documents.myDocuments') }}
         </h1>
       </div>
-      <UButton
-        :to="safeLocalePath('/documents/trash')"
-        icon="i-lucide-trash-2"
-        size="sm"
-        variant="soft"
-        color="warning"
-      >
-        {{ documentsData?.trash || t('documents.trash') }}
-      </UButton>
+      <div class="flex items-center gap-2">
+        <DocumentsBreadcrumbs
+          v-if="currentFolderId"
+          :folder-id="currentFolderId"
+        />
+        <UButton
+          :to="safeLocalePath('/documents/trash')"
+          icon="i-lucide-trash-2"
+          size="sm"
+          variant="soft"
+          color="warning"
+        >
+          {{ documentsData?.trash || t('documents.trash') }}
+        </UButton>
+      </div>
     </div>
     <DocumentsDocumentTreeWithDragDrop />
   </div>

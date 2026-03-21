@@ -81,9 +81,52 @@ const sharesData = computed(() => $tm('shares') as Record<string, string> | unde
 const documentTitle = ref(props.documentTitle || (documentsData.value?.untitledDocument || t('documents.untitledDocument')))
 const showShareModal = ref(false)
 const showOutline = ref(false)
+const showShortcuts = ref(false)
 const safeLocalePath = useSafeLocalePath()
 // 保存原始文档标题，用于自动保存（沿用用户设置的标题，不从内容提取）
 const originalDocumentTitle = ref<string | null>(null)
+
+// 标签相关
+const documentTags = ref<string[]>([])
+const allAvailableTags = ref<string[]>([])
+let tagSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+// 加载文档标签
+async function loadDocumentTags() {
+  if (!documentId.value) return
+  try {
+    const doc = await $fetch<{ tags?: string[] }>(`/api/documents/${documentId.value}`)
+    documentTags.value = Array.isArray(doc?.tags) ? doc.tags : []
+  } catch { /* ignore */ }
+}
+
+// 加载所有可用标签（用于自动补全）
+async function loadAllTags() {
+  try {
+    const docs = await $fetch<{ tags?: string[] }[]>('/api/documents')
+    const tagSet = new Set<string>()
+    for (const doc of (docs || [])) {
+      if (Array.isArray(doc?.tags)) {
+        doc.tags.forEach((t: string) => tagSet.add(t))
+      }
+    }
+    allAvailableTags.value = Array.from(tagSet).sort()
+  } catch { /* ignore */ }
+}
+
+// 保存标签（防抖）
+watch(documentTags, () => {
+  if (!documentId.value) return
+  if (tagSaveTimer) clearTimeout(tagSaveTimer)
+  tagSaveTimer = setTimeout(async () => {
+    try {
+      await $fetch(`/api/documents/${documentId.value}/tags`, {
+        method: 'PUT',
+        body: { tags: documentTags.value }
+      })
+    } catch { /* ignore */ }
+  }, 500)
+})
 
 const getErrorStatus = (error: unknown) => {
   if (error && typeof error === 'object') {
@@ -154,6 +197,9 @@ watch(() => props.documentId, async (newId) => {
 onMounted(async () => {
   if (props.documentId) {
     await checkDocumentExists(props.documentId)
+    // 加载文档标签
+    loadDocumentTags()
+    loadAllTags()
   }
   // 如果通过 props 传入了标题，设置为原始标题
   if (props.documentTitle && !originalDocumentTitle.value) {
@@ -196,13 +242,14 @@ const autoSaveTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const isAutoSaving = ref(false)
 const lastSavedAt = ref<Date | null>(null)
 const lastSaveError = ref<string | null>(null)
+const hasPendingChanges = ref(false) // 内容变更后是否等待保存
 const AUTO_SAVE_DELAY = 3000 // 3秒后自动保存
 
 const saveStatus = computed(() => {
   if (isAutoSaving.value) {
     return {
       icon: 'i-lucide-loader-2',
-      text: editorData.value?.autoSaving || t('editor.autoSaving'),
+      text: editorData.value?.saving || editorData.value?.autoSaving || t('editor.autoSaving'),
       class: 'text-xs text-muted',
       spin: true
     }
@@ -217,10 +264,30 @@ const saveStatus = computed(() => {
     }
   }
 
+  if (hasPendingChanges.value && lastSavedAt.value) {
+    return {
+      icon: 'i-lucide-circle',
+      text: editorData.value?.unsaved || t('editor.unsaved'),
+      class: 'text-xs text-warning',
+      spin: false
+    }
+  }
+
   if (lastSavedAt.value) {
+    const now = Date.now()
+    const diff = now - lastSavedAt.value.getTime()
+    let timeText = ''
+    if (diff < 60_000) {
+      timeText = editorData.value?.savedJustNow || t('editor.savedJustNow')
+    } else if (diff < 3_600_000) {
+      const mins = Math.floor(diff / 60_000)
+      timeText = `${mins} ${editorData.value?.savedMinutesAgo || t('editor.savedMinutesAgo')}`
+    } else {
+      timeText = lastSavedAt.value.toLocaleTimeString()
+    }
     return {
       icon: 'i-lucide-check',
-      text: `${editorData.value?.saved || t('editor.saved')} ${lastSavedAt.value.toLocaleTimeString()}`,
+      text: `${editorData.value?.saved || t('editor.saved')} · ${timeText}`,
       class: 'text-xs text-dimmed',
       spin: false
     }
@@ -237,6 +304,7 @@ interface DocumentVersionItem {
 }
 
 const showVersionHistory = ref(false)
+const showCommentPanel = ref(false)
 const versionLoading = ref(false)
 const creatingVersion = ref(false)
 const restoringVersionId = ref<string | null>(null)
@@ -278,6 +346,9 @@ watch([
     return
   }
 
+  // 标记有未保存的变更
+  hasPendingChanges.value = true
+
   // 清除之前的定时器
   if (autoSaveTimer.value) {
     clearTimeout(autoSaveTimer.value)
@@ -292,6 +363,7 @@ watch([
       await saveDocument(titleToSave, content.value || '', documentId.value)
       lastSavedAt.value = new Date()
       lastSaveError.value = null
+      hasPendingChanges.value = false
     } catch (error) {
       // 自动保存失败不显示错误提示，避免打扰用户
       console.error('Auto save failed:', error)
@@ -544,6 +616,65 @@ async function handleDownload() {
     // 可以在这里添加错误提示
   }
 }
+
+// 导出为 HTML
+function handleExportHtml() {
+  const editor = getEditorInstance()
+  if (!editor) return
+  const html = editor.getHTML()
+  const title = documentTitle.value || 'document'
+  const fullHtml = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:800px;margin:0 auto;padding:2rem;line-height:1.6;color:#1a1a1a}img{max-width:100%}pre{background:#f5f5f5;padding:1rem;border-radius:8px;overflow-x:auto}code{background:#f5f5f5;padding:0.2em 0.4em;border-radius:4px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px}blockquote{border-left:4px solid #e0e0e0;margin:1rem 0;padding-left:1rem;color:#666}</style>
+</head><body>${html}</body></html>`
+  downloadFile(fullHtml, `${title}.html`, 'text/html')
+}
+
+// 导出为 PDF（通过打印）
+function handleExportPdf() {
+  const editor = getEditorInstance()
+  if (!editor) return
+  const html = editor.getHTML()
+  const title = documentTitle.value || 'document'
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) return
+  printWindow.document.write(`<!DOCTYPE html>
+<html><head><title>${title}</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:800px;margin:0 auto;padding:2rem;line-height:1.6;color:#1a1a1a}img{max-width:100%}pre{background:#f5f5f5;padding:1rem;border-radius:8px;overflow-x:auto}code{background:#f5f5f5;padding:0.2em 0.4em;border-radius:4px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px}blockquote{border-left:4px solid #e0e0e0;margin:1rem 0;padding-left:1rem;color:#666}@media print{body{padding:0}}</style>
+</head><body>${html}</body></html>`)
+  printWindow.document.close()
+  printWindow.print()
+}
+
+function downloadFile(content: string, filename: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// 导出下拉菜单项
+const exportItems = computed(() => [
+  {
+    label: editorData.value?.exportHtml || t('editor.exportHtml'),
+    icon: 'i-lucide-file-code',
+    onSelect: handleExportHtml
+  },
+  {
+    label: editorData.value?.exportPdf || t('editor.exportPdf'),
+    icon: 'i-lucide-file-text',
+    onSelect: handleExportPdf
+  },
+  {
+    label: editorData.value?.print || t('editor.print'),
+    icon: 'i-lucide-printer',
+    onSelect: () => window.print()
+  }
+])
 
 // 导入Markdown文件功能
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -1111,6 +1242,15 @@ defineExpose({
                       @click="toggleFocusMode"
                     />
                   </UTooltip>
+                  <UTooltip :text="editorData?.keyboardShortcuts || t('editor.keyboardShortcuts')">
+                    <UButton
+                      icon="i-lucide-keyboard"
+                      size="sm"
+                      variant="soft"
+                      color="primary"
+                      @click="showShortcuts = true"
+                    />
+                  </UTooltip>
                 </div>
                 <div
                   v-if="showImportExport"
@@ -1175,6 +1315,21 @@ defineExpose({
                       {{ actionsData?.downloadMarkdown }}
                     </span>
                   </UButton>
+                  <UDropdownMenu
+                    :items="exportItems"
+                    :content="{ align: 'end' }"
+                  >
+                    <UButton
+                      icon="i-lucide-file-down"
+                      size="sm"
+                      variant="soft"
+                      color="primary"
+                    >
+                      <span v-if="!$device.isMobile">
+                        {{ editorData?.export || t('editor.export') }}
+                      </span>
+                    </UButton>
+                  </UDropdownMenu>
                   <UButton
                     v-if="user && documentId && !readonly"
                     icon="i-lucide-share-2"
@@ -1204,6 +1359,16 @@ defineExpose({
                     @click="openVersionHistory"
                   >
                     <span v-if="!$device.isMobile">{{ documentsData?.versionHistory || t('documents.versionHistory') }}</span>
+                  </UButton>
+                  <UButton
+                    v-if="user && documentId && hasBeenSaved"
+                    icon="i-lucide-message-square"
+                    size="sm"
+                    variant="soft"
+                    color="primary"
+                    @click="showCommentPanel = true"
+                  >
+                    <span v-if="!$device.isMobile">{{ editorData?.comments || 'Comments' }}</span>
                   </UButton>
                   <DocumentsSaveDocumentButton
                     v-if="user && canSave"
@@ -1349,6 +1514,20 @@ defineExpose({
           :content="content || ''"
           :editor-ref="editorRef"
         />
+        <!-- 标签管理 -->
+        <div
+          v-if="user && documentId && hasBeenSaved"
+          class="border-t border-default p-3"
+        >
+          <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2 px-1">
+            {{ documentsData?.tags || t('documents.tags') }}
+          </p>
+          <TagInput
+            v-model="documentTags"
+            :available-tags="allAvailableTags"
+            :placeholder="editorData?.tagInputPlaceholder || t('editor.tagInputPlaceholder')"
+          />
+        </div>
       </div>
       <!-- AI Chat Panel -->
       <!-- Desktop AI Chat panel -->
@@ -1583,5 +1762,15 @@ defineExpose({
         </UButton>
       </template>
     </UModal>
+
+    <!-- 快捷键面板 -->
+    <EditorKeyboardShortcuts v-model:open="showShortcuts" />
+
+    <!-- 评论面板 -->
+    <EditorCommentPanel
+      v-if="documentId"
+      v-model:open="showCommentPanel"
+      :document-id="documentId"
+    />
   </div>
 </template>
