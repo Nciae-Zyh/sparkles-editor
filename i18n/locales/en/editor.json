@@ -98,6 +98,20 @@
     "printPreview": "Print Preview",
     "addTag": "Add tag",
     "removeTag": "Remove tag",
-    "tagInputPlaceholder": "Type a tag and press Enter"
+    "tagInputPlaceholder": "Type a tag and press Enter",
+    "comments": "Comments",
+    "commentPlaceholder": "Write a comment...",
+    "selectedTextPlaceholder": "Selected text (optional)",
+    "submitComment": "Submit",
+    "commentAdded": "Comment added",
+    "commentAddFailed": "Failed to add comment",
+    "noComments": "No comments yet",
+    "resolved": "Resolved",
+    "replyPlaceholder": "Write a reply...",
+    "reply": "Reply",
+    "replyAddFailed": "Failed to add reply",
+    "deleteCommentConfirm": "Delete this comment?",
+    "commentDeleted": "Comment deleted",
+    "commentDeleteFailed": "Failed to delete comment"
   }
 }

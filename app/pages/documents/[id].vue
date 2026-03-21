@@ -28,6 +28,7 @@ const renameInput = ref('')
 const isRenamingLoading = ref(false) // 重命名加载状态
 const showShareModal = ref(false) // 是否显示分享模态框
 const showVersionHistory = ref(false) // 是否显示版本历史
+const showCommentPanel = ref(false) // 是否显示评论面板
 
 onMounted(async () => {
   // 等待用户认证加载完成

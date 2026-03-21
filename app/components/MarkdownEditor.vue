@@ -304,6 +304,7 @@ interface DocumentVersionItem {
 }
 
 const showVersionHistory = ref(false)
+const showCommentPanel = ref(false)
 const versionLoading = ref(false)
 const creatingVersion = ref(false)
 const restoringVersionId = ref<string | null>(null)
@@ -1359,6 +1360,16 @@ defineExpose({
                   >
                     <span v-if="!$device.isMobile">{{ documentsData?.versionHistory || t('documents.versionHistory') }}</span>
                   </UButton>
+                  <UButton
+                    v-if="user && documentId && hasBeenSaved"
+                    icon="i-lucide-message-square"
+                    size="sm"
+                    variant="soft"
+                    color="primary"
+                    @click="showCommentPanel = true"
+                  >
+                    <span v-if="!$device.isMobile">{{ editorData?.comments || 'Comments' }}</span>
+                  </UButton>
                   <DocumentsSaveDocumentButton
                     v-if="user && canSave"
                     :content="content || ''"
@@ -1754,5 +1765,12 @@ defineExpose({
 
     <!-- 快捷键面板 -->
     <EditorKeyboardShortcuts v-model:open="showShortcuts" />
+
+    <!-- 评论面板 -->
+    <EditorCommentPanel
+      v-if="documentId"
+      v-model:open="showCommentPanel"
+      :document-id="documentId"
+    />
   </div>
 </template>
