@@ -155,6 +155,16 @@ const handleRenameInputUpdate = (value: string) => {
 
 <template>
   <div class="flex-1 overflow-hidden flex flex-col">
+    <!-- Breadcrumbs -->
+    <div
+      v-if="!pageLoading && document"
+      class="px-8 pt-3 pb-1 shrink-0"
+    >
+      <DocumentsBreadcrumbs
+        :document-id="documentId"
+        :document-title="documentTitle"
+      />
+    </div>
     <Transition
       name="fade"
       mode="out-in"
