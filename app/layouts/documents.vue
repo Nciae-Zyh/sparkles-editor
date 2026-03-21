@@ -52,6 +52,25 @@ onMounted(async () => {
     await navigateTo(safeLocalePath('/'))
   }
 })
+
+// 用户下拉菜单
+const userMenuItems = computed(() => {
+  const items: Array<{ label: string; icon: string; to?: string; onSelect?: () => void }> = [
+    {
+      label: appData.value?.myShares || t('app.myShares'),
+      icon: 'i-lucide-link',
+      to: safeLocalePath('/shares')
+    }
+  ]
+  if (user.value) {
+    items.push({
+      label: appData.value?.logout || t('app.logout'),
+      icon: 'i-lucide-log-out',
+      onSelect: async () => { await logout(); await navigateTo(safeLocalePath('/')) }
+    })
+  }
+  return items
+})
 </script>
 
 <template>
@@ -65,34 +84,19 @@ onMounted(async () => {
             size="sm"
             @click="createNewDocument"
           >
-            {{ documentsData?.newDocument || t('documents.newDocument') }}
+            <span class="hidden sm:inline">{{ documentsData?.newDocument || t('documents.newDocument') }}</span>
           </UButton>
-          <UButton
-            :to="safeLocalePath('/shares')"
-            icon="i-lucide-link"
-            variant="soft"
-            size="sm"
+          <UDropdownMenu
+            :items="userMenuItems"
+            :content="{ align: 'end' }"
           >
-            {{ appData?.myShares || t('app.myShares') }}
-          </UButton>
-          <UButton
-            :to="safeLocalePath('/documents')"
-            icon="i-lucide-user"
-            variant="soft"
-            size="sm"
-          >
-            {{ user?.name || user?.email }}
-          </UButton>
-          <UButton
-            v-if="user"
-            icon="i-lucide-log-out"
-            variant="soft"
-            color="error"
-            size="sm"
-            @click="async () => { await logout(); await navigateTo(safeLocalePath('/')) }"
-          >
-            {{ appData?.logout || t('app.logout') }}
-          </UButton>
+            <UButton
+              icon="i-lucide-user"
+              variant="ghost"
+              size="sm"
+              :label="user?.name || user?.email"
+            />
+          </UDropdownMenu>
         </template>
         <div
           v-else

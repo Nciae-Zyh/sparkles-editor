@@ -52,6 +52,25 @@ const handleCreateDocument = async () => {
 onMounted(async () => {
   await fetchUser()
 })
+
+// 用户下拉菜单
+const userMenuItems = computed(() => {
+  const items: Array<{ label: string; icon: string; to?: string; onSelect?: () => void }> = [
+    {
+      label: appData.value?.myDocuments || t('app.myDocuments'),
+      icon: 'i-lucide-folder',
+      to: safeLocalePath('/documents')
+    }
+  ]
+  if (user.value) {
+    items.push({
+      label: appData.value?.logout || t('app.logout'),
+      icon: 'i-lucide-log-out',
+      onSelect: async () => { await logout(); await navigateTo(safeLocalePath('/')) }
+    })
+  }
+  return items
+})
 </script>
 
 <template>
@@ -59,73 +78,35 @@ onMounted(async () => {
     <AppHeader>
       <div class="flex items-center gap-2">
         <template v-if="authInitialized">
-          <UTooltip
-            v-if="user && (appData?.newDocument || t('app.newDocument')).length > 10"
-            :text="appData?.newDocument || t('app.newDocument')"
-          >
+          <template v-if="user">
             <UButton
               icon="i-lucide-file-plus"
               variant="soft"
               size="sm"
               @click="createNewDocument"
-            />
-          </UTooltip>
+            >
+              <span class="hidden sm:inline">{{ appData?.newDocument || t('app.newDocument') }}</span>
+            </UButton>
+            <UDropdownMenu
+              :items="userMenuItems"
+              :content="{ align: 'end' }"
+            >
+              <UButton
+                icon="i-lucide-user"
+                variant="ghost"
+                size="sm"
+                :label="user.name || user.email"
+              />
+            </UDropdownMenu>
+          </template>
           <UButton
-            v-else-if="user"
-            icon="i-lucide-file-plus"
-            variant="soft"
-            size="sm"
-            @click="createNewDocument"
-          >
-            {{ appData?.newDocument || t('app.newDocument') }}
-          </UButton>
-          <UTooltip
-            v-if="user && (appData?.myDocuments || t('app.myDocuments')).length > 10"
-            :text="appData?.myDocuments || t('app.myDocuments')"
-          >
-            <UButton
-              :to="safeLocalePath('/documents')"
-              icon="i-lucide-folder"
-              variant="soft"
-              size="sm"
-            />
-          </UTooltip>
-          <UButton
-            v-else-if="user"
-            :to="safeLocalePath('/documents')"
-            icon="i-lucide-folder"
-            variant="soft"
-            size="sm"
-          >
-            {{ appData?.myDocuments || t('app.myDocuments') }}
-          </UButton>
-          <UButton
-            v-if="user"
-            :to="safeLocalePath('/documents')"
-            icon="i-lucide-user"
-            variant="soft"
-            size="sm"
-          >
-            {{ user.name || user.email }}
-          </UButton>
-          <UButton
-            v-if="!user"
+            v-else
             icon="i-lucide-log-in"
             variant="soft"
             size="sm"
             @click="() => { authMode = 'login'; authModalOpen = true }"
           >
             {{ appData?.login || t('app.login') }}
-          </UButton>
-          <UButton
-            v-if="user"
-            icon="i-lucide-log-out"
-            variant="soft"
-            color="error"
-            size="sm"
-            @click="async () => { await logout(); await navigateTo(safeLocalePath('/')) }"
-          >
-            {{ appData?.logout || t('app.logout') }}
           </UButton>
         </template>
         <div
