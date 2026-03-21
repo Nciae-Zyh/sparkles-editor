@@ -54,13 +54,6 @@ async function fetchPath() {
   }
 }
 
-function getItemUrl(item: BreadcrumbItem): string {
-  if (!item.id) {
-    return safeLocalePath('/documents')
-  }
-  return `${safeLocalePath('/documents')}?folder=${item.id}`
-}
-
 function handleClick(item: BreadcrumbItem, index: number) {
   // Don't navigate if clicking the last item (current doc/folder)
   if (index === breadcrumbs.value.length - 1) return
