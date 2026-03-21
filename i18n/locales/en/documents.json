@@ -26,6 +26,15 @@
     "deleteFailed": "Delete failed",
     "createInSelectedFolder": "Will be created in the selected folder",
     "noDocuments": "No documents yet, start creating your first document!",
+    "activity": {
+      "title": "Recent Activity",
+      "pageTitle": "Recent Activity",
+      "refresh": "Refresh",
+      "noActivity": "No recent activity",
+      "documentCreated": "Document created",
+      "documentEdited": "Document edited",
+      "folderCreated": "Folder created"
+    },
     "login": "Login",
     "logout": "Logout",
     "folderName": "Folder Name",

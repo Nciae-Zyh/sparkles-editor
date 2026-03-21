@@ -26,6 +26,15 @@
     "deleteFailed": "删除失败",
     "createInSelectedFolder": "将在选中的文件夹内创建",
     "noDocuments": "还没有文档，开始创建你的第一个文档吧！",
+    "activity": {
+      "title": "最近活动",
+      "pageTitle": "最近活动",
+      "refresh": "刷新",
+      "noActivity": "暂无活动记录",
+      "documentCreated": "文档已创建",
+      "documentEdited": "文档已编辑",
+      "folderCreated": "文件夹已创建"
+    },
     "login": "登录",
     "logout": "退出",
     "folderName": "文件夹名称",
