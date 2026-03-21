@@ -117,8 +117,8 @@
     "compareHint": "Select a second version to compare",
     "diffView": "Diff View",
     "versionRestored": "Version restored",
-    "versionRestoreFailed": "Restore failed"
-  },
-  "fileActions": "File",
-  "collabActions": "Collaborate"
+    "versionRestoreFailed": "Restore failed",
+    "fileActions": "File",
+    "collabActions": "Collaborate"
+  }
 }

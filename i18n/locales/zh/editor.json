@@ -117,8 +117,8 @@
     "compareHint": "选择第二个版本进行对比",
     "diffView": "差异对比",
     "versionRestored": "版本已恢复",
-    "versionRestoreFailed": "恢复失败"
-  },
-  "fileActions": "文件",
-  "collabActions": "协作"
+    "versionRestoreFailed": "恢复失败",
+    "fileActions": "文件",
+    "collabActions": "协作"
+  }
 }
