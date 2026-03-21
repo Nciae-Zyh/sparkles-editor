@@ -1,6 +1,6 @@
-import { getDBWithMigration } from '../../../utils/db'
-import { getCurrentUser } from '../../../utils/auth'
-import { isDescendant } from '../../../utils/path-helper'
+import { getDBWithMigration } from '#server/utils/db'
+import { getCurrentUser } from '#server/utils/auth'
+import { isDescendant } from '#server/utils/path-helper'
 import type { Document } from '~/types'
 
 export default eventHandler(async (event) => {
