@@ -57,6 +57,8 @@
     "fixPathsSuccess": "Path fix completed! Fixed {fixed} items, {errors} errors.",
     "fixPathsFailed": "Failed to fix paths, please try again later",
     "moveFailed": "Move failed, please try again later",
+    "cloneFailed": "Clone failed, please try again later",
+    "cloneSuccess": "Document cloned successfully",
     "moveToRootFailed": "Failed to move to root directory, please try again later",
     "cannotMoveToSelf": "Cannot move item to its own position",
     "cannotMoveIntoSubfolder": "Cannot move folder into its own subfolder",
@@ -78,7 +80,8 @@
       "rename": "Rename",
       "delete": "Delete",
       "open": "Open",
-      "download": "Download"
+      "download": "Download",
+      "clone": "Clone"
     }
   }
 }
