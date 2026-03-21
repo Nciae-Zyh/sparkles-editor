@@ -27,6 +27,7 @@ const isRenaming = ref(false) // 是否正在重命名
 const renameInput = ref('')
 const isRenamingLoading = ref(false) // 重命名加载状态
 const showShareModal = ref(false) // 是否显示分享模态框
+const showVersionHistory = ref(false) // 是否显示版本历史
 
 onMounted(async () => {
   // 等待用户认证加载完成
@@ -202,6 +203,13 @@ const handleRenameInputUpdate = (value: string) => {
       v-model:open="showShareModal"
       :document-id="documentId"
       :document-title="documentTitle"
+    />
+
+    <!-- 版本历史 -->
+    <EditorVersionHistory
+      v-if="document"
+      v-model:open="showVersionHistory"
+      :document-id="documentId"
     />
   </div>
 </template>
