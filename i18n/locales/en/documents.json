@@ -87,7 +87,15 @@
     "backlinks": {
       "title": "Backlinks",
       "noBacklinks": "No backlinks found"
-    }
+    },
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "batchDelete": "Delete",
+    "batchMove": "Move",
+    "batchDeleteConfirm": "Delete {count} selected items?",
+    "selectedCount": "{count} selected",
+    "moveToFolder": "Move to Folder",
+    "move": "Move"
     "moveToRootFailed": "Failed to move to root directory, please try again later",
     "cannotMoveToSelf": "Cannot move item to its own position",
     "cannotMoveIntoSubfolder": "Cannot move folder into its own subfolder",
