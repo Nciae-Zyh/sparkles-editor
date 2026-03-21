@@ -26,6 +26,15 @@
     "deleteFailed": "删除失败",
     "createInSelectedFolder": "将在选中的文件夹内创建",
     "noDocuments": "还没有文档，开始创建你的第一个文档吧！",
+    "activity": {
+      "title": "最近活动",
+      "pageTitle": "最近活动",
+      "refresh": "刷新",
+      "noActivity": "暂无活动记录",
+      "documentCreated": "文档已创建",
+      "documentEdited": "文档已编辑",
+      "folderCreated": "文件夹已创建"
+    },
     "login": "登录",
     "logout": "退出",
     "folderName": "文件夹名称",
@@ -57,6 +66,36 @@
     "fixPathsSuccess": "路径修复完成！修复了 {fixed} 个项目，{errors} 个错误。",
     "fixPathsFailed": "修复路径失败，请稍后重试",
     "moveFailed": "移动失败，请稍后重试",
+    "cloneFailed": "克隆失败，请稍后重试",
+    "cloneSuccess": "文档克隆成功",
+    "filterFavorites": "显示收藏",
+    "filterPinned": "显示置顶",
+    "filterAll": "显示全部",
+    "favorite": "收藏",
+    "pin": "置顶",
+    "pinned": "已置顶",
+    "stats": {
+      "title": "文档统计",
+      "totalDocuments": "总文档数",
+      "totalFolders": "总文件夹数",
+      "totalChars": "总字符数",
+      "activeLast7Days": "近7天活跃",
+      "recentlyEdited": "最近编辑",
+      "recentlyCreated": "最近创建",
+      "noDocuments": "暂无文档"
+    },
+    "backlinks": {
+      "title": "反向链接",
+      "noBacklinks": "暂无反向链接"
+    },
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
+    "batchDelete": "删除",
+    "batchMove": "移动",
+    "batchDeleteConfirm": "确定删除选中的 {count} 个项目？",
+    "selectedCount": "已选中 {count} 项",
+    "moveToFolder": "移动到文件夹",
+    "move": "移动"
     "moveToRootFailed": "移动到根目录失败，请稍后重试",
     "cannotMoveToSelf": "不能将项目移动到自己的位置",
     "cannotMoveIntoSubfolder": "不能将文件夹移动到自己的子文件夹中",
@@ -78,7 +117,8 @@
       "rename": "重命名",
       "delete": "删除",
       "open": "打开",
-      "download": "下载"
+      "download": "下载",
+      "clone": "克隆"
     }
   }
 }
