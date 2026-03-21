@@ -221,5 +221,13 @@ const handleRenameInputUpdate = (value: string) => {
       v-model:open="showVersionHistory"
       :document-id="documentId"
     />
+
+    <!-- Backlinks -->
+    <div
+      v-if="!pageLoading && document"
+      class="px-8 pb-8"
+    >
+      <DocumentsBacklinks :document-id="documentId" />
+    </div>
   </div>
 </template>
