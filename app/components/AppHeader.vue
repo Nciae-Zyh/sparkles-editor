@@ -20,8 +20,9 @@ const toggleDocumentTree = () => {
   emit('toggleDocumentTree')
 }
 
-const { locale, locales } = useI18n()
+const { locale, locales, tm: $tm, t } = useI18n()
 const switchLocalePath = useSwitchLocalePath()
+const editorData = computed(() => $tm('editor') as Record<string, string> | undefined)
 
 const languageItems = computed(() =>
   locales.value.map((l: { code: string, name?: string }) => ({
@@ -37,6 +38,11 @@ const currentLocaleCode = computed(() => {
   const currentLocale = locales.value.find((item: { code: string }) => item.code === locale.value)
   return currentLocale?.name || locale.value.toUpperCase()
 })
+
+// 搜索面板状态
+const showSearch = ref(false)
+const isMac = import.meta.client && /Mac|iPhone|iPad|iPod/.test(navigator.platform)
+const modKey = isMac ? '⌘' : 'Ctrl'
 </script>
 
 <template>
@@ -76,6 +82,17 @@ const currentLocaleCode = computed(() => {
     </template>
 
     <template #right>
+      <!-- 搜索按钮 -->
+      <UButton
+        icon="i-lucide-search"
+        variant="ghost"
+        size="sm"
+        :aria-label="editorData?.searchPlaceholder || t('editor.searchPlaceholder')"
+        @click="showSearch = true"
+      >
+        <span class="hidden sm:inline text-xs text-dimmed">{{ modKey }}K</span>
+      </UButton>
+
       <slot />
 
       <UButton
@@ -112,4 +129,7 @@ const currentLocaleCode = computed(() => {
       </div>
     </template>
   </UHeader>
+
+  <!-- 全局搜索 -->
+  <GlobalSearch v-model:open="showSearch" />
 </template>
