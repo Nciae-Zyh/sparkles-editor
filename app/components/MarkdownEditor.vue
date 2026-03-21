@@ -676,6 +676,65 @@ const exportItems = computed(() => [
   }
 ])
 
+// 文件操作下拉菜单
+const fileMenuItems = computed(() => {
+  const items: Array<{ label: string; icon: string; onSelect?: () => void; to?: string }> = [
+    {
+      label: actionsData.value?.importMarkdown || t('actions.importMarkdown'),
+      icon: 'i-lucide-upload',
+      onSelect: handleImportClick
+    },
+    {
+      label: actionsData.value?.downloadMarkdown || t('actions.downloadMarkdown'),
+      icon: 'i-lucide-download',
+      onSelect: handleDownload
+    },
+    {
+      label: editorData.value?.exportHtml || t('editor.exportHtml'),
+      icon: 'i-lucide-file-code',
+      onSelect: handleExportHtml
+    },
+    {
+      label: editorData.value?.exportPdf || t('editor.exportPdf'),
+      icon: 'i-lucide-file-text',
+      onSelect: handleExportPdf
+    },
+    {
+      label: editorData.value?.print || t('editor.print'),
+      icon: 'i-lucide-printer',
+      onSelect: () => window.print()
+    }
+  ]
+  return items
+})
+
+// 协作下拉菜单
+const collabMenuItems = computed(() => {
+  const items: Array<{ label: string; icon: string; onSelect?: () => void; to?: string }> = []
+  if (user.value && documentId.value && !readonly) {
+    items.push({
+      label: sharesData.value?.shareDocument || t('shares.shareDocument'),
+      icon: 'i-lucide-share-2',
+      onSelect: () => { showShareModal.value = true }
+    })
+  }
+  if (user.value) {
+    items.push({
+      label: appData.value?.myShares || t('app.myShares'),
+      icon: 'i-lucide-link',
+      to: safeLocalePath('/shares')
+    })
+  }
+  if (user.value && documentId.value && hasBeenSaved.value) {
+    items.push({
+      label: editorData.value?.comments || 'Comments',
+      icon: 'i-lucide-message-square',
+      onSelect: () => { showCommentPanel.value = true }
+    })
+  }
+  return items
+})
+
 // 导入Markdown文件功能
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const isImporting = ref(false)
@@ -1263,113 +1322,50 @@ defineExpose({
                     type="file"
                     @change="handleFileImport"
                   >
-                  <UTooltip
-                    v-if="actionsData?.importMarkdown && actionsData.importMarkdown.length > 10"
-                    :text="actionsData.importMarkdown"
-                  >
-                    <UButton
-                      :loading="isImporting"
-                      color="primary"
-                      icon="i-lucide-upload"
-                      size="sm"
-                      variant="soft"
-                      @click="handleImportClick"
-                    />
-                  </UTooltip>
-                  <UButton
-                    v-else
-                    :loading="isImporting"
-                    color="primary"
-                    icon="i-lucide-upload"
-                    size="sm"
-                    variant="soft"
-                    @click="handleImportClick"
-                  >
-                    <span v-if="!$device.isMobile">
-                      {{ actionsData?.importMarkdown }}
-                    </span>
-                  </UButton>
-                  <UTooltip
-                    v-if="actionsData?.downloadMarkdown && actionsData.downloadMarkdown.length > 10"
-                    :text="actionsData.downloadMarkdown"
-                  >
-                    <UButton
-                      :loading="isDownloading"
-                      color="primary"
-                      icon="i-lucide-download"
-                      size="sm"
-                      variant="soft"
-                      @click="handleDownload"
-                    />
-                  </UTooltip>
-                  <UButton
-                    v-else
-                    :loading="isDownloading"
-                    color="primary"
-                    icon="i-lucide-download"
-                    size="sm"
-                    variant="soft"
-                    @click="handleDownload"
-                  >
-                    <span v-if="!$device.isMobile">
-                      {{ actionsData?.downloadMarkdown }}
-                    </span>
-                  </UButton>
+                  <!-- 文件操作下拉菜单 -->
                   <UDropdownMenu
-                    :items="exportItems"
+                    v-if="user"
+                    :items="fileMenuItems"
                     :content="{ align: 'end' }"
                   >
                     <UButton
-                      icon="i-lucide-file-down"
+                      icon="i-lucide-file"
                       size="sm"
                       variant="soft"
                       color="primary"
                     >
                       <span v-if="!$device.isMobile">
-                        {{ editorData?.export || t('editor.export') }}
+                        {{ editorData?.fileActions || t('editor.fileActions') }}
                       </span>
                     </UButton>
                   </UDropdownMenu>
-                  <UButton
-                    v-if="user && documentId && !readonly"
-                    icon="i-lucide-share-2"
-                    size="sm"
-                    variant="soft"
-                    color="primary"
-                    @click="showShareModal = true"
+                  <!-- 协作下拉菜单 -->
+                  <UDropdownMenu
+                    v-if="user && collabMenuItems.length > 0"
+                    :items="collabMenuItems"
+                    :content="{ align: 'end' }"
                   >
-                    <span v-if="!$device.isMobile">{{ sharesData?.shareDocument || t('shares.shareDocument') }}</span>
-                  </UButton>
-                  <UButton
-                    v-if="user"
-                    :to="safeLocalePath('/shares')"
-                    icon="i-lucide-link"
-                    size="sm"
-                    variant="soft"
-                    color="primary"
-                  >
-                    <span v-if="!$device.isMobile">{{ appData?.myShares || t('app.myShares') }}</span>
-                  </UButton>
+                    <UButton
+                      icon="i-lucide-users"
+                      size="sm"
+                      variant="soft"
+                      color="primary"
+                    >
+                      <span v-if="!$device.isMobile">
+                        {{ editorData?.collabActions || t('editor.collabActions') }}
+                      </span>
+                    </UButton>
+                  </UDropdownMenu>
+                  <!-- 版本历史 (图标按钮) -->
                   <UButton
                     v-if="user && documentId && hasBeenSaved && !readonly"
                     icon="i-lucide-history"
                     size="sm"
-                    variant="soft"
-                    color="primary"
+                    variant="ghost"
+                    color="neutral"
                     @click="openVersionHistory"
-                  >
-                    <span v-if="!$device.isMobile">{{ documentsData?.versionHistory || t('documents.versionHistory') }}</span>
-                  </UButton>
-                  <UButton
-                    v-if="user && documentId && hasBeenSaved"
-                    icon="i-lucide-message-square"
-                    size="sm"
-                    variant="soft"
-                    color="primary"
-                    @click="showCommentPanel = true"
-                  >
-                    <span v-if="!$device.isMobile">{{ editorData?.comments || 'Comments' }}</span>
-                  </UButton>
+                  />
+                  <!-- 保存按钮 + 状态 -->
                   <DocumentsSaveDocumentButton
                     v-if="user && canSave"
                     :content="content || ''"
