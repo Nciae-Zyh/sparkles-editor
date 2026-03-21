@@ -112,6 +112,11 @@
     "replyAddFailed": "添加回复失败",
     "deleteCommentConfirm": "确定删除这条评论吗？",
     "commentDeleted": "评论已删除",
-    "commentDeleteFailed": "删除评论失败"
+    "commentDeleteFailed": "删除评论失败",
+    "compare": "对比",
+    "compareHint": "选择第二个版本进行对比",
+    "diffView": "差异对比",
+    "versionRestored": "版本已恢复",
+    "versionRestoreFailed": "恢复失败"
   }
 }
