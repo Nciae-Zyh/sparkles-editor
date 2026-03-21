@@ -83,6 +83,10 @@
       "recentlyEdited": "Recently Edited",
       "recentlyCreated": "Recently Created",
       "noDocuments": "No documents yet"
+    },
+    "backlinks": {
+      "title": "Backlinks",
+      "noBacklinks": "No backlinks found"
     }
     "moveToRootFailed": "Failed to move to root directory, please try again later",
     "cannotMoveToSelf": "Cannot move item to its own position",

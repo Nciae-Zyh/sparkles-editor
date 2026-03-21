@@ -83,6 +83,10 @@
       "recentlyEdited": "最近编辑",
       "recentlyCreated": "最近创建",
       "noDocuments": "暂无文档"
+    },
+    "backlinks": {
+      "title": "反向链接",
+      "noBacklinks": "暂无反向链接"
     }
     "moveToRootFailed": "移动到根目录失败，请稍后重试",
     "cannotMoveToSelf": "不能将项目移动到自己的位置",
