@@ -67,6 +67,23 @@ const toggleDocumentTree = () => {
   }
 }
 
+// 用户下拉菜单
+const userMenuItems = computed(() => {
+  const items: Array<{ label: string; icon: string; to?: string; onSelect?: () => void }> = [
+    {
+      label: user.value?.name || user.value?.email || '',
+      icon: 'i-lucide-user',
+      to: safeLocalePath('/documents')
+    },
+    {
+      label: appData.value?.logout || t('app.logout'),
+      icon: 'i-lucide-log-out',
+      onSelect: async () => { await logout(); await navigateTo(safeLocalePath('/')) }
+    }
+  ]
+  return items
+})
+
 onMounted(async () => {
   await fetchUser()
   if (!user.value) {
@@ -83,46 +100,39 @@ onMounted(async () => {
     >
       <template #default>
         <slot name="header-actions">
+          <!-- 返回按钮（仅图标） -->
           <UButton
             :to="safeLocalePath('/documents')"
             icon="i-lucide-arrow-left"
-            variant="soft"
+            variant="ghost"
             size="sm"
-          >
-            <span class="hidden sm:inline">{{ documentsData?.back || t('documents.back') }}</span>
-          </UButton>
+            :aria-label="documentsData?.back || t('documents.back')"
+          />
+          <!-- 新建文档（仅图标） -->
           <UButton
             icon="i-lucide-plus"
-            variant="soft"
+            variant="ghost"
             size="sm"
+            :aria-label="documentsData?.newDocument || t('documents.newDocument')"
             @click="createNewDocument"
-          >
-            <span class="hidden sm:inline">{{ documentsData?.newDocument || t('documents.newDocument') }}</span>
-          </UButton>
+          />
+          <!-- 用户菜单（合并用户名和退出） -->
           <template v-if="authInitialized">
-            <UButton
+            <UDropdownMenu
               v-if="user"
-              :to="safeLocalePath('/documents')"
-              icon="i-lucide-user"
-              variant="soft"
-              size="sm"
+              :items="userMenuItems"
+              :content="{ align: 'end' }"
             >
-              <span class="hidden sm:inline">{{ user?.name || user?.email }}</span>
-            </UButton>
-            <UButton
-              v-if="user"
-              icon="i-lucide-log-out"
-              variant="soft"
-              color="error"
-              size="sm"
-              @click="async () => { await logout(); await navigateTo(safeLocalePath('/')) }"
-            >
-              <span class="hidden sm:inline">{{ appData?.logout || t('app.logout') }}</span>
-            </UButton>
+              <UButton
+                icon="i-lucide-user"
+                variant="ghost"
+                size="sm"
+              />
+            </UDropdownMenu>
           </template>
           <div
             v-else
-            class="skeleton-shimmer h-8 w-32 rounded-md"
+            class="skeleton-shimmer h-8 w-8 rounded-md"
           />
         </slot>
       </template>
