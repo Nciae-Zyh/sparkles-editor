@@ -99,6 +99,7 @@ const modKey = isMac ? '⌘' : 'Ctrl'
         icon="i-simple-icons-github"
         variant="ghost"
         size="sm"
+        class="hidden sm:flex"
         to="https://github.com/Nciae-Zyh/sparkles-editor"
         target="_blank"
         rel="noopener noreferrer"
@@ -107,7 +108,7 @@ const modKey = isMac ? '⌘' : 'Ctrl'
 
       <USeparator
         orientation="vertical"
-        class="h-7"
+        class="h-7 hidden sm:block"
       />
 
       <div

@@ -1,0 +1,9 @@
+{
+  "tts": {
+    "emptyText": "没有可朗读的文本",
+    "playbackError": "播放错误",
+    "requestError": "TTS 请求失败",
+    "playing": "播放中",
+    "paused": "已暂停"
+  }
+}

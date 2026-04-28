@@ -119,6 +119,10 @@
     "versionRestored": "Version restored",
     "versionRestoreFailed": "Restore failed",
     "fileActions": "File",
-    "collabActions": "Collaborate"
+    "collabActions": "Collaborate",
+    "readAloud": "Read Aloud",
+    "stopReading": "Stop Reading",
+    "ttsLoading": "Loading audio...",
+    "ttsError": "Failed to load audio"
   }
 }

@@ -89,7 +89,7 @@ onMounted(async () => {
             variant="soft"
             size="sm"
           >
-            {{ documentsData?.back || t('documents.back') }}
+            <span class="hidden sm:inline">{{ documentsData?.back || t('documents.back') }}</span>
           </UButton>
           <UButton
             icon="i-lucide-plus"
@@ -97,7 +97,7 @@ onMounted(async () => {
             size="sm"
             @click="createNewDocument"
           >
-            {{ documentsData?.newDocument || t('documents.newDocument') }}
+            <span class="hidden sm:inline">{{ documentsData?.newDocument || t('documents.newDocument') }}</span>
           </UButton>
           <template v-if="authInitialized">
             <UButton
@@ -107,7 +107,7 @@ onMounted(async () => {
               variant="soft"
               size="sm"
             >
-              {{ user?.name || user?.email }}
+              <span class="hidden sm:inline">{{ user?.name || user?.email }}</span>
             </UButton>
             <UButton
               v-if="user"
@@ -117,7 +117,7 @@ onMounted(async () => {
               size="sm"
               @click="async () => { await logout(); await navigateTo(safeLocalePath('/')) }"
             >
-              {{ appData?.logout || t('app.logout') }}
+              <span class="hidden sm:inline">{{ appData?.logout || t('app.logout') }}</span>
             </UButton>
           </template>
           <div

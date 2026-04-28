@@ -11,6 +11,7 @@ import { useAuth } from '~/composables/useAuth'
 import { useDocuments } from '~/composables/useDocuments'
 import { useSafeLocalePath } from '~/utils/safeLocalePath'
 import { useFocusMode } from '~/composables/useFocusMode'
+import { useTTS } from '~/composables/useTTS'
 
 const { tm: $tm, t } = useI18n()
 
@@ -505,6 +506,49 @@ const isAIAssisting = ref(false)
 // 专注模式
 const { isFocusMode, toggleFocusMode, exitFocusMode } = useFocusMode()
 
+// TTS 朗读功能
+const {
+  isPlaying: isTTSPlaying,
+  isPaused: isTTSPaused,
+  isLoading: isTTSLoading,
+  currentTime: ttsCurrentTime,
+  duration: ttsDuration,
+  error: ttsError,
+  speak: ttsSpeak,
+  pause: ttsPause,
+  resume: ttsResume,
+  stop: ttsStop,
+  seek: ttsSeek
+} = useTTS()
+
+// 朗读选中文本或全文
+function handleReadAloud(editor: Editor | null) {
+  if (!editor) return
+
+  const { state } = editor
+  const { from, to } = state.selection
+
+  let textToRead: string
+
+  if (from !== to) {
+    // 有选中文本，朗读选中部分
+    textToRead = state.doc.textBetween(from, to, ' ')
+  } else {
+    // 无选中文本，朗读全文
+    textToRead = state.doc.textContent
+  }
+
+  if (!textToRead?.trim()) {
+    return
+  }
+
+  if (isTTSPlaying.value) {
+    ttsStop()
+  } else {
+    ttsSpeak(textToRead)
+  }
+}
+
 // AI 侧边栏对话
 const showAIChat = ref(false)
 const showMobileChat = ref(false)
@@ -657,6 +701,13 @@ function downloadFile(content: string, filename: string, mimeType: string) {
   URL.revokeObjectURL(url)
 }
 
+// 格式化时间（秒 -> mm:ss）
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
 // 导出下拉菜单项
 const exportItems = computed(() => [
   {
@@ -732,6 +783,21 @@ const collabMenuItems = computed(() => {
       onSelect: () => { showCommentPanel.value = true }
     })
   }
+  return items
+})
+
+// 移动端合并菜单：文件操作 + 协作
+const mobileMoreItems = computed(() => {
+  const items: Array<Array<{ label: string; icon: string; onSelect?: () => void; to?: string }>> = []
+
+  // 协作操作
+  if (collabMenuItems.value.length > 0) {
+    items.push(collabMenuItems.value)
+  }
+
+  // 文件操作
+  items.push(fileMenuItems.value)
+
   return items
 })
 
@@ -1258,6 +1324,43 @@ defineExpose({
                         {{ editorData?.aiContinue || t('editor.aiContinue') }}
                       </span>
                     </UButton>
+                    <!-- 朗读按钮（仅登录用户） -->
+                    <template v-if="user">
+                      <UTooltip :text="isTTSLoading ? (editorData?.ttsLoading || t('editor.ttsLoading')) : (isTTSPlaying ? (editorData?.stopReading || t('editor.stopReading')) : (editorData?.readAloud || t('editor.readAloud')))">
+                        <UButton
+                          :disabled="!content || !content.trim() || isTTSLoading"
+                          :loading="isTTSLoading"
+                          :color="isTTSPlaying ? 'error' : 'primary'"
+                          :icon="isTTSLoading ? undefined : (isTTSPlaying ? 'i-lucide-square' : 'i-lucide-volume-2')"
+                          size="sm"
+                          variant="soft"
+                          @click="handleReadAloud(editor)"
+                        />
+                      </UTooltip>
+                      <!-- TTS 播放控制（播放中显示） -->
+                      <div
+                        v-if="isTTSPlaying"
+                        class="flex items-center gap-2 text-xs text-muted"
+                      >
+                        <UButton
+                          :icon="isTTSPaused ? 'i-lucide-play' : 'i-lucide-pause'"
+                          size="xs"
+                          variant="ghost"
+                          color="neutral"
+                          @click="isTTSPaused ? ttsResume() : ttsPause()"
+                        />
+                        <USlider
+                          :model-value="ttsCurrentTime"
+                          :max="ttsDuration || 1"
+                          :step="0.1"
+                          class="w-20 sm:w-32"
+                          @update:model-value="(val: number) => ttsSeek(val)"
+                        />
+                        <span class="hidden sm:inline whitespace-nowrap">
+                          {{ formatTime(ttsCurrentTime) }} / {{ formatTime(ttsDuration) }}
+                        </span>
+                      </div>
+                    </template>
                   </div>
                 </div>
                 <!-- Mobile-only AI Chat button -->
@@ -1322,9 +1425,9 @@ defineExpose({
                     type="file"
                     @change="handleFileImport"
                   >
-                  <!-- 文件操作下拉菜单 -->
+                  <!-- 文件操作下拉菜单（桌面端） -->
                   <UDropdownMenu
-                    v-if="user"
+                    v-if="user && !$device.isMobile"
                     :items="fileMenuItems"
                     :content="{ align: 'end' }"
                   >
@@ -1334,14 +1437,12 @@ defineExpose({
                       variant="soft"
                       color="primary"
                     >
-                      <span v-if="!$device.isMobile">
-                        {{ editorData?.fileActions || t('editor.fileActions') }}
-                      </span>
+                      {{ editorData?.fileActions || t('editor.fileActions') }}
                     </UButton>
                   </UDropdownMenu>
-                  <!-- 协作下拉菜单 -->
+                  <!-- 协作下拉菜单（桌面端） -->
                   <UDropdownMenu
-                    v-if="user && collabMenuItems.length > 0"
+                    v-if="user && collabMenuItems.length > 0 && !$device.isMobile"
                     :items="collabMenuItems"
                     :content="{ align: 'end' }"
                   >
@@ -1351,10 +1452,21 @@ defineExpose({
                       variant="soft"
                       color="primary"
                     >
-                      <span v-if="!$device.isMobile">
-                        {{ editorData?.collabActions || t('editor.collabActions') }}
-                      </span>
+                      {{ editorData?.collabActions || t('editor.collabActions') }}
                     </UButton>
+                  </UDropdownMenu>
+                  <!-- 移动端：合并菜单 -->
+                  <UDropdownMenu
+                    v-if="user && $device.isMobile"
+                    :items="mobileMoreItems"
+                    :content="{ align: 'end' }"
+                  >
+                    <UButton
+                      icon="i-lucide-ellipsis"
+                      size="sm"
+                      variant="soft"
+                      color="primary"
+                    />
                   </UDropdownMenu>
                   <!-- 版本历史 (图标按钮) -->
                   <UButton
@@ -1383,7 +1495,7 @@ defineExpose({
                       :class="{ 'animate-spin': saveStatus.spin }"
                       :name="saveStatus.icon"
                     />
-                    <span>{{ saveStatus.text }}</span>
+                    <span class="hidden sm:inline">{{ saveStatus.text }}</span>
                   </div>
                 </div>
               </div>

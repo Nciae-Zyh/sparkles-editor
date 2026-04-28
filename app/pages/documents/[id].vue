@@ -158,7 +158,7 @@ const handleRenameInputUpdate = (value: string) => {
     <!-- Breadcrumbs -->
     <div
       v-if="!pageLoading && document"
-      class="px-8 pt-3 pb-1 shrink-0"
+      class="px-4 sm:px-8 pt-3 pb-1 shrink-0"
     >
       <DocumentsBreadcrumbs
         :document-id="documentId"
@@ -177,11 +177,11 @@ const handleRenameInputUpdate = (value: string) => {
         <!-- 工具栏骨架 -->
         <div class="skeleton-shimmer h-11 border-b border-default shrink-0" />
         <!-- 标题骨架 -->
-        <div class="px-8 pt-8 pb-4 shrink-0">
+        <div class="px-4 sm:px-8 pt-8 pb-4 shrink-0">
           <div class="skeleton-shimmer h-9 w-72 rounded-md" />
         </div>
         <!-- 内容行骨架 -->
-        <div class="px-8 flex flex-col gap-3">
+        <div class="px-4 sm:px-8 flex flex-col gap-3">
           <div class="skeleton-shimmer h-4 w-full rounded" />
           <div class="skeleton-shimmer h-4 w-5/6 rounded" />
           <div class="skeleton-shimmer h-4 w-4/5 rounded" />
@@ -225,7 +225,7 @@ const handleRenameInputUpdate = (value: string) => {
     <!-- Backlinks -->
     <div
       v-if="!pageLoading && document"
-      class="px-8 pb-8"
+      class="px-4 sm:px-8 pb-8"
     >
       <DocumentsBacklinks :document-id="documentId" />
     </div>
