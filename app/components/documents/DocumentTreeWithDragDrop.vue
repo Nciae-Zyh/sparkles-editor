@@ -1303,10 +1303,10 @@ watch(currentDocumentId, async (newId) => {
       </h2>
       <div class="flex gap-2">
         <UButton
-          :to="safeLocalePath('/')"
           icon="i-lucide-file-plus"
           size="sm"
           variant="soft"
+          @click="openCreateDocumentModal()"
         >
           {{ documentsData?.newDocument || t('documents.newDocument') }}
         </UButton>

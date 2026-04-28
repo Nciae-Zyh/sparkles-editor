@@ -801,6 +801,26 @@ const mobileMoreItems = computed(() => {
   return items
 })
 
+// 桌面端合并菜单：文件操作 + 协作（带分组标签）
+const desktopMoreItems = computed(() => {
+  const items: Array<{ label: string; icon?: string; onSelect?: () => void; to?: string; type?: string }> = []
+
+  // 文件操作
+  for (const item of fileMenuItems.value) {
+    items.push(item)
+  }
+
+  // 分隔线
+  if (collabMenuItems.value.length > 0) {
+    items.push({ type: 'separator', label: '' })
+    for (const item of collabMenuItems.value) {
+      items.push(item)
+    }
+  }
+
+  return items
+})
+
 // 导入Markdown文件功能
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const isImporting = ref(false)
@@ -1425,35 +1445,18 @@ defineExpose({
                     type="file"
                     @change="handleFileImport"
                   >
-                  <!-- 文件操作下拉菜单（桌面端） -->
+                  <!-- 操作菜单（桌面端：合并文件和协作） -->
                   <UDropdownMenu
                     v-if="user && !$device.isMobile"
-                    :items="fileMenuItems"
+                    :items="desktopMoreItems"
                     :content="{ align: 'end' }"
                   >
                     <UButton
-                      icon="i-lucide-file"
+                      icon="i-lucide-ellipsis"
                       size="sm"
                       variant="soft"
                       color="primary"
-                    >
-                      {{ editorData?.fileActions || t('editor.fileActions') }}
-                    </UButton>
-                  </UDropdownMenu>
-                  <!-- 协作下拉菜单（桌面端） -->
-                  <UDropdownMenu
-                    v-if="user && collabMenuItems.length > 0 && !$device.isMobile"
-                    :items="collabMenuItems"
-                    :content="{ align: 'end' }"
-                  >
-                    <UButton
-                      icon="i-lucide-users"
-                      size="sm"
-                      variant="soft"
-                      color="primary"
-                    >
-                      {{ editorData?.collabActions || t('editor.collabActions') }}
-                    </UButton>
+                    />
                   </UDropdownMenu>
                   <!-- 移动端：合并菜单 -->
                   <UDropdownMenu
