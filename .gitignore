@@ -29,3 +29,8 @@ logs
 .env.*
 !.env.example
 .wrangler
+docker-compose.dev.yml
+.env.local
+.env.development
+node_modules/
+.pnpm-store/

@@ -119,6 +119,10 @@
     "versionRestored": "版本已恢复",
     "versionRestoreFailed": "恢复失败",
     "fileActions": "文件",
-    "collabActions": "协作"
+    "collabActions": "协作",
+    "readAloud": "朗读",
+    "stopReading": "停止朗读",
+    "ttsLoading": "加载音频中...",
+    "ttsError": "音频加载失败"
   }
 }
