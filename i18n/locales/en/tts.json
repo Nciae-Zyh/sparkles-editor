@@ -1,0 +1,9 @@
+{
+  "tts": {
+    "emptyText": "No text to read",
+    "playbackError": "Playback error",
+    "requestError": "TTS request failed",
+    "playing": "Playing",
+    "paused": "Paused"
+  }
+}

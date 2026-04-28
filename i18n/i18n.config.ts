@@ -13,6 +13,7 @@ import enLink from './locales/en/link.json';
 import enShares from './locales/en/shares.json';
 import enSuggestions from './locales/en/suggestions.json';
 import enToolbar from './locales/en/toolbar.json';
+import enTts from './locales/en/tts.json';
 import zhActions from './locales/zh/actions.json';
 import zhApp from './locales/zh/app.json';
 import zhAuth from './locales/zh/auth.json';
@@ -25,6 +26,7 @@ import zhLink from './locales/zh/link.json';
 import zhShares from './locales/zh/shares.json';
 import zhSuggestions from './locales/zh/suggestions.json';
 import zhToolbar from './locales/zh/toolbar.json';
+import zhTts from './locales/zh/tts.json';
 
 // 自定义合并函数，用于递归地将文件数组合并到对应的语言键下
 const mergeAllLanguage = (arr: any[], language?: string) => {
@@ -49,8 +51,8 @@ const mergeAllLanguage = (arr: any[], language?: string) => {
  * 用于运行时动态合并。
  */
 const LanguageModuleArrays = {
-  'en': [enActions, enApp, enAuth, enBeforeunload, enDocuments, enDragHandle, enEditor, enImage, enLink, enShares, enSuggestions, enToolbar] as const,
-  'zh': [zhActions, zhApp, zhAuth, zhBeforeunload, zhDocuments, zhDragHandle, zhEditor, zhImage, zhLink, zhShares, zhSuggestions, zhToolbar] as const,
+  'en': [enActions, enApp, enAuth, enBeforeunload, enDocuments, enDragHandle, enEditor, enImage, enLink, enShares, enSuggestions, enToolbar, enTts] as const,
+  'zh': [zhActions, zhApp, zhAuth, zhBeforeunload, zhDocuments, zhDragHandle, zhEditor, zhImage, zhLink, zhShares, zhSuggestions, zhToolbar, zhTts] as const,
 } as const;
 
 // 动态构建最终的 messages 对象
